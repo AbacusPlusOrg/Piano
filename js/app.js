@@ -536,9 +536,17 @@
     return names;
   }
 
+  function logNote(text) {
+    try { setStatus("err", escapeHtml(text)); } catch (e) {}
+  }
+
   function attachInputs(access) {
     access.inputs.forEach(function (input) {
       input.onmidimessage = onMIDIMessage;
+      // Some Android browsers don't open the port just from setting the handler.
+      if (input.open && input.connection !== "open") {
+        input.open().catch(function (e) { logNote("Could not open " + (input.name || "input") + ": " + (e && e.message || e)); });
+      }
     });
   }
 
