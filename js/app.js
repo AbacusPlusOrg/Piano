@@ -583,34 +583,59 @@
 
   function requestMIDI(fromGesture) {
     if (!midiSupported() || !isSecure()) {
-      setStatus("err", unsupportedReason());
-      els.btnConnect.disabled = !midiSupported();
+      // Keep the button tappable so a tap always explains what's wrong.
+      setStatus("err", unsupportedReason() + " <br><small>Browser: " + escapeHtml(navigator.userAgent) + "</small>");
       return;
     }
-    if (state.connecting) return;
+    // A tap always gets its own request. An earlier automatic request can hang
+    // forever on some Android browsers, so it must never block a tap.
+    if (!fromGesture && state.connecting) return;
     state.connecting = true;
-    if (fromGesture) els.btnConnect.disabled = true;
+    var attempt = (state.attempt = (state.attempt || 0) + 1);
+    if (fromGesture) {
+      els.btnConnect.textContent = "Asking the browser…";
+      setStatus("warn", "Asking the browser for MIDI access. If a permission prompt appears, tap <strong>Allow</strong>.");
+      setTimeout(function () {
+        if (state.attempt === attempt && state.connecting && !state.access) {
+          els.btnConnect.textContent = "Connect MIDI Keyboard Input";
+          setStatus("err", "The browser hasn't answered the MIDI request. Check for a permission prompt or a blocked-permission icon in the address bar, then tap again. If nothing ever appears, this browser may have Web MIDI turned off: try Chrome.");
+        }
+      }, 8000);
+    }
 
-    navigator.requestMIDIAccess({ sysex: false }).then(function (access) {
+    var p;
+    try {
+      p = navigator.requestMIDIAccess({ sysex: false });
+    } catch (e) {
+      p = Promise.reject(e);
+    }
+    p.then(function (access) {
       state.connecting = false;
-      els.btnConnect.disabled = false;
       state.access = access;
       attachInputs(access);
       hookStateChange(access);
       updateConnectionStatus();
     }).catch(function (err) {
       state.connecting = false;
-      els.btnConnect.disabled = false;
+      if (!fromGesture) return; // a silent auto-try failing is not news
       els.btnConnect.classList.remove("is-connected");
       els.btnConnect.textContent = "Connect MIDI Keyboard Input";
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
-        setStatus("err", "MIDI permission was denied. Tap <strong>Connect MIDI Keyboard Input</strong> and allow access when the browser asks. " + escapeHtml(msg));
+        setStatus("err", "MIDI permission was denied. Tap the icon left of the address bar, open <strong>Permissions</strong>, allow MIDI devices, then tap <strong>Connect MIDI Keyboard Input</strong> again. " + escapeHtml(msg));
       } else {
-        setStatus("err", "Could not open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ". If this persists, try Chrome or another Chromium browser over https or localhost.");
+        setStatus("err", "Could not open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ". If this persists, try Chrome over https.");
       }
     });
+  }
+
+  // Only auto-connect when permission was already granted; otherwise wait for a tap.
+  function autoConnectIfGranted() {
+    if (!navigator.permissions || !navigator.permissions.query) return;
+    navigator.permissions.query({ name: "midi", sysex: false }).then(function (res) {
+      if (res && res.state === "granted") requestMIDI(false);
+    }).catch(function () { /* unknown permission name: wait for a tap */ });
   }
 
   /* ---------- wake lock ---------- */
@@ -711,11 +736,8 @@
   requestAnimationFrame(rebuildKeyboard);
   if (!midiSupported() || !isSecure()) {
     setStatus("err", unsupportedReason());
-    if (!midiSupported()) els.btnConnect.disabled = true;
   } else {
     setStatus("warn", "Tap <strong>Connect MIDI Keyboard Input</strong> to allow this page to see your keyboard. A Garagekey Mini usually shows up as soon as it is plugged in over USB.");
-    // Auto-try: works if permission was already granted. Must not replace the button,
-    // because some browsers only grant access from a user gesture.
-    requestMIDI(false);
+    autoConnectIfGranted();
   }
 })();
