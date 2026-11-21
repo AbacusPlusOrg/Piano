@@ -86,7 +86,7 @@ try {
   const boot = await page.evaluate(() => window.__pfTest.getState());
   check("secure context on localhost", boot.secureContext === true);
   check("midiSupported flag is boolean", typeof boot.midiSupported === "boolean", String(boot.midiSupported));
-  check("default visible range C2-C5 (36-72)", boot.visibleLow === 36 && boot.visibleHigh === 72,
+  check("default visible range C3-C6 (48-84)", boot.visibleLow === 48 && boot.visibleHigh === 84,
     JSON.stringify({ low: boot.visibleLow, high: boot.visibleHigh }));
   const keyCount = await page.evaluate(() => document.querySelectorAll(".key").length);
   check("37 white+black keys in DOM", keyCount === 37, String(keyCount));
@@ -200,7 +200,7 @@ try {
   await page.evaluate(() => document.getElementById("btn-reset-range").click());
   await new Promise((r) => setTimeout(r, 40));
   st = await page.evaluate(() => window.__pfTest.getState());
-  check("reset returns visible range to 36-72", st.visibleLow === 36 && st.visibleHigh === 72,
+  check("reset returns visible range to 48-84", st.visibleLow === 48 && st.visibleHigh === 84,
     JSON.stringify({ low: st.visibleLow, high: st.visibleHigh }));
 
   const beforeFilter = await page.evaluate(() => window.__pfTest.getState().logLength);

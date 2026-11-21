@@ -4,8 +4,8 @@
 
   var NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   var BLACK_PC = { 1: true, 3: true, 6: true, 8: true, 10: true };
-  var DEFAULT_LOW = 36; // C2 in the C4 = 60 convention
-  var DEFAULT_HIGH = 72; // C5
+  var DEFAULT_LOW = 48; // C3 in the C4 = 60 convention
+  var DEFAULT_HIGH = 84; // C6 (Garagekey Mini default octave)
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
 
