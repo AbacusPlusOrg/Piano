@@ -397,7 +397,7 @@ button {
 .log .row {
   display: grid;
   grid-template-columns: 8ch 8ch 10ch minmax(9ch, 18ch) 5ch 2ch;
-  column-gap: 1ch;
+  column-gap: 1.6ch;
   white-space: nowrap;
   justify-content: start;
 }
@@ -515,3 +515,14 @@ body.blocked .connect-row { display: none; }
 .now-card .last-name { min-width: 0; white-space: nowrap; }
 .stats .v { white-space: nowrap; }
 .sustain { display: inline-block; text-align: center; box-sizing: border-box; }
+
+/* Thin dividers between log column headers, centred in the column gap */
+.log .row.head > span { position: relative; overflow: visible; }
+.log .row.head > span + span::before {
+  content: ""; position: absolute; left: -0.85ch; top: 10%; bottom: 10%;
+  border-left: 1px solid #4a4038;
+}
+@media (max-width: 400px) {
+  .log .row { column-gap: 1.2ch; grid-template-columns: 8ch 8ch 9ch minmax(9ch, 18ch) 5ch 2ch; }
+  .log .row.head > span + span::before { left: -0.65ch; }
+}
