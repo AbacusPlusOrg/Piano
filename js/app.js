@@ -832,7 +832,7 @@
   function showBlocked() {
     document.body.classList.add("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-    setStatus("err", "MIDI permission is " + DENIED_WORD + " for this site.<br>Allow MIDI in the browser's site settings.");
+    setStatus("err", "MIDI permission is " + DENIED_WORD + " for this site.<br>Allow MIDI in " + BROWSER_POSSESSIVE + " site settings.");
   }
 
   // React to the MIDI permission: connect when it is (or becomes) granted,
@@ -867,7 +867,24 @@
 
   // Match the browser's own settings wording: Brave says "Not allowed",
   // Chrome and most others say "Blocked".
-  var DENIED_WORD = (navigator.brave && typeof navigator.brave.isBrave === "function") ? "not allowed" : "blocked";
+  var BROWSER_NAME = (function () {
+    if (navigator.brave && typeof navigator.brave.isBrave === "function") return "Brave";
+    var ua = navigator.userAgent || "";
+    var checks = [
+      [/SamsungBrowser\//, "Samsung Internet"],
+      [/EdgA?\/|EdgiOS\//, "Edge"],
+      [/OPR\/|OPT\/|Opera/, "Opera"],
+      [/Vivaldi\//, "Vivaldi"],
+      [/YaBrowser\//, "Yandex"],
+      [/DuckDuckGo\//, "DuckDuckGo"],
+      [/Firefox\/|FxiOS\//, "Firefox"],
+      [/Chrome\/|CriOS\//, "Chrome"]
+    ];
+    for (var i = 0; i < checks.length; i++) if (checks[i][0].test(ua)) return checks[i][1];
+    return "";
+  })();
+  var BROWSER_POSSESSIVE = BROWSER_NAME ? BROWSER_NAME + "'s" : "the browser's";
+  var DENIED_WORD = BROWSER_NAME === "Brave" ? "not allowed" : "blocked";
 
   var PERM_TEXT = {
     granted: "MIDI permission: allowed",
