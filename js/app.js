@@ -40,7 +40,7 @@
     seenHigh: null,
     log: [],
     filterRealtime: true,
-    logOpen: false,
+    logOpen: true,
     runningStatus: 0,
     latency: [],
     wakeLock: null,
