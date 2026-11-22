@@ -105,17 +105,17 @@
     var isMac = /Macintosh|Mac OS X/.test(ua) && !isiOS;
     if (!midiSupported()) {
       // Every iPhone and iPad browser runs on Safari's engine, which has no MIDI.
-      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device, or Chrome or Edge on a computer.";
-      if (isMac && BROWSER_NAME === "Safari") return "Safari doesn't support MIDI.<br>Use Chrome or Edge on this Mac.";
+      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device or a computer.";
+      if (isMac && BROWSER_NAME === "Safari") return "Safari doesn't support MIDI.<br>Use another browser on this Mac.";
       // A Chromium browser without MIDI is usually old or has it turned off.
       if (/^(Chrome|Edge|Brave|Opera|Vivaldi|Samsung Internet|Yandex)$/.test(BROWSER_NAME)) {
         return "MIDI isn't available in this version of " + BROWSER_NAME + ".<br>Update " + BROWSER_NAME + ", then reload this page.";
       }
       var who = BROWSER_NAME ? BROWSER_NAME + (isAndroid ? " for Android" : "") : "This browser";
-      return who + " doesn't support MIDI.<br>" + (isAndroid ? "Use Chrome or Brave on this device." : "Use Chrome or Edge.");
+      return who + " doesn't support MIDI.<br>" + (isAndroid ? "Use another browser on this device." : "Use another browser.");
     }
     if (!isSecure()) return "MIDI needs a secure (https) page.";
-    return "This browser can't use MIDI.<br>Use Chrome or Edge.";
+    return "This browser can't use MIDI.<br>Use another browser.";
   }
 
 
