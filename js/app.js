@@ -114,7 +114,7 @@
       var who = BROWSER_NAME ? BROWSER_NAME + (isAndroid ? " for Android" : "") : "This browser";
       return who + " doesn't support MIDI.<br>" + (isAndroid ? "Use another browser on this device." : "Use another browser.");
     }
-    if (!isSecure()) return "MIDI needs a secure (https) page.";
+    if (!isSecure()) return "MIDI needs a secure (https) page.<br>Open this page with https:// at the start of the address.";
     return "This browser can't use MIDI.<br>Use another browser.";
   }
 
