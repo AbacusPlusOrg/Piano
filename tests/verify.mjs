@@ -78,7 +78,7 @@ try {
   const resp = await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
   await new Promise((r) => setTimeout(r, 200));
   check("page HTTP status", resp && resp.ok(), resp ? String(resp.status()) : "no response");
-  check("title", (await page.title()) === "A+Piano — MIDI test", await page.title());
+  check("title", (await page.title()) === "A+Piano — MIDI Input Test", await page.title());
 
   const hasHook = await page.evaluate(() => typeof window.__pfTest?.feed === "function");
   check("__pfTest.feed exposed", hasHook);

@@ -1,4 +1,4 @@
-# A+Piano — MIDI test (slice 1)
+# A+Piano — MIDI Input Test (slice 1)
 
 A single-page check that your keyboard is seen by the phone, that notes light on screen, and that velocity and octave shifts are reported clearly. There is no sound, and nothing is saved.
 

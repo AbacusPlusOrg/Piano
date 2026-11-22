@@ -1,4 +1,4 @@
-/* A+Piano: MIDI test (slice 1) */
+/* A+Piano: MIDI Input Test (slice 1) */
 (function () {
   "use strict";
 
