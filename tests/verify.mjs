@@ -86,10 +86,10 @@ try {
   const boot = await page.evaluate(() => window.__pfTest.getState());
   check("secure context on localhost", boot.secureContext === true);
   check("midiSupported flag is boolean", typeof boot.midiSupported === "boolean", String(boot.midiSupported));
-  check("default visible range C3-C6 (48-84)", boot.visibleLow === 48 && boot.visibleHigh === 84,
+  check("default visible range C4-C5 (60-72)", boot.visibleLow === 60 && boot.visibleHigh === 72,
     JSON.stringify({ low: boot.visibleLow, high: boot.visibleHigh }));
   const keyCount = await page.evaluate(() => document.querySelectorAll(".key").length);
-  check("37 white+black keys in DOM", keyCount === 37, String(keyCount));
+  check("13 white+black keys in DOM (C4-C5)", keyCount === 13, String(keyCount));
 
   const statusText = await page.evaluate(() => document.querySelector("#status .msg").innerText);
   console.log("STATUS  " + statusText.replace(/\s+/g, " "));
@@ -98,7 +98,7 @@ try {
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));
   check("portrait keys keep piano proportion (h/w ~6.4)", Math.abs(portLay.kb.h / (portLay.kb.w / portLay.whiteCount) - 6.4) < 0.3, JSON.stringify(portLay.kb));
-  check("portrait black keys have height", portLay.blackCount === 15 && Math.abs(portLay.blackH / portLay.whiteH - 0.62) < 0.03,
+  check("portrait black keys have height", portLay.blackCount === 5 && Math.abs(portLay.blackH / portLay.whiteH - 0.62) < 0.03,
     JSON.stringify({ blackCount: portLay.blackCount, blackH: portLay.blackH, whiteH: portLay.whiteH }));
 
   await page.evaluate(() => window.__pfTest.feed([0x90, 60, 100]));
@@ -178,7 +178,7 @@ try {
   const landLay = await layoutInfo(page);
   console.log("LAYOUT landscape", JSON.stringify(landLay));
   check("landscape keyboard is tall enough", landLay.kb.h >= 110, JSON.stringify(landLay.kb));
-  check("landscape black keys visible", landLay.blackCount === 15 && landLay.blackH >= 60 && landLay.blackW >= 8,
+  check("landscape black keys visible", landLay.blackCount >= 5 && landLay.blackH >= 60 && landLay.blackW >= 8,
     JSON.stringify({ blackCount: landLay.blackCount, blackH: landLay.blackH, blackW: landLay.blackW, whiteH: landLay.whiteH }));
 
   await page.evaluate(() => window.__pfTest.feed([0x90, 24, 90]));
@@ -200,7 +200,7 @@ try {
   await page.evaluate(() => document.getElementById("btn-reset-range").click());
   await new Promise((r) => setTimeout(r, 40));
   st = await page.evaluate(() => window.__pfTest.getState());
-  check("reset returns visible range to 48-84", st.visibleLow === 48 && st.visibleHigh === 84,
+  check("reset returns visible range to 60-72", st.visibleLow === 60 && st.visibleHigh === 72,
     JSON.stringify({ low: st.visibleLow, high: st.visibleHigh }));
 
   const beforeFilter = await page.evaluate(() => window.__pfTest.getState().logLength);

@@ -26,7 +26,7 @@ On-screen keys can be tapped to test the lights without the hardware. Those even
 
 - The **device name** shown after Connect MIDI Keyboard.
 - Whether notes **light correctly** while held, and go dark on release (try a short note and a held chord).
-- **Lowest seen** and **Highest seen** with the octave buttons at the default setting (expected range is C3–C6, MIDI 48–84 in the C4 = 60 convention — report the numbers the app shows, even if they differ).
+- **Lowest seen** and **Highest seen** with the octave buttons at the default setting (expected range is C3–C6 on a Garagekey Mini (MIDI 48–84); the on-screen keyboard starts at C4–C5 and switches to the connected keyboard's range in the C4 = 60 convention — report the numbers the app shows, even if they differ).
 - What those two values do after you press octave − and octave + once each.
 - The **velocity** range you see from a soft press and a hard press.
 - Whether anything felt **laggy**, and the on-screen delay figure (that number is visual lag only; the app does not play sound).

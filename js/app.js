@@ -4,8 +4,15 @@
 
   var NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   var BLACK_PC = { 1: true, 3: true, 6: true, 8: true, 10: true };
-  var DEFAULT_LOW = 48; // C3 in the C4 = 60 convention
-  var DEFAULT_HIGH = 84; // C6
+  var DEFAULT_LOW = 60; // C4 in the C4 = 60 convention
+  var DEFAULT_HIGH = 72; // C5
+  // MIDI doesn't tell a page how many keys a keyboard has. These ranges come from
+  // owners' reports at the keyboard's default octave; anything else is learned from
+  // the notes played and remembered on this phone by device name.
+  var KNOWN_RANGES = [
+    { match: /garagekey\s*mini/i, low: 48, high: 84 }
+  ];
+  var RANGE_STORE_KEY = "aplus.deviceRanges.v1";
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
 
@@ -13,6 +20,9 @@
     access: null,
     visibleLow: DEFAULT_LOW,
     visibleHigh: DEFAULT_HIGH,
+    homeLow: DEFAULT_LOW,
+    homeHigh: DEFAULT_HIGH,
+    rangeDevice: null,
     held: {},       // note -> { vel, sources: { midi: ch, touch: true } }
     sustained: {},  // notes held only by the pedal
     sustainOn: false,
@@ -113,17 +123,83 @@
     return false;
   }
 
-  function resetRange() {
-    state.visibleLow = DEFAULT_LOW;
-    state.visibleHigh = DEFAULT_HIGH;
+  function snapLow(n) { return isBlack(n) ? n - 1 : n; }
+  function snapHigh(n) { return isBlack(n) ? n + 1 : n; }
+
+  function loadRanges() {
+    try { return JSON.parse(localStorage.getItem(RANGE_STORE_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function saveRanges(r) {
+    try { localStorage.setItem(RANGE_STORE_KEY, JSON.stringify(r)); } catch (e) {}
+  }
+
+  function knownRange(name) {
+    for (var i = 0; i < KNOWN_RANGES.length; i++) {
+      if (KNOWN_RANGES[i].match.test(name || "")) return { low: KNOWN_RANGES[i].low, high: KNOWN_RANGES[i].high };
+    }
+    return null;
+  }
+
+  // Range to show for a device: its known range, widened by anything learned on this phone.
+  function deviceRange(name) {
+    var r = knownRange(name);
+    var learned = name ? loadRanges()[name] : null;
+    if (learned) {
+      r = r ? { low: Math.min(r.low, learned.low), high: Math.max(r.high, learned.high) } : { low: learned.low, high: learned.high };
+    }
+    if (!r) return null;
+    // Too few notes learned yet: keep at least the default octave in view.
+    if (r.high - r.low < 12) r = { low: Math.min(r.low, DEFAULT_LOW), high: Math.max(r.high, DEFAULT_HIGH) };
+    return { low: snapLow(r.low), high: snapHigh(r.high) };
+  }
+
+  function setHomeRange(low, high) {
+    state.homeLow = low;
+    state.homeHigh = high;
+    state.visibleLow = low;
+    state.visibleHigh = high;
     buildKeyboard();
     updateRangeLabel();
+  }
+
+  // Called when the set of connected inputs changes.
+  function applyDeviceRange(names) {
+    var name = names.length ? names[0] : null;
+    if (name === state.rangeDevice) return;
+    state.rangeDevice = name;
+    var r = name ? deviceRange(name) : null;
+    if (r) setHomeRange(r.low, r.high);
+    else setHomeRange(DEFAULT_LOW, DEFAULT_HIGH);
+  }
+
+  function learnNote(name, note) {
+    if (!name) return;
+    var all = loadRanges();
+    var r = all[name];
+    if (!r) r = all[name] = { low: note, high: note };
+    else if (note >= r.low && note <= r.high) return;
+    else { r.low = Math.min(r.low, note); r.high = Math.max(r.high, note); }
+    saveRanges(all);
+    updateRangeLabel();
+  }
+
+  function resetRange() {
+    // Forget what this phone learned for the device and go back to its starting range.
+    if (state.rangeDevice) {
+      var all = loadRanges();
+      delete all[state.rangeDevice];
+      saveRanges(all);
+    }
+    var r = state.rangeDevice ? deviceRange(state.rangeDevice) : null;
+    if (r) setHomeRange(r.low, r.high);
+    else setHomeRange(DEFAULT_LOW, DEFAULT_HIGH);
   }
 
   function updateRangeLabel() {
     var n = state.visibleHigh - state.visibleLow + 1;
     els.rangeLabel.textContent = "Visible " + noteName(state.visibleLow) + "–" + noteName(state.visibleHigh) + " · " + n + " keys";
-    els.btnResetRange.disabled = (state.visibleLow === DEFAULT_LOW && state.visibleHigh === DEFAULT_HIGH);
+    var learned = state.rangeDevice && loadRanges()[state.rangeDevice];
+    els.btnResetRange.disabled = !learned && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh;
   }
 
   function whiteNotesInRange() {
@@ -283,6 +359,7 @@
   function noteOn(note, vel, ch, source) {
     if (note < 0 || note > 127) return;
     extendRangeTo(note);
+    if (source === "midi") learnNote(state.lastDeviceName || state.rangeDevice, note);
     var entry = state.held[note] || { vel: vel, sources: {} };
     entry.vel = vel;
     entry.sources[source] = (source === "midi") ? ch : true;
@@ -520,6 +597,8 @@
     var d = event.data;
     for (var i = 0; i < d.length; i++) arr.push(d[i]);
     var stamp = (typeof event.timeStamp === "number") ? event.timeStamp : performance.now();
+    var t = event.target || event.currentTarget;
+    state.lastDeviceName = (t && t.name) || state.rangeDevice;
     handleBytes(arr, stamp, "midi");
   }
 
@@ -554,6 +633,7 @@
     var access = state.access;
     if (!access) return;
     var names = listInputNames(access);
+    applyDeviceRange(names);
     if (names.length) {
       var list = names.map(function (n) { return "<strong>" + escapeHtml(n) + "</strong>"; }).join(", ");
       setStatus("ok", "Connected: " + list + ".");
