@@ -20,7 +20,7 @@ Until then, you can try it on a laptop in Chrome at `http://localhost:<port>/` a
 4. Press the octave − / + buttons and play again. Watch **Lowest seen** and **Highest seen**.
 5. Optionally open the log if something looks off.
 
-On-screen keys can be tapped to test the lights without the hardware. Those events are marked `touch` in the log.
+On-screen keys can be tapped to test without a MIDI keyboard. Those events are marked `touch` in the log.
 
 ## What to report back
 
