@@ -394,6 +394,10 @@ button {
 .log .src-touch { color: #8eb8e0; }
 .log .row.event { color: var(--ok); }
 .log .row.event.off { color: var(--warn); }
+.log .row.perm .perm-k { color: var(--text-dim); }
+.log .row.perm-granted .perm-v { color: #7fc3e8; font-weight: 600; }
+.log .row.perm-denied .perm-v { color: var(--err); font-weight: 600; }
+.log .row.perm-prompt .perm-v { color: #c9b9e8; }
 .log.empty { color: var(--text-faint); }
 
 .hint {

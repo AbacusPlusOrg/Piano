@@ -605,8 +605,8 @@
   }
 
   // Device connects and disconnects, shown in the log alongside messages.
-  function logEvent(text) {
-    state.log.push({ t: performance.now(), event: text });
+  function logEvent(text, cls) {
+    state.log.push({ t: performance.now(), event: text, cls: cls || "" });
     if (state.log.length > MAX_LOG) state.log.shift();
     renderLog();
   }
@@ -632,8 +632,12 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/^Disconnected|blocked/.test(r.event) ? " off" : "") + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
-          escapeHtml(r.event) + "</div>";
+        var body = escapeHtml(r.event);
+        // Permission rows: dim label, colored state.
+        var m = r.cls && /^(MIDI permission:)\s*(.*)$/.exec(r.event);
+        if (m) body = '<span class="perm-k">' + escapeHtml(m[1]) + '</span> <span class="perm-v">' + escapeHtml(m[2]) + "</span>";
+        html += '<div class="row event' + (r.cls ? " " + r.cls : (/^Disconnected/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+          body + "</div>";
         continue;
       }
       var src = r.source === "touch" ? ' <span class="src-touch">touch</span>' : "";
@@ -875,7 +879,7 @@
   function notePermission(permState) {
     if (!PERM_TEXT[permState] || state.permState === permState) return;
     state.permState = permState;
-    logEvent(PERM_TEXT[permState]);
+    logEvent(PERM_TEXT[permState], "perm perm-" + permState);
   }
 
   function applyPermission(permState) {
