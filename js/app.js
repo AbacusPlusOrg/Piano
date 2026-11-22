@@ -105,7 +105,7 @@
     var isMac = /Macintosh|Mac OS X/.test(ua) && !isiOS;
     if (!midiSupported()) {
       // Every iPhone and iPad browser runs on Safari's engine, which has no MIDI.
-      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device, or a computer with a non-Safari browser.";
+      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device or a computer with a non-Safari browser.";
       if (BROWSER_NAME === "Safari") return "Safari doesn't support MIDI.<br>Use another browser.";
       // A Chromium browser without MIDI is usually old or has it turned off.
       if (/^(Chrome|Edge|Brave|Opera|Vivaldi|Samsung Internet|Yandex)$/.test(BROWSER_NAME)) {
