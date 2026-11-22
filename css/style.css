@@ -412,7 +412,7 @@ button {
 .log .t .gu { text-align: left; padding-left: 0.5ch; color: #5c534a; }
 .log .row.head .t { display: block; text-align: left; }
 .log .d.split { display: grid; grid-template-columns: minmax(0, 1fr) 4ch; }
-.log .d .dn { overflow: hidden; text-overflow: ellipsis; }
+.log .d .dn { overflow: hidden; text-overflow: ellipsis; text-align: right; padding-right: 1ch; }
 .log .d .dc { overflow: visible; }
 .log .val { text-align: right; }
 .log .c { text-align: center; }
