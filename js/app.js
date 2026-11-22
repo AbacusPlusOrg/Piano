@@ -1109,10 +1109,62 @@
     }
   };
 
+  /* ---------- stable slot widths ----------
+     Each readout slot is sized to the widest value it can ever show,
+     measured in the font actually on screen, so neighbours never shift. */
+  function fitSlots() {
+    var nameEl = document.getElementById("last-name");
+    if (nameEl) nameEl.style.fontSize = "";
+    measureSlots();
+    // On narrow screens, shrink the big note name until the Now card fits.
+    var card = document.querySelector(".now-card");
+    if (!card || !nameEl) return;
+    var size = parseFloat(getComputedStyle(nameEl).fontSize), floor = size * 0.5;
+    while (card.scrollWidth > card.clientWidth + 1 && size > floor) {
+      size -= 2;
+      nameEl.style.fontSize = size + "px";
+      measureSlots();
+    }
+  }
+
+  function measureSlots() {
+    var names = [], nums = [], ranges = [], chans = [];
+    for (var n = 0; n < 128; n++) {
+      names.push(noteName(n));
+      nums.push(String(n));
+      ranges.push(noteName(n) + " (" + n + ")");
+    }
+    for (var c = 1; c <= 16; c++) chans.push(String(c));
+    var slots = [
+      ["last-name", names, "width"],
+      ["last-num", nums], ["last-vel", nums], ["held-count", nums],
+      ["seen-low", ranges], ["seen-high", ranges],
+      ["last-ch", chans], ["sustain", ["on", "off"]]
+    ];
+    slots.forEach(function (s) {
+      var el = document.getElementById(s[0]);
+      if (!el) return;
+      var prop = s[2] || "minWidth", keep = el.textContent;
+      el.style.width = ""; el.style.minWidth = "";
+      // Inline spans ignore widths, so they become inline-blocks for good.
+      if (getComputedStyle(el).display === "inline") el.style.display = "inline-block";
+      var w = 0;
+      s[1].forEach(function (t) {
+        el.textContent = t;
+        w = Math.max(w, el.getBoundingClientRect().width);
+      });
+      el.textContent = keep;
+      el.style[prop] = Math.ceil(w) + "px";
+    });
+  }
+
   /* ---------- boot ---------- */
 
   buildKeyboard();
   requestAnimationFrame(rebuildKeyboard);
+  fitSlots();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSlots);
+  window.addEventListener("resize", fitSlots);
   if (!midiSupported() || !isSecure()) {
     setStatus("err", unsupportedReason());
     // Tapping can't help in a browser without MIDI.

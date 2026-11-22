@@ -493,3 +493,8 @@ body.idle .status-wrap { display: none; }
 body.has-access .connect-row,
 body.no-midi .connect-row,
 body.blocked .connect-row { display: none; }
+
+/* Slot widths are measured from the live font in app.js (fitSlots). */
+.now-card .last-name { min-width: 0; white-space: nowrap; }
+.stats .v { white-space: nowrap; }
+.sustain { display: inline-block; text-align: center; box-sizing: border-box; }
