@@ -394,6 +394,7 @@ button {
 .log .src-touch { color: #8eb8e0; }
 .log .row.event { color: var(--ok); }
 .log .row.event.off { color: var(--warn); }
+.log .row.event.err { color: var(--err); }
 .log.empty { color: var(--text-faint); }
 
 .hint {

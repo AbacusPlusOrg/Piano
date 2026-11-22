@@ -632,7 +632,7 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/^Disconnected|blocked/.test(r.event) ? " off" : "") + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (/blocked/.test(r.event) ? " err" : (/^Disconnected/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
