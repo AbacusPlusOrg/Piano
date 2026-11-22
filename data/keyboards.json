@@ -1,0 +1,595 @@
+[
+ {
+  "brand": "Miditech",
+  "model": "Garagekey Mini",
+  "keys": 37,
+  "low": 48,
+  "high": 84,
+  "nameMatch": "garage\\s*key\\s*mini",
+  "rangeConfidence": "manual",
+  "nameConfidence": null,
+  "sources": [
+   "https://cdn.korn.eu/documents/product/235708_m.pdf"
+  ],
+  "note": "Manual: 'Default Octaves C2-C5' (Miditech names middle C 'C3', so C2=48); user confirmed 48-84 on their unit. Port name not documented anywhere I found; regex kept from app.js, confirm against the 'Connected:' line."
+ },
+ {
+  "brand": "Miditech",
+  "model": "Garagekey",
+  "keys": 37,
+  "low": 53,
+  "high": 89,
+  "nameMatch": null,
+  "rangeConfidence": "manual",
+  "nameConfidence": null,
+  "sources": [
+   "https://cdn.korn.eu/documents/product/235708_m.pdf"
+  ],
+  "note": "Same manual: 'Default Octaves F2-F5', same naming as the Mini (C2=48), so F2=53..F5=89. Port name unknown; a regex for it would also catch the Mini."
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Keystation 49 (original USB, 2002)",
+  "keys": 49,
+  "low": 36,
+  "high": 84,
+  "nameMatch": null,
+  "rangeConfidence": "manual",
+  "nameConfidence": null,
+  "sources": [
+   "https://images.thomann.de/pics/atg/atgdata/document/manual/158038_manual.pdf"
+  ],
+  "note": "Manual default settings: 'Oktave von C2 (36) bis C6 (84)'. Old model; port name unknown and a /Keystation 49/ regex would also catch the MK3."
+ },
+ {
+  "brand": "Akai",
+  "model": "MPK mini mk3",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "MPK\\s*mini\\s*3",
+  "rangeConfidence": null,
+  "nameConfidence": "two-sources",
+  "sources": [
+   "https://m.media-amazon.com/images/I/910EySVbd-L.pdf",
+   "https://bpl.bc.ca/images/documents/Digital-Studio-instructions/How-to-Use-the-Akai-MPK-MINI-MK3.pdf",
+   "https://support.akaipro.com/en/support/solutions/articles/69000825635-akai-pro-setting-up-the-mpk-mini-mk3-in-bandlab",
+   "https://linux-hardware.org/?id=usb:09e8-0049"
+  ]
+ },
+ {
+  "brand": "Akai",
+  "model": "MPK mini Plus II",
+  "keys": 37,
+  "low": null,
+  "high": null,
+  "nameMatch": "MPK\\s*mini\\s*Plus\\s*II",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://cdn.inmusicbrands.com/akai/AD43/MPK%20mini%20Plus%20II%20-%20User%20Guide%20-%20v1.14.pdf"
+  ],
+  "note": "Manual names the ports 'MPK mini Plus II' / 'MPK mini Plus II DAW Port'."
+ },
+ {
+  "brand": "Akai",
+  "model": "MPK mini Plus",
+  "keys": 37,
+  "low": null,
+  "high": null,
+  "nameMatch": "MPK\\s*mini\\s*Plus(?!\\s*II)",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:09e8-0054"
+  ],
+  "note": "USB name 'MPK mini Plus' seen in one source only."
+ },
+ {
+  "brand": "Akai",
+  "model": "MPK mini mk2",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "MPK\\s*mini\\s*mk\\s*II|MPKmini2",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:09e8-0026",
+   "https://linux-hardware.org/?id=usb:2011-0715"
+  ],
+  "note": "Conflicting USB names ('MPK Mini Mk II', 'MPKmini2')."
+ },
+ {
+  "brand": "Akai",
+  "model": "MPK261",
+  "keys": 61,
+  "low": null,
+  "high": null,
+  "nameMatch": "MPK\\s*261",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:09e8-0025"
+  ],
+  "note": "USB name 'MPK261' in one source only."
+ },
+ {
+  "brand": "Akai",
+  "model": "MPK249",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": []
+ },
+ {
+  "brand": "Novation",
+  "model": "Launchkey Mini MK3",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "Launchkey\\s*Mini\\s*MK3",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://fael-downloads-prod.focusrite.com/customer/prod/s3fs-public/downloads/Launchkey%20Mini%20MK3%20User%20Guide%201.1%20English%20EN.pdf",
+   "https://linux-hardware.org/?id=usb:1235-0102"
+  ],
+  "note": "Manual: 'Launchkey Mini MK3' (Mac), 'Launchkey Mini MIDI IN2' (Windows, DAW port). Manual says octave range spans C-1 to C5 (Novation names middle C 'C3') but never states the default. MK4 Mini would not match ('Launchkey Mini MK4 25')."
+ },
+ {
+  "brand": "Novation",
+  "model": "Launchkey Mini 25 MK4",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://userguides.novationmusic.com/hc/en-gb/articles/27441218664978-Playing-the-Launchkey-s-keyboard",
+   "https://linux-hardware.org/?id=usb:1235-0141"
+  ],
+  "note": "Novation's guide says the Mini 25 defaults to 'C2 - C5', which is 37 notes, so the page contradicts itself. Not used."
+ },
+ {
+  "brand": "Novation",
+  "model": "Launchkey 25 MK3",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://fael-downloads-prod.focusrite.com/customer/prod/s3fs-public/downloads/Launchkey_MK3_Programmers_Reference.pdf",
+   "https://linux-hardware.org/?id=usb:1235-0134"
+  ],
+  "note": "Programmer's reference: ports 'LKMK3 MIDI' and 'LKMK3 DAW', shared by every size, so the name alone doesn't give the key count."
+ },
+ {
+  "brand": "Novation",
+  "model": "Launchkey 49 MK3",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://fael-downloads-prod.focusrite.com/customer/prod/s3fs-public/downloads/Launchkey_MK3_Programmers_Reference.pdf"
+  ],
+  "note": "Programmer's reference: ports 'LKMK3 MIDI' and 'LKMK3 DAW', shared by every size, so the name alone doesn't give the key count."
+ },
+ {
+  "brand": "Novation",
+  "model": "Launchkey 61 MK3",
+  "keys": 61,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://fael-downloads-prod.focusrite.com/customer/prod/s3fs-public/downloads/Launchkey_MK3_Programmers_Reference.pdf",
+   "https://linux-hardware.org/?id=usb:1235-0137"
+  ],
+  "note": "Programmer's reference: ports 'LKMK3 MIDI' and 'LKMK3 DAW', shared by every size, so the name alone doesn't give the key count."
+ },
+ {
+  "brand": "Novation",
+  "model": "FLkey Mini",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://fael-downloads-prod.focusrite.com/customer/prod/downloads/FLkey%20Mini%20User%20Guide%20v4%20English%20-%20EN_1.pdf"
+  ],
+  "note": "Manual only says 'FLkey MIDI & DAW input ports'; the exact string isn't confirmed."
+ },
+ {
+  "brand": "Arturia",
+  "model": "MiniLab mkII",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "MiniLab\\s*mk\\s*II",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "http://downloads.arturia.com/products/minilab-mkII/manual/MiniLabmkII_Manual_1_0_7_EN.pdf",
+   "https://linux-hardware.org/?id=usb:1c75-0289"
+  ]
+ },
+ {
+  "brand": "Arturia",
+  "model": "MiniLab 3",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "Mini\\s*Lab\\s*3(?!7)",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://dl.arturia.net/products/minilab-3/manual/minilab-3_Manual_1_0_5_EN.pdf",
+   "https://linux-hardware.org/?id=usb:1c75-020b"
+  ],
+  "note": "Manual: 'Minilab 3 MIDI'; USB 'Minilab3'. Caution: the MiniLab 37 manual also mentions a 'MiniLab3 MCU' port, so a 37 might match too."
+ },
+ {
+  "brand": "Arturia",
+  "model": "MiniLab 37",
+  "keys": 37,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://dl.arturia.net/products/minilab-3/manual/minilab-3_37_Manual_1_0_0_EN.pdf"
+  ],
+  "note": "Manual says 'MiniLab MIDI' / 'MiniLab3 MCU'; can't be told apart from the MiniLab 3."
+ },
+ {
+  "brand": "Arturia",
+  "model": "KeyStep 37",
+  "keys": 37,
+  "low": 48,
+  "high": 84,
+  "nameMatch": null,
+  "rangeConfidence": "manual",
+  "nameConfidence": null,
+  "sources": [
+   "https://dl.arturia.net/products/keystep-37/manual/keystep-37_Manual_1_1_EN.pdf"
+  ],
+  "note": "Inferred from the manual: 'Shift + C4 (the third C from the left)', and the same manual says middle C is C3 = note 60. So the C keys are 48/60/72/84. Indirect; no second source. The manual never gives the USB port name."
+ },
+ {
+  "brand": "Arturia",
+  "model": "KeyStep",
+  "keys": 32,
+  "low": null,
+  "high": null,
+  "nameMatch": "KeyStep(?!\\s*(37|Pro))",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:1c75-0288"
+  ],
+  "note": "USB name 'KeyStep' in one source only."
+ },
+ {
+  "brand": "Arturia",
+  "model": "KeyLab Essential 49 mk3",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": "KeyLab\\s*Essential\\s*49\\s*mk3",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://dl.arturia.net/products/keylab-essential-49-mk3/manual/keylab-essential-mk3_Manual_1_1_6_EN.pdf"
+  ],
+  "note": "Manual: 'KeyLab Essential (49/61/88) mk3 MCU/HUI' port name."
+ },
+ {
+  "brand": "Arturia",
+  "model": "KeyLab Essential 61 mk3",
+  "keys": 61,
+  "low": null,
+  "high": null,
+  "nameMatch": "KeyLab\\s*Essential\\s*61\\s*mk3",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://dl.arturia.net/products/keylab-essential-49-mk3/manual/keylab-essential-mk3_Manual_1_1_6_EN.pdf"
+  ]
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Keystation Mini 32 MK3",
+  "keys": 32,
+  "low": null,
+  "high": null,
+  "nameMatch": "Keystation\\s*Mini\\s*32\\s*MK3",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://cdn.inmusicbrands.com/m-audio/maudio_documentation/KeystationMini32MK3-QuickstartGuide-v1.0.pdf",
+   "https://linux-hardware.org/?id=usb:0763-3111"
+  ],
+  "note": "Manual: keys 'from C on the left to G on the right', in the middle of an 88-key range; no note numbers."
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Keystation 88 MK3",
+  "keys": 88,
+  "low": null,
+  "high": null,
+  "nameMatch": "Keystation\\s*88\\s*MK3",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://cdn.inmusicbrands.com/m-audio/maudio_documentation/Keystation%2088%20MKIII%20-%20User%20Guide%20-%20v1.9.pdf",
+   "https://linux-hardware.org/?id=usb:0763-0044"
+  ],
+  "note": "Almost certainly A0-C8 (21-108) at octave 0, but neither the manual nor the product page says so."
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Keystation 49 MK3",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": "Keystation\\s*49\\s*MK3",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:0763-3110"
+  ],
+  "note": "USB name 'Keystation 49 MK3' in one source only."
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Keystation 61 MK3",
+  "keys": 61,
+  "low": null,
+  "high": null,
+  "nameMatch": "Keystation\\s*61\\s*MK3",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:0763-3109"
+  ],
+  "note": "USB name 'Keystation 61 MK3' in one source only."
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Oxygen Pro 25",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://linux-hardware.org/?id=usb:0763-0038"
+  ]
+ },
+ {
+  "brand": "M-Audio",
+  "model": "Oxygen Pro 49",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://linux-hardware.org/?id=usb:0763-0039"
+  ]
+ },
+ {
+  "brand": "Korg",
+  "model": "microKEY-25 (first generation)",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "microKEY-25",
+  "rangeConfidence": null,
+  "nameConfidence": "two-sources",
+  "sources": [
+   "https://cdn.korg.com/us/support/download/files/bd7717e98498c3722c296497c489b976.pdf",
+   "https://fabacademy.org/2020/labs/kannai/students/tatsuro-homma/project/RaspPi_S_03_fluidsynth.html",
+   "https://linux-hardware.org/?id=usb:0944-0121"
+  ],
+  "note": "ALSA shows client 'microKEY-25', port 'microKEY-25 MIDI 1'. microKEY2 models all report just 'microKEY2', so they're left out."
+ },
+ {
+  "brand": "Korg",
+  "model": "nanoKEY2",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "nanoKEY2",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://cdn.korg.com/us/support/download/files/c1f942dee757c6f016ad96c675b9381f.pdf",
+   "https://linux-hardware.org/?id=usb:0944-0115"
+  ]
+ },
+ {
+  "brand": "Korg",
+  "model": "nanoKEY Studio",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://linux-hardware.org/?id=usb:0944-0133"
+  ]
+ },
+ {
+  "brand": "Native Instruments",
+  "model": "Komplete Kontrol M32",
+  "keys": 32,
+  "low": null,
+  "high": null,
+  "nameMatch": "Komplete\\s*Kontrol\\s*M32",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://docs.native-instruments.com/pdf-guides/komplete_kontrol/KOMPLETE_KONTROL_M32_Manual_English_28_10_2021.pdf",
+   "https://linux-hardware.org/?id=usb:17cc-1860"
+  ],
+  "note": "Only one source for the note port: USB name 'KOMPLETE KONTROL M32' (linux-hardware). The manual names just the DAW ports ('Komplete Kontrol M DAW' on Mac, 'KOMPLETE KONTROL' on Windows). Candidate regex: Komplete\\s*Kontrol\\s*M32."
+ },
+ {
+  "brand": "Native Instruments",
+  "model": "Komplete Kontrol A25",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "Komplete\\s*Kontrol\\s*A25",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:17cc-1730"
+  ],
+  "note": "USB name 'KOMPLETE KONTROL A25' in one source only."
+ },
+ {
+  "brand": "Native Instruments",
+  "model": "Komplete Kontrol A49",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": "Komplete\\s*Kontrol\\s*A49",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:17cc-1740"
+  ],
+  "note": "USB name 'KOMPLETE KONTROL A49' in one source only."
+ },
+ {
+  "brand": "Native Instruments",
+  "model": "Komplete Kontrol A61",
+  "keys": 61,
+  "low": null,
+  "high": null,
+  "nameMatch": "Komplete\\s*Kontrol\\s*A61",
+  "rangeConfidence": null,
+  "nameConfidence": "one-source",
+  "sources": [
+   "https://linux-hardware.org/?id=usb:17cc-1750"
+  ],
+  "note": "USB name 'KOMPLETE KONTROL A61' in one source only."
+ },
+ {
+  "brand": "Roland",
+  "model": "A-49",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": "\\bA-49\\b",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://static.roland.com/assets/media/pdf/A-49_eng10_W.pdf"
+  ],
+  "note": "Manual: 'Select the A-49 as the input and output'. Octave shift is -4 to +5, no default range given."
+ },
+ {
+  "brand": "Nektar",
+  "model": "SE25",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://nektartech.com/se25-midi-controller/",
+   "https://linux-hardware.org/?id=usb:2467-2006"
+  ]
+ },
+ {
+  "brand": "Nektar",
+  "model": "Impact LX25+",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://nektartech.com/impact-lx25-plus/",
+   "https://linux-hardware.org/?id=usb:2467-2016"
+  ]
+ },
+ {
+  "brand": "Nektar",
+  "model": "Impact GX49",
+  "keys": 49,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://nektartech.com/impact-gx49-61/",
+   "https://linux-hardware.org/?id=usb:2467-2033"
+  ]
+ },
+ {
+  "brand": "Alesis",
+  "model": "V25 MKII",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": "V25\\s*MKII",
+  "rangeConfidence": null,
+  "nameConfidence": "manual",
+  "sources": [
+   "https://www.alesis.com/rscdn/2070/documents/V25%20%20MKII%20-%20User%20Guide%20-%20v1.2.pdf"
+  ],
+  "note": "Manual: 'select V25 MKII as your hardware'."
+ },
+ {
+  "brand": "Alesis",
+  "model": "V61",
+  "keys": 61,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://linux-hardware.org/?id=usb:13b2-0088"
+  ]
+ },
+ {
+  "brand": "Alesis",
+  "model": "Q25",
+  "keys": 25,
+  "low": null,
+  "high": null,
+  "nameMatch": null,
+  "rangeConfidence": null,
+  "nameConfidence": null,
+  "sources": [
+   "https://www.alesis.com/rscdn/905/documents/q25___quickstart_guide___reva.pdf"
+  ],
+  "note": "The MIDI chart gives notes 12-108 including octave shifts, not the default range."
+ }
+]

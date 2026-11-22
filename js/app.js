@@ -9,9 +9,15 @@
   // MIDI doesn't tell a page how many keys a keyboard has. These ranges come from
   // owners' reports at the keyboard's default octave; anything else is learned from
   // the notes played and remembered on this phone by device name.
-  var KNOWN_RANGES = [
-    { match: /garagekey\s*mini/i, low: 48, high: 84 }
+  var ASSET_VERSION = (document.currentScript && (document.currentScript.src.split("v=")[1] || "")) || "";
+  // Built-in fallback; data/keyboards.json replaces it once loaded.
+  var KEYBOARDS = [
+    { model: "Garagekey Mini", keys: 37, low: 48, high: 84, nameMatch: "garage\\s*key\\s*mini" }
   ];
+  // Where a keyboard's lowest key usually sits for a given key count, when only the
+  // count is known. Physical layout is standard; the octave is a starting guess that
+  // slides as soon as notes are played.
+  var ESTIMATE_BY_KEYS = { 25: 48, 32: 53, 37: 48, 49: 36, 61: 36, 88: 21 };
   var RANGE_STORE_KEY = "aplus.deviceRanges.v1";
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
@@ -133,18 +139,54 @@
     try { localStorage.setItem(RANGE_STORE_KEY, JSON.stringify(r)); } catch (e) {}
   }
 
-  function knownRange(name) {
-    for (var i = 0; i < KNOWN_RANGES.length; i++) {
-      if (KNOWN_RANGES[i].match.test(name || "")) return { low: KNOWN_RANGES[i].low, high: KNOWN_RANGES[i].high };
+  function loadKeyboards() {
+    if (!window.fetch) return;
+    fetch("data/keyboards.json?v=" + ASSET_VERSION).then(function (res) {
+      return res.ok ? res.json() : null;
+    }).then(function (list) {
+      if (!Array.isArray(list) || !list.length) return;
+      KEYBOARDS = list;
+      // If a keyboard connected before the list arrived, size it again.
+      if (state.rangeDevice) { var d = state.rangeDevice; state.rangeDevice = null; applyDeviceRange([d]); }
+    }).catch(function () {});
+  }
+
+  function findKeyboard(name) {
+    if (!name) return null;
+    for (var i = 0; i < KEYBOARDS.length; i++) {
+      var k = KEYBOARDS[i];
+      if (!k.nameMatch) continue;
+      try { if (new RegExp(k.nameMatch, "i").test(name)) return k; } catch (e) {}
     }
     return null;
   }
 
-  // Range to show for a device: its known range, widened by anything learned on this phone.
+  function knownRange(name) {
+    var k = findKeyboard(name);
+    if (!k) return null;
+    if (k.low != null && k.high != null) return { low: k.low, high: k.high, keys: k.keys, estimated: false };
+    if (k.keys && ESTIMATE_BY_KEYS[k.keys] != null) {
+      var lo = ESTIMATE_BY_KEYS[k.keys];
+      return { low: lo, high: lo + whiteSpan(lo, k.keys), keys: k.keys, estimated: true };
+    }
+    return null;
+  }
+
+  // Semitone span covered by a run of `keys` keys starting on `low`.
+  function whiteSpan(low, keys) { return keys - 1; }
+
+  // Range to show for a device: its known range, adjusted by anything learned on this phone.
   function deviceRange(name) {
     var r = knownRange(name);
     var learned = name ? loadRanges()[name] : null;
-    if (learned) {
+    state.rangeEstimated = !!(r && r.estimated);
+    if (learned && r && r.estimated && learned.high - learned.low <= r.high - r.low) {
+      // Slide the estimated window by octaves until it covers what was played.
+      while (learned.low < r.low) { r.low -= 12; r.high -= 12; }
+      while (learned.high > r.high) { r.low += 12; r.high += 12; }
+      // Lowest and highest keys both played: the range is no longer a guess.
+      if (learned.high - learned.low === r.high - r.low) state.rangeEstimated = false;
+    } else if (learned) {
       r = r ? { low: Math.min(r.low, learned.low), high: Math.max(r.high, learned.high) } : { low: learned.low, high: learned.high };
     }
     if (!r) return null;
@@ -180,6 +222,10 @@
     else if (note >= r.low && note <= r.high) return;
     else { r.low = Math.min(r.low, note); r.high = Math.max(r.high, note); }
     saveRanges(all);
+    if (state.rangeEstimated && name === state.rangeDevice) {
+      var nr = deviceRange(name);
+      if (nr && (nr.low !== state.homeLow || nr.high !== state.homeHigh)) { setHomeRange(nr.low, nr.high); return; }
+    }
     updateRangeLabel();
   }
 
@@ -197,7 +243,8 @@
 
   function updateRangeLabel() {
     var n = state.visibleHigh - state.visibleLow + 1;
-    els.rangeLabel.textContent = "Visible " + noteName(state.visibleLow) + "–" + noteName(state.visibleHigh) + " · " + n + " keys";
+    els.rangeLabel.textContent = "Visible " + noteName(state.visibleLow) + "–" + noteName(state.visibleHigh) + " · " + n + " keys" +
+      (state.rangeEstimated && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh ? " (estimated)" : "");
     var learned = state.rangeDevice && loadRanges()[state.rangeDevice];
     els.btnResetRange.disabled = !learned && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh;
   }
@@ -659,7 +706,8 @@
     applyDeviceRange(names);
     if (names.length) {
       var list = names.map(function (n) { return "<strong>" + escapeHtml(n) + "</strong>"; }).join(", ");
-      setStatus("ok", "Connected: " + list + ".");
+      var kb = names.length === 1 ? findKeyboard(names[0]) : null;
+      setStatus("ok", "Connected: " + list + (kb && kb.keys ? " · " + kb.keys + " keys" : ""));
       document.body.classList.add("is-connected");
       els.btnConnect.textContent = names.length === 1 ? "Connected · " + names[0] : "Connected · " + names.length + " devices";
       els.btnConnect.classList.add("is-connected");
@@ -858,6 +906,7 @@
     if (!midiSupported()) document.body.classList.add("no-midi");
   } else {
     setStatus("warn", "Plug in a MIDI keyboard, then tap Connect.");
+    loadKeyboards();
     autoConnectIfGranted();
   }
 })();

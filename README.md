@@ -39,4 +39,5 @@ Also mention the browser and OS if anything fails (for example “Chrome on Grap
 - `index.html` — page structure
 - `css/style.css` — styles
 - `js/app.js` — MIDI input, on-screen keyboard, log
+- `data/keyboards.json` — known MIDI keyboards: key count, default range where a manual confirms it, and a pattern for the name each reports over USB, with sources. A matched keyboard sizes the on-screen keys right away; with only a key count the range is marked estimated and slides into place as notes are played.
 - `tests/verify.mjs` — headless Chrome checks (needs puppeteer-core and a local server on port 8766)
