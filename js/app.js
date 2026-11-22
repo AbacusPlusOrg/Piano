@@ -522,11 +522,10 @@
     entry.sources[source] = (source === "midi") ? ch : true;
     state.held[note] = entry;
     delete state.sustained[note];
-    if (source === "midi") {
-      state.last = { note: note, vel: vel, ch: ch, name: noteName(note) };
-      if (state.seenLow == null || note < state.seenLow) state.seenLow = note;
-      if (state.seenHigh == null || note > state.seenHigh) state.seenHigh = note;
-    }
+    // On-screen taps count too, so the readout can be tried without a keyboard.
+    state.last = { note: note, vel: vel, ch: ch, name: noteName(note) };
+    if (state.seenLow == null || note < state.seenLow) state.seenLow = note;
+    if (state.seenHigh == null || note > state.seenHigh) state.seenHigh = note;
     setKeyVisual(note);
     scrollNoteIntoView(note);
     updateReadout();
