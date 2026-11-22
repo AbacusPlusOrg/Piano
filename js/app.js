@@ -685,8 +685,8 @@
   }
 
   // Device connects and disconnects, shown in the log alongside messages.
-  function logEvent(text) {
-    state.log.push({ t: performance.now(), event: text });
+  function logEvent(text, cls) {
+    state.log.push({ t: performance.now(), event: text, cls: cls });
     if (state.log.length > MAX_LOG) state.log.shift();
     renderLog();
   }
@@ -712,7 +712,7 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (r.cls ? " " + r.cls : /blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
@@ -895,6 +895,7 @@
     p.then(function (access) {
       state.connecting = false;
       document.body.classList.remove("auto-connecting");
+      state.retriedInit = false;
       state.access = access;
       notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
@@ -906,6 +907,16 @@
       updateConnectionStatus();
     }).catch(function (err) {
       state.connecting = false;
+      var errName = (err && err.name) || "";
+      // Android's MIDI service sometimes fails its first start-up
+      // ("Platform dependent initialization failed") and works on a retry.
+      if (errName === "InvalidStateError" && !state.retriedInit) {
+        state.retriedInit = true;
+        logEvent("MIDI start-up failed, retrying", "off");
+        setTimeout(function () { requestMIDI(fromGesture); }, 600);
+        return;
+      }
+      state.retriedInit = false; // the next tap gets its own retry
       if (!fromGesture) { if (state.attempt === attempt) autoConnectFailed(); return; }
       els.btnConnect.classList.remove("is-connected");
       els.btnConnect.textContent = "Tap to connect MIDI keyboard";
@@ -914,8 +925,12 @@
       if (name === "NotAllowedError" || name === "SecurityError") {
         notePermission("denied");
         showBlocked();
+      } else if (name === "InvalidStateError") {
+        logEvent("MIDI start-up failed: " + msg.replace(/\.+$/, ""), "err");
+        setStatus("err", "The device's MIDI service didn't start.<br>Unplug the keyboard, plug it back in, then tap again.");
       } else {
-        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".");
+        logEvent("Couldn't open MIDI: " + name, "err");
+        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg.replace(/\.+$/, "")) : "")) + ".");
       }
     });
   }
