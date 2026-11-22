@@ -708,9 +708,12 @@
   }
 
   function fmtGap(g) {
-    if (g === null || g === undefined) return "start";
-    if (g >= 10000) return "+" + (g / 1000).toFixed(1) + "s";
-    return "+" + g.toFixed(1);
+    // Number and unit in separate spans so numbers right-align and units line up.
+    var num, unit;
+    if (g === null || g === undefined) return '<span class="gn">first</span><span class="gu"></span>';
+    if (g >= 1000) { num = (g / 1000).toFixed(g >= 100000 ? 0 : 1); unit = "s"; }
+    else { num = String(Math.round(g)); unit = "ms"; }
+    return '<span class="gn">' + num + '</span><span class="gu">' + unit + "</span>";
   }
 
   function isRealtimeFiltered(bytes) {
@@ -757,18 +760,18 @@
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Gap ms") + cell("hex", "Bytes") +
+    var html = '<div class="row head">' + cell("t", "Time gap") + cell("hex", "Bytes") +
       cell("ev", "Event") + cell("d", "Note / CC") + cell("val", "Value") + cell("c", "Ch") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
         html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '">' +
-          cell("t", fmtGap(r.gap)) + '<span class="msg">' + escapeHtml(r.event) + "</span></div>";
+          '<span class="t">' + fmtGap(r.gap) + '</span><span class="msg">' + escapeHtml(r.event) + "</span></div>";
         continue;
       }
       var p = r.parts || [r.decoded, "", "", ""];
       html += '<div class="row' + (r.source === "touch" ? " touch" : "") + '">' +
-        cell("t", fmtGap(r.gap)) +
+        '<span class="t">' + fmtGap(r.gap) + "</span>" +
         // On-screen taps send no MIDI bytes, so say so instead.
         (r.source === "touch" ? cell("hex", "tap") : '<span class="hex">' + r.hex + "</span>") +
         cell("ev", p[0]) + cell("d", p[1]) + cell("val", p[2]) + cell("c", p[3]) +
