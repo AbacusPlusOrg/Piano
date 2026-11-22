@@ -627,6 +627,30 @@
 
   /* ---------- log ---------- */
 
+  // Column form for the log: [event, note or controller, value, channel].
+  function decodeParts(bytes) {
+    if (!bytes || !bytes.length) return ["(empty)", "", "", ""];
+    var st = bytes[0];
+    if (st >= 0xF0) {
+      var sys = decodeMessage(bytes);
+      if (st === 0xF0) return ["SysEx", "", bytes.length + " B", ""];
+      if (st === 0xF2 && bytes.length > 2) return ["Song pos", "", String((bytes[2] << 7) | bytes[1]), ""];
+      return [sys, "", "", ""];
+    }
+    var type = st & 0xF0, ch = String((st & 0x0F) + 1);
+    var d1 = bytes.length > 1 ? bytes[1] : 0;
+    var d2 = bytes.length > 2 ? bytes[2] : 0;
+    var note = noteName(d1) + " (" + d1 + ")";
+    if (type === 0x90) return d2 === 0 ? ["Note on", note, "0 off", ch] : ["Note on", note, String(d2), ch];
+    if (type === 0x80) return ["Note off", note, String(d2), ch];
+    if (type === 0xA0) return ["Poly AT", note, String(d2), ch];
+    if (type === 0xB0) return ["Control", d1 + (CC_NAMES[d1] ? " " + CC_NAMES[d1] : ""), String(d2), ch];
+    if (type === 0xC0) return ["Program", String(d1), "", ch];
+    if (type === 0xD0) return ["Aftertouch", "", String(d1), ch];
+    if (type === 0xE0) return ["Pitch bend", "", String(((d2 << 7) | d1) - 8192), ch];
+    return ["0x" + st.toString(16).toUpperCase(), "", "", ""];
+  }
+
   function decodeMessage(bytes) {
     if (!bytes || !bytes.length) return "(empty)";
     var st = bytes[0];
@@ -685,8 +709,8 @@
 
   function fmtGap(g) {
     if (g === null || g === undefined) return "start";
-    if (g >= 10000) return "+" + (g / 1000).toFixed(1) + " s";
-    return "+" + g.toFixed(1) + " ms";
+    if (g >= 10000) return "+" + (g / 1000).toFixed(1) + "s";
+    return "+" + g.toFixed(1);
   }
 
   function isRealtimeFiltered(bytes) {
@@ -701,6 +725,7 @@
       t: stamp,
       hex: hexBytes(bytes),
       decoded: decodeMessage(bytes),
+      parts: decodeParts(bytes),
       source: source || "midi"
     };
     pushLog(row);
@@ -722,25 +747,31 @@
     logEvent((port.state === "connected" ? "Connected: " : "Disconnected: ") + name);
   }
 
+  function cell(cls, text) {
+    return '<span class="' + cls + '">' + escapeHtml(text) + "</span>";
+  }
+
   function renderLog() {
     if (!state.log.length) {
       els.log.innerHTML = '<div class="empty">No messages yet.</div>';
       return;
     }
-    var html = "";
-    // Newest first, easier on a phone.
+    // Header, then newest first (easier on a phone).
+    var html = '<div class="row head">' + cell("t", "Gap ms") + cell("hex", "Bytes") +
+      cell("ev", "Event") + cell("d", "Note / CC") + cell("val", "Value") + cell("c", "Ch") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + fmtGap(r.gap) + "</span>  " +
-          escapeHtml(r.event) + "</div>";
+        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '">' +
+          cell("t", fmtGap(r.gap)) + '<span class="msg">' + escapeHtml(r.event) + "</span></div>";
         continue;
       }
-      var src = r.source === "touch" ? ' <span class="src-touch">touch</span>' : "";
-      html += '<div class="row">' +
-        '<span class="t">' + fmtGap(r.gap) + "</span>  " +
-        '<span class="hex">' + r.hex + "</span>  " +
-        r.decoded + src +
+      var p = r.parts || [r.decoded, "", "", ""];
+      html += '<div class="row' + (r.source === "touch" ? " touch" : "") + '">' +
+        cell("t", fmtGap(r.gap)) +
+        // On-screen taps send no MIDI bytes, so say so instead.
+        (r.source === "touch" ? cell("hex", "tap") : '<span class="hex">' + r.hex + "</span>") +
+        cell("ev", p[0]) + cell("d", p[1]) + cell("val", p[2]) + cell("c", p[3]) +
         "</div>";
     }
     els.log.innerHTML = html;
@@ -1096,6 +1127,7 @@
   /* ---------- test hook ---------- */
 
   window.__pfTest = {
+    event: function (text) { logEvent(text); },
     feed: function (bytes, timeStamp) {
       var arr = Array.prototype.slice.call(bytes);
       var stamp = (typeof timeStamp === "number") ? timeStamp : performance.now();

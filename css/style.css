@@ -393,8 +393,23 @@ button {
   color: #d9cbb8;
 }
 .log.open { display: block; }
-.log .row { white-space: nowrap; }
-.log .t { color: #7a6e63; display: inline-block; min-width: 10ch; text-align: right; }
+/* Log columns: time, bytes, event, note or controller, value, channel */
+.log .row {
+  display: grid;
+  grid-template-columns: 7ch 8ch 10ch minmax(9ch, 18ch) 5ch 2ch;
+  column-gap: 1ch;
+  white-space: nowrap;
+  justify-content: start;
+}
+.log .row > span { overflow: hidden; text-overflow: ellipsis; }
+.log .row.head span { color: inherit; }
+.log .row.head { color: var(--text-faint); position: sticky; top: -8px; background: #0f0d0b; padding: 2px 0; }
+.log .row.event .msg { grid-column: 2 / -1; font-family: system-ui, sans-serif; font-style: italic; }
+.log .row.event { border-top: 1px dashed #3a322b; border-bottom: 1px dashed #3a322b; margin: 2px 0; padding: 1px 0; }
+.log .row.event + .row.event { border-top: 0; margin-top: -2px; }
+.log .t { color: #7a6e63; text-align: right; }
+.log .val, .log .c { text-align: right; }
+.log .row.touch .hex { color: #8eb8e0; }
 .log .hex { color: var(--accent); }
 .log .src-touch { color: #8eb8e0; }
 .log .row.event { color: var(--ok); }
