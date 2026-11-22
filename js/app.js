@@ -564,7 +564,7 @@
     } else {
       setStatus("warn", "No MIDI keyboard found. Plug one in over USB and it will appear here.");
       document.body.classList.remove("is-connected");
-      els.btnConnect.textContent = "Connect MIDI Keyboard Input";
+      els.btnConnect.textContent = "Connect MIDI Keyboard";
       els.btnConnect.classList.remove("is-connected");
       releaseWakeLock();
     }
@@ -607,7 +607,7 @@
       setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
-          els.btnConnect.textContent = "Connect MIDI Keyboard Input";
+          els.btnConnect.textContent = "Connect MIDI Keyboard";
           setStatus("err", "No answer from the browser. Check its site permissions for MIDI, then tap again. Some browsers turn MIDI off.");
         }
       }, 8000);
@@ -629,7 +629,7 @@
       state.connecting = false;
       if (!fromGesture) return; // a silent auto-try failing is not news
       els.btnConnect.classList.remove("is-connected");
-      els.btnConnect.textContent = "Connect MIDI Keyboard Input";
+      els.btnConnect.textContent = "Connect MIDI Keyboard";
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
