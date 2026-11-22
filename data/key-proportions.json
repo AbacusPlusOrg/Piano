@@ -1,0 +1,563 @@
+{
+ "about": "Physical key sizes used to draw the on-screen keyboard. Millimetre values set proportions only; the keyboard is still scaled to fit the screen width. Profiles marked origin=default are typical values for that key type, not a measurement of one model. A model entry overrides its profile only where a number was measured. White-key width is derived from overall unit width only when a keybed width is documented (none were). Missing numbers fall back to the profile.",
+ "profiles": {
+  "full-size": {
+   "id": "full-size",
+   "label": "Full-size (default)",
+   "origin": "default",
+   "confidence": "standard",
+   "whiteWidthMm": 23.5,
+   "whiteLengthMm": 150,
+   "blackWidthMm": 13.7,
+   "blackLengthMm": 95,
+   "octaveWidthMm": 164.5,
+   "note": "Generic modern-piano standard, not a measurement of a specific MIDI controller. Octave span and key widths follow the usual acoustic-piano figures (octave 164–165 mm, white 23.5 mm and black 13.7 mm at the base, disregarding the gap between keys). Visible white-key length is commonly given as about 150 mm and black-key length as about 95 mm (sometimes 95–100 mm).",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Musical_keyboard",
+    "https://www.piano-tuners.org/history/compass.html",
+    "https://pianopassage.jp/posts/post-37937/",
+    "https://www.piano-tokyo.jp/termsK.html"
+   ]
+  },
+  "mini": {
+   "id": "mini",
+   "label": "Mini (default)",
+   "origin": "default",
+   "confidence": "typical",
+   "whiteWidthMm": 20,
+   "whiteLengthMm": 80,
+   "blackWidthMm": 8.5,
+   "blackLengthMm": 50,
+   "octaveWidthMm": 140,
+   "note": "Generic mini-key profile, not a measurement of a specific model. Rounded from several measured mini-key controllers: octaves around 136–140 mm (about 20 mm per white key), white keys around 80 mm long, black keys around 45–55 mm long and about 8–9 mm wide. Used only when a model has no measurement of its own.",
+   "sources": [
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/ (Korg microKEY Air, measured: 140 mm octave, 80 mm white length, 47 mm black length)",
+    "https://www.reddit.com/r/synthesizers/comments/11ctiro/keyboard_key_size_database/",
+    "https://www.amazona.de/test-native-instruments-komplete-kontrol-m32-usb-keyboard/ (M32: white keys 89 mm long, just under 20 mm wide)",
+    "https://www.reddit.com/r/synthesizers/comments/15jv034/what_is_the_size_of_a_mini_key/ (MPK Mini mk3 owner: white about 80 mm long, black about 45 mm)",
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/ (Yamaha Reface, measured black width 8 mm)"
+   ]
+  },
+  "slim": {
+   "id": "slim",
+   "label": "Slim (default)",
+   "origin": "default",
+   "confidence": "typical",
+   "whiteWidthMm": 20,
+   "whiteLengthMm": 90,
+   "blackWidthMm": 9,
+   "blackLengthMm": 57,
+   "octaveWidthMm": 146,
+   "note": "Generic slim-key profile, not a measurement of every slim-key model. Based on Arturia SlimKey measurements (KeyStep 37), which are the most complete slim-key figures found for models in this list: roughly full mini width, but a little longer than typical mini keys.",
+   "sources": [
+    "https://www.amazona.de/test-arturia-keystep-37-midi-keyboard-mit-step-sequencer/",
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/",
+    "https://www.reddit.com/r/synthesizers/comments/11ctiro/keyboard_key_size_database/"
+   ]
+  }
+ },
+ "models": [
+  {
+   "brand": "Miditech",
+   "model": "Garagekey Mini",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "unitWidthMm": 450,
+   "unitDepthMm": 120,
+   "unitHeightMm": 30,
+   "note": "Manufacturer lists 37 small/mini keys and overall size 45 × 12 × 3 cm (also given as 450 × 120 × 30 mm). Octave buttons are on the back, but keybed width is not published, so white-key width is not derived from the unit width. On-screen proportions use the generic mini profile.",
+   "sources": [
+    "https://miditech.de/en/portfolio/garagekey-mini/",
+    "https://www.strohmedia.de/Artikel_Seiten/pdfs/standard/ZM-10000520.pdf",
+    "https://cdn.korn.eu/documents/product/235708_m.pdf"
+   ]
+  },
+  {
+   "brand": "Miditech",
+   "model": "Garagekey",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "unitWidthMm": 640,
+   "unitDepthMm": 220,
+   "unitHeightMm": 110,
+   "note": "The shared manual lists 37 dynamic keys (not mini) and dimensions 64 × 11 × 22 cm, which matches a compact full-size 37-key instrument. No per-key measurements were found, so the full-size default is used.",
+   "sources": [
+    "https://cdn.korn.eu/documents/product/235708_m.pdf"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Keystation 49 (original USB, 2002)",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Early Keystation 49 with standard-size keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://images.thomann.de/pics/atg/atgdata/document/manual/158038_manual.pdf"
+   ]
+  },
+  {
+   "brand": "Akai",
+   "model": "MPK mini mk3",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 velocity-sensitive mini keys. Unit size 318 × 181 × 44 mm. Keybed width is not published, so width is not derived. One owner roughly reported white keys about 80 mm long and black keys about 45 mm; that is too informal to override the mini default.",
+   "sources": [
+    "https://www.akaipro.com/mpk-mini-mk3/"
+   ]
+  },
+  {
+   "brand": "Akai",
+   "model": "MPK mini Plus II",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially mini keys (37). No per-key measurements found; mini default is used.",
+   "sources": [
+    "https://cdn.inmusicbrands.com/akai/AD43/MPK%20mini%20Plus%20II%20-%20User%20Guide%20-%20v1.14.pdf"
+   ]
+  },
+  {
+   "brand": "Akai",
+   "model": "MPK mini Plus",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 37 mini keys. No per-key measurements found; mini default is used.",
+   "sources": [
+    "https://cdn.inmusicbrands.com/akai/attachments/mpkminiplus/MPK%20mini%20Plus%20-%20User%20Guide%20-%20v1.2.pdf"
+   ]
+  },
+  {
+   "brand": "Akai",
+   "model": "MPK mini mk2",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially mini keys (25). No per-key measurements found; mini default is used.",
+   "sources": [
+    "https://linux-hardware.org/?id=usb:09e8-0026"
+   ]
+  },
+  {
+   "brand": "Akai",
+   "model": "MPK261",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 61 full-size semi-weighted keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.akaipro.com/mpk261/"
+   ]
+  },
+  {
+   "brand": "Akai",
+   "model": "MPK249",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 49 full-size semi-weighted keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.akaipro.com/mpk249/"
+   ]
+  },
+  {
+   "brand": "Novation",
+   "model": "Launchkey Mini MK3",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially mini synth-action keys. No reliable per-key measurements found for this model; mini default is used.",
+   "sources": [
+    "https://fael-downloads-prod.focusrite.com/customer/prod/s3fs-public/downloads/Launchkey%20Mini%20MK3%20User%20Guide%201.1%20English%20EN.pdf"
+   ]
+  },
+  {
+   "brand": "Novation",
+   "model": "Launchkey Mini 25 MK4",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 mini keys. Overall width is published; keybed width is not, so width is not derived. Mini default is used.",
+   "sources": [
+    "https://userguides.novationmusic.com/hc/en-gb/articles/27441184022418-Launchkey-Mini-25-s-specifications"
+   ]
+  },
+  {
+   "brand": "Novation",
+   "model": "Launchkey 25 MK3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size synth-action keys (the non-Mini Launchkey MK3). No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://us.novationmusic.com/launchkey-mk3"
+   ]
+  },
+  {
+   "brand": "Novation",
+   "model": "Launchkey 49 MK3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size synth-action keys (the non-Mini Launchkey MK3). No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://us.novationmusic.com/launchkey-mk3"
+   ]
+  },
+  {
+   "brand": "Novation",
+   "model": "Launchkey 61 MK3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size synth-action keys (the non-Mini Launchkey MK3). No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://us.novationmusic.com/launchkey-mk3"
+   ]
+  },
+  {
+   "brand": "Novation",
+   "model": "FLkey Mini",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 mini synth-action keys. No per-key measurements found; mini default is used.",
+   "sources": [
+    "https://fael-downloads-prod.focusrite.com/customer/prod/downloads/FLkey%20Mini%20User%20Guide%20v4%20English%20-%20EN_1.pdf"
+   ]
+  },
+  {
+   "brand": "Arturia",
+   "model": "MiniLab mkII",
+   "profile": "slim",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "25 slim-key keyboard. No per-key measurements found for this model; the generic slim profile is used.",
+   "sources": [
+    "http://downloads.arturia.com/products/minilab-mkII/manual/MiniLabmkII_Manual_1_0_7_EN.pdf"
+   ]
+  },
+  {
+   "brand": "Arturia",
+   "model": "MiniLab 3",
+   "profile": "slim",
+   "origin": "measured",
+   "confidence": "one-source",
+   "whiteWidthMm": 20,
+   "whiteLengthMm": 89,
+   "blackWidthMm": 9,
+   "blackLengthMm": 53,
+   "unitWidthMm": 355,
+   "unitDepthMm": 220,
+   "unitHeightMm": 50,
+   "note": "Officially a 25-key slim keyboard, 355 × 220 × 50 mm. A Gearspace user measured white keys about 20 × 89 mm and black keys 9 × 53 mm. They also reported a 168 mm octave, which cannot be right: 15 white keys at that pitch would be wider than the whole 355 mm unit, so the octave figure is omitted and not used.",
+   "sources": [
+    "https://www.arturia.com/store/minilab-3",
+    "https://gearspace.com/threads/mini-key-synth-studio.1394224/page-3"
+   ]
+  },
+  {
+   "brand": "Arturia",
+   "model": "MiniLab 37",
+   "profile": "slim",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Arturia slim-key 37-note model. No per-key measurements found; the generic slim profile is used.",
+   "sources": []
+  },
+  {
+   "brand": "Arturia",
+   "model": "KeyStep 37",
+   "profile": "slim",
+   "origin": "measured",
+   "confidence": "two-sources",
+   "whiteWidthMm": 20,
+   "whiteLengthMm": 90,
+   "blackWidthMm": 9,
+   "blackLengthMm": 57,
+   "octaveWidthMm": 146,
+   "note": "Arturia SlimKey. Amazona measured white keys about 90 × 20 mm and black keys 57 × 9 mm. A community key-size spreadsheet independently recorded a 146 mm octave, 89 mm white length and 55 mm black length. The two sources agree closely; Amazona's figures are stored, with the spreadsheet octave.",
+   "sources": [
+    "https://www.amazona.de/test-arturia-keystep-37-midi-keyboard-mit-step-sequencer/",
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/",
+    "https://www.reddit.com/r/synthesizers/comments/11ctiro/keyboard_key_size_database/"
+   ]
+  },
+  {
+   "brand": "Arturia",
+   "model": "KeyStep",
+   "profile": "slim",
+   "origin": "measured",
+   "confidence": "one-source",
+   "whiteLengthMm": 89,
+   "blackLengthMm": 55,
+   "octaveWidthMm": 146,
+   "note": "32-key KeyStep, also Arturia SlimKey. The community spreadsheet lists the same octave and lengths as KeyStep 37 (146 mm octave, 89 mm white, 55 mm black). Black width was not recorded; that falls back to the slim profile (9 mm).",
+   "sources": [
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/",
+    "https://www.reddit.com/r/synthesizers/comments/11ctiro/keyboard_key_size_database/"
+   ]
+  },
+  {
+   "brand": "Arturia",
+   "model": "KeyLab Essential 49 mk3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.arturia.com/store/midi-controllers-sequencers/keylab-essential-61-mk3"
+   ]
+  },
+  {
+   "brand": "Arturia",
+   "model": "KeyLab Essential 61 mk3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.arturia.com/store/midi-controllers-sequencers/keylab-essential-61-mk3"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Keystation Mini 32 MK3",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "unitWidthMm": 418,
+   "unitDepthMm": 105,
+   "unitHeightMm": 20,
+   "note": "Officially 32 low-profile mini keys. Unit size 418 × 105 × 20 mm. Keybed width is not published, so width is not derived. Mini default is used.",
+   "sources": [
+    "https://www.m-audio.com/keyboard-controllers/keystation-mini32-mk3.html"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Keystation 49 MK3",
+   "profile": "full-size",
+   "origin": "measured",
+   "confidence": "one-source",
+   "octaveWidthMm": 162,
+   "whiteLengthMm": 133,
+   "blackWidthMm": 12.7,
+   "blackLengthMm": 88.9,
+   "note": "Community key-size spreadsheet (user-measured): 162 mm octave, 133 mm white length, 12.7 mm black width, 88.9 mm black length, listed as full-size. White-key pitch is 162/7 ≈ 23.14 mm. These keys are a little shorter than a typical acoustic piano key (150 mm).",
+   "sources": [
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/",
+    "https://www.reddit.com/r/synthesizers/comments/11ctiro/keyboard_key_size_database/"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Keystation 61 MK3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size keys in the same MK3 family as the measured 49-key model, but this size was not measured separately, so the full-size default is used rather than copying the 49-key figures.",
+   "sources": [
+    "https://www.m-audio.com/keyboard-controllers/keystation-61-mk3.html"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Keystation 88 MK3",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size keys. Not measured separately; full-size default is used.",
+   "sources": [
+    "https://www.m-audio.com/keyboard-controllers/keystation-88-mk3.html"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Oxygen Pro 25",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 full-size semi-weighted keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.sweetwater.com/store/detail/OxygenP25--m-audio-oxygen-pro-25-25-key-keyboard-controller"
+   ]
+  },
+  {
+   "brand": "M-Audio",
+   "model": "Oxygen Pro 49",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size keys (Oxygen Pro series). No per-key measurements found; full-size default is used.",
+   "sources": []
+  },
+  {
+   "brand": "Korg",
+   "model": "microKEY-25 (first generation)",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially Natural Touch mini keys. Later microKEY Air models were measured at a 140 mm octave, 80 mm white length and 47 mm black length (the same figures as the mini default), but those measurements are of the Air series, not this first-generation 25-key unit, so they are not stored as this model's own data.",
+   "sources": [
+    "https://www.korg.com/us/products/computergear/microkey/page_2.php",
+    "https://docs.google.com/spreadsheets/d/1aIUGRcKi0cXnlhcEYFMR9wOAA6et84n9nQ2WLZ58rz0/"
+   ]
+  },
+  {
+   "brand": "Korg",
+   "model": "nanoKEY2",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "unitWidthMm": 325,
+   "unitDepthMm": 83,
+   "unitHeightMm": 16,
+   "note": "Official 25-key low-profile unit, 325 × 83 × 16 mm. The 83 mm depth means the keys are short, but key length is not published and is not derived from overall depth. Keybed width is also unpublished, so the mini default is used.",
+   "sources": [
+    "https://www.korg.com/us/products/computergear/nanokey2/page_1.php"
+   ]
+  },
+  {
+   "brand": "Korg",
+   "model": "nanoKEY Studio",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "unitWidthMm": 278,
+   "unitDepthMm": 160,
+   "unitHeightMm": 33,
+   "note": "25-key compact unit, 278 × 160 × 33 mm. Keybed width is not published (pads sit above the keys, not beside them, but side margins are undocumented), so width is not derived. Mini default is used.",
+   "sources": [
+    "https://www.korg.com/us/products/computergear/nanokey_studio/specifications.php"
+   ]
+  },
+  {
+   "brand": "Native Instruments",
+   "model": "Komplete Kontrol M32",
+   "profile": "mini",
+   "origin": "measured",
+   "confidence": "two-sources",
+   "whiteLengthMm": 89,
+   "note": "Officially mini keys. Amazona measured white keys 89 mm long and just under 20 mm wide. An NI community reply gave the plastic key itself as about 18 mm plus a slight gap. White length is stored from Amazona; width is left at the mini-profile 20 mm rather than inventing a precise pitch. Black-key sizes were not published and use the mini profile.",
+   "sources": [
+    "https://www.amazona.de/test-native-instruments-komplete-kontrol-m32-usb-keyboard/",
+    "https://community.native-instruments.com/discussion/34655/what-is-the-width-of-the-white-keys-on-the-komplete-kontrol-m32"
+   ]
+  },
+  {
+   "brand": "Native Instruments",
+   "model": "Komplete Kontrol A25",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size semi-weighted keys (A-series). No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.attackmagazine.com/reviews/gear-software/ni-komplete-kontrol-a25/"
+   ]
+  },
+  {
+   "brand": "Native Instruments",
+   "model": "Komplete Kontrol A49",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size semi-weighted keys (A-series). No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://e-catalog.com/NATIVE-INSTRUMENTS-KOMPLETE-KONTROL-A49.htm"
+   ]
+  },
+  {
+   "brand": "Native Instruments",
+   "model": "Komplete Kontrol A61",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially full-size semi-weighted keys (A-series). No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.economik.com/products/komplete-kontrol-a61"
+   ]
+  },
+  {
+   "brand": "Roland",
+   "model": "A-49",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 49 full-size keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.roland.com/us/products/a-49/"
+   ]
+  },
+  {
+   "brand": "Nektar",
+   "model": "SE25",
+   "profile": "mini",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 velocity-sensitive mini keys. No per-key measurements found; mini default is used.",
+   "sources": [
+    "https://nektartech.com/se25-midi-controller/"
+   ]
+  },
+  {
+   "brand": "Nektar",
+   "model": "Impact LX25+",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 full-size velocity-sensitive keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://nektartech.com/impact-lx25-plus/"
+   ]
+  },
+  {
+   "brand": "Nektar",
+   "model": "Impact GX49",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 49 full-size keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://nektartech.com/impact-gx49-61/"
+   ]
+  },
+  {
+   "brand": "Alesis",
+   "model": "V25 MKII",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 full-size synth-action keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.alesis.com/products/view2/v25-mkii"
+   ]
+  },
+  {
+   "brand": "Alesis",
+   "model": "V61",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "61-key V-series controller with full-size keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://linux-hardware.org/?id=usb:13b2-0088"
+   ]
+  },
+  {
+   "brand": "Alesis",
+   "model": "Q25",
+   "profile": "full-size",
+   "origin": "default",
+   "confidence": "type-only",
+   "note": "Officially 25 full-size synth-action keys. No per-key measurements found; full-size default is used.",
+   "sources": [
+    "https://www.musicradar.com/news/tech/alesis-q25-the-compact-midi-controller-with-full-size-keys-277886"
+   ]
+  }
+ ]
+}

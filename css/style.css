@@ -311,7 +311,7 @@ button {
   position: absolute;
   top: 0;
   left: 0;
-  height: 62%;
+  height: var(--black-len, 63.3%);
   pointer-events: none;
   z-index: 2;
 }

@@ -12,8 +12,16 @@
   var ASSET_VERSION = (document.currentScript && (document.currentScript.src.split("v=")[1] || "")) || "";
   // Built-in fallback; data/keyboards.json replaces it once loaded.
   var KEYBOARDS = [
-    { model: "Garagekey Mini", keys: 37, low: 48, high: 84, nameMatch: "garage\\s*key\\s*mini" }
+    { brand: "Miditech", model: "Garagekey Mini", keys: 37, keySize: "mini", low: 48, high: 84, nameMatch: "garage\\s*key\\s*mini" }
   ];
+  // Fallback key-size profiles; data/key-proportions.json replaces them once loaded.
+  var KEY_PROFILES = {
+    "full-size": { whiteWidthMm: 23.5, whiteLengthMm: 150, blackWidthMm: 13.7, blackLengthMm: 95, octaveWidthMm: 164.5 },
+    "mini": { whiteWidthMm: 20, whiteLengthMm: 80, blackWidthMm: 8.5, blackLengthMm: 50, octaveWidthMm: 140 },
+    "slim": { whiteWidthMm: 20, whiteLengthMm: 90, blackWidthMm: 9, blackLengthMm: 57, octaveWidthMm: 146 }
+  };
+  var KEY_MODEL_PROPS = [];
+  var previewProfile = null;
   // Where a keyboard's lowest key usually sits for a given key count, when only the
   // count is known. Physical layout is standard; the octave is a starting guess that
   // slides as soon as notes are played.
@@ -149,14 +157,81 @@
 
   function loadKeyboards() {
     if (!window.fetch) return;
-    fetch("data/keyboards.json?v=" + ASSET_VERSION).then(function (res) {
-      return res.ok ? res.json() : null;
-    }).then(function (list) {
-      if (!Array.isArray(list) || !list.length) return;
-      KEYBOARDS = list;
+    var q = "?v=" + ASSET_VERSION;
+    function asJson(res) { return res && res.ok ? res.json() : null; }
+    Promise.all([
+      fetch("data/keyboards.json" + q).then(asJson, function () { return null; }),
+      fetch("data/key-proportions.json" + q).then(asJson, function () { return null; })
+    ]).then(function (pair) {
+      var list = pair[0], props = pair[1];
+      if (Array.isArray(list) && list.length) KEYBOARDS = list;
+      if (props && props.profiles) {
+        ["full-size", "mini", "slim"].forEach(function (id) {
+          var src = props.profiles[id];
+          if (!src) return;
+          KEY_PROFILES[id] = {
+            whiteWidthMm: src.whiteWidthMm,
+            whiteLengthMm: src.whiteLengthMm,
+            blackWidthMm: src.blackWidthMm,
+            blackLengthMm: src.blackLengthMm,
+            octaveWidthMm: src.octaveWidthMm
+          };
+        });
+      }
+      if (props && Array.isArray(props.models)) KEY_MODEL_PROPS = props.models;
       // If a keyboard connected before the list arrived, size it again.
       if (state.rangeDevice) { var d = state.rangeDevice; state.rangeDevice = null; applyDeviceRange([d]); }
+      else buildKeyboard();
     }).catch(function () {});
+  }
+
+  function modelPropsFor(kb) {
+    if (!kb) return null;
+    for (var i = 0; i < KEY_MODEL_PROPS.length; i++) {
+      var m = KEY_MODEL_PROPS[i];
+      if (m.brand === kb.brand && m.model === kb.model) return m;
+    }
+    return null;
+  }
+
+  function activeKeyboard() {
+    if (previewProfile) return { keySize: previewProfile };
+    return state.rangeDevice ? findKeyboard(state.rangeDevice) : null;
+  }
+
+  function mergedKeyData(kb) {
+    var over = previewProfile ? null : modelPropsFor(kb);
+    var profileId = previewProfile || (kb && kb.keySize) || (over && over.profile) || "full-size";
+    var base = KEY_PROFILES[profileId] || KEY_PROFILES["full-size"];
+    var p = {
+      whiteWidthMm: base.whiteWidthMm,
+      whiteLengthMm: base.whiteLengthMm,
+      blackWidthMm: base.blackWidthMm,
+      blackLengthMm: base.blackLengthMm,
+      octaveWidthMm: base.octaveWidthMm,
+      profile: profileId
+    };
+    if (over) {
+      var fields = ["whiteWidthMm", "whiteLengthMm", "blackWidthMm", "blackLengthMm", "octaveWidthMm"];
+      for (var i = 0; i < fields.length; i++) {
+        if (over[fields[i]] != null) p[fields[i]] = over[fields[i]];
+      }
+      if (over.profile) p.profile = over.profile;
+    }
+    return p;
+  }
+
+  // Ratios for drawing. When an octave span is known, white width is that span / 7
+  // (the key pitch), which matches how flush on-screen keys are laid out.
+  function keyProportions(kb) {
+    var p = mergedKeyData(kb);
+    var pitch = p.octaveWidthMm ? p.octaveWidthMm / 7 : p.whiteWidthMm;
+    return {
+      profile: p.profile,
+      whiteAspect: p.whiteLengthMm / pitch,
+      blackWidthRatio: p.blackWidthMm / pitch,
+      blackLengthRatio: p.blackLengthMm / p.whiteLengthMm
+    };
   }
 
   function findKeyboard(name) {
@@ -295,9 +370,10 @@
     var blacksEl = document.createElement("div");
     blacksEl.className = "blacks";
 
-    // Real piano proportions: a white key is about 23.5 mm wide and 150 mm long
-    // (6.4 : 1); black keys are about 58% as wide and 63% as long as a white key.
-    var KEY_RATIO = 6.4;
+    // Proportions come from data/key-proportions.json: full-size before a keyboard
+    // is connected, then the matched model's measurements or its key-type default.
+    var prop = keyProportions(activeKeyboard());
+    var KEY_RATIO = prop.whiteAspect;
     var minWhite = 16;
     var scrollW = els.kbScroll.clientWidth || 360;
     var inset = 4;
@@ -318,6 +394,7 @@
     kb.style.width = width + "px";
     kb.style.height = Math.round(height) + "px";
     kb.style.margin = "0 auto";
+    kb.style.setProperty("--black-len", (prop.blackLengthRatio * 100).toFixed(2) + "%");
     // Corner rounding scales with key width (a real key is only slightly rounded).
     kb.style.setProperty("--wr", Math.min(4, Math.max(1, whiteW * 0.08)).toFixed(1) + "px");
     kb.style.setProperty("--br", Math.min(2.5, Math.max(0.8, whiteW * 0.05)).toFixed(1) + "px");
@@ -339,7 +416,7 @@
       whitesEl.appendChild(b);
     }
 
-    var blackW = Math.max(8, whiteW * 0.58);
+    var blackW = Math.max(8, whiteW * prop.blackWidthRatio);
     blacksEl.style.width = width + "px";
     var whiteIndex = 0;
     for (var n = state.visibleLow; n <= state.visibleHigh; n++) {
@@ -1023,8 +1100,13 @@
         log: state.log.slice(),
         latencySamples: state.latency.length,
         midiSupported: midiSupported(),
-        secureContext: isSecure()
+        secureContext: isSecure(),
+        keyProportions: keyProportions(activeKeyboard())
       };
+    },
+    previewProfile: function (id) {
+      previewProfile = id || null;
+      buildKeyboard();
     }
   };
 
