@@ -29,6 +29,9 @@
     homeLow: DEFAULT_LOW,
     homeHigh: DEFAULT_HIGH,
     rangeDevice: null,
+    rangeFixed: false,
+    rangeEstimated: false,
+    octaveShift: 0,
     held: {},       // note -> { vel, sources: { midi: ch, touch: true } }
     sustained: {},  // notes held only by the pedal
     sustainOn: false,
@@ -180,13 +183,15 @@
     var r = knownRange(name);
     var learned = name ? loadRanges()[name] : null;
     state.rangeEstimated = !!(r && r.estimated);
+    state.rangeFixed = !!(r && !r.estimated);
     if (learned && r && r.estimated && learned.high - learned.low <= r.high - r.low) {
       // Slide the estimated window by octaves until it covers what was played.
       while (learned.low < r.low) { r.low -= 12; r.high -= 12; }
       while (learned.high > r.high) { r.low += 12; r.high += 12; }
       // Lowest and highest keys both played: the range is no longer a guess.
-      if (learned.high - learned.low === r.high - r.low) state.rangeEstimated = false;
-    } else if (learned) {
+      if (learned.high - learned.low === r.high - r.low) { state.rangeEstimated = false; state.rangeFixed = true; }
+    } else if (learned && !(r && !r.estimated)) {
+      // Known ranges come from manuals and stay put; learning only fills in the rest.
       r = r ? { low: Math.min(r.low, learned.low), high: Math.max(r.high, learned.high) } : { low: learned.low, high: learned.high };
     }
     if (!r) return null;
@@ -195,7 +200,23 @@
     return { low: snapLow(r.low), high: snapHigh(r.high) };
   }
 
+  // Slide the view by whole octaves so `note` is visible, and track the offset.
+  function shiftToInclude(note) {
+    var k = 0;
+    if (note > state.visibleHigh) k = Math.ceil((note - state.visibleHigh) / 12);
+    else if (note < state.visibleLow) k = -Math.ceil((state.visibleLow - note) / 12);
+    if (!k) return false;
+    var low = state.visibleLow + 12 * k, high = state.visibleHigh + 12 * k;
+    if (low < 0 || high > 127) return extendRangeTo(note);
+    state.octaveShift += k;
+    state.visibleLow = low;
+    state.visibleHigh = high;
+    buildKeyboard();
+    return true;
+  }
+
   function setHomeRange(low, high) {
+    state.octaveShift = 0;
     state.homeLow = low;
     state.homeHigh = high;
     state.visibleLow = low;
@@ -244,7 +265,8 @@
   function updateRangeLabel() {
     var n = state.visibleHigh - state.visibleLow + 1;
     els.rangeLabel.textContent = "Visible " + noteName(state.visibleLow) + "–" + noteName(state.visibleHigh) + " · " + n + " keys" +
-      (state.rangeEstimated && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh ? " (estimated)" : "");
+      (state.rangeEstimated && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh ? " (estimated)" : "") +
+      (state.octaveShift ? " · Octave " + (state.octaveShift > 0 ? "+" : "−") + Math.abs(state.octaveShift) : "");
     var learned = state.rangeDevice && loadRanges()[state.rangeDevice];
     els.btnResetRange.disabled = !learned && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh;
   }
@@ -405,8 +427,14 @@
 
   function noteOn(note, vel, ch, source) {
     if (note < 0 || note > 127) return;
-    extendRangeTo(note);
-    if (source === "midi") learnNote(state.lastDeviceName || state.rangeDevice, note);
+    if (source === "midi" && state.rangeFixed && state.rangeDevice) {
+      // Known keyboard size: a note outside the view means the octave buttons moved.
+      shiftToInclude(note);
+      learnNote(state.lastDeviceName || state.rangeDevice, note - 12 * state.octaveShift);
+    } else {
+      extendRangeTo(note);
+      if (source === "midi") learnNote(state.lastDeviceName || state.rangeDevice, note);
+    }
     var entry = state.held[note] || { vel: vel, sources: {} };
     entry.vel = vel;
     entry.sources[source] = (source === "midi") ? ch : true;
