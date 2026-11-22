@@ -182,7 +182,8 @@ button {
 .now-card .last-name { font-size: 3.2rem; flex: 0 0 auto; min-width: 2.3ch; }
 .now-meta { display: grid; gap: 10px; flex: 1; font-size: 0.82rem; }
 .pair { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; }
-.ch { color: var(--text-faint); font-size: 0.72rem; font-weight: 500; margin-left: 2px; }
+.label.head { display: flex; justify-content: space-between; align-items: baseline; }
+.ch { color: var(--text-faint); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: none; font-weight: 500; }
 .k { color: var(--text-faint); font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
 .v { color: var(--text); font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .sustain {
@@ -454,6 +455,10 @@ button {
     padding: 5px 12px;
   }
   .card .label { display: none; }
+  .now-card { position: relative; padding-right: 44px; }
+  .now-card .label.head { display: block; position: absolute; top: 4px; right: 9px; margin: 0; }
+  .now-card .label.head > span:first-child { display: none; }
+  .now-card .ch { font-size: 0.6rem; }
   .last-name { font-size: 1.5rem; min-height: 0; flex: 0 0 auto; min-width: 2.4ch; }
   .stats { grid-template-columns: repeat(2, auto); justify-content: space-between; gap: 14px; flex: 1; }
   .now-card { flex: 0 1 auto; }
