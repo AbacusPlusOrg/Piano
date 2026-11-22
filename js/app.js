@@ -632,7 +632,7 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/^Disconnected/.test(r.event) ? " off" : "") + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (/^Disconnected|blocked/.test(r.event) ? " off" : "") + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
@@ -804,6 +804,7 @@
     p.then(function (access) {
       state.connecting = false;
       state.access = access;
+      notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
       // so the Connect button has nothing left to do.
       document.body.classList.add("has-access");
@@ -819,6 +820,7 @@
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
+        notePermission("denied");
         showBlocked();
       } else {
         setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".");
@@ -863,17 +865,31 @@
     document.body.classList.add("idle");
   }
 
+  var PERM_TEXT = {
+    granted: "MIDI permission: allowed",
+    denied: "MIDI permission: blocked",
+    prompt: "MIDI permission: not set (the browser will ask)"
+  };
+
+  // Log the permission only when it actually changes (the first reading counts).
+  function notePermission(permState) {
+    if (!PERM_TEXT[permState] || state.permState === permState) return;
+    state.permState = permState;
+    logEvent(PERM_TEXT[permState]);
+  }
+
   function applyPermission(permState) {
+    notePermission(permState);
     if (permState === "granted") {
       document.body.classList.remove("blocked");
       if (!state.access) requestMIDI(false);
     } else if (permState === "denied") {
-      dropAccess("MIDI blocked for this site");
+      dropAccess();
       showBlocked();
     } else if (permState === "prompt") {
       // The setting was removed: start over with the connect button.
       if (state.access || document.body.classList.contains("blocked")) {
-        dropAccess("MIDI permission removed");
+        dropAccess();
         showFirstVisit();
       }
     }
