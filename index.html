@@ -8,7 +8,7 @@
   <meta name="description" content="A+Piano MIDI Input Test: note detection and visual feedback.">
   <title>A+Piano — MIDI Input Test</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2314110e'/%3E%3Crect x='3' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='6.4' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='9.8' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='4.6' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3Crect x='8' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=202611220100">
+  <link rel="stylesheet" href="css/style.css?v=20261122010710">
 </head>
 <body>
   <div class="top">
@@ -37,9 +37,15 @@
   </div>
 
   <div class="readout">
-    <div class="card note-card">
-      <div class="label">Last note</div>
-      <div id="last-name" class="last-name">—</div>
+    <div class="card now-card">
+      <div class="label">Now</div>
+      <div class="now-top">
+        <div id="last-name" class="last-name">—</div>
+        <div class="now-side">
+          <div><div class="k">Held</div><div id="held-count" class="v">0</div></div>
+          <div><div class="k">Sustain</div><div><span id="sustain" class="sustain">off</span></div></div>
+        </div>
+      </div>
       <div class="trio">
         <div><div class="k">MIDI</div><div id="last-num" class="v">—</div></div>
         <div><div class="k">Velocity</div><div id="last-vel" class="v">—</div></div>
@@ -49,8 +55,6 @@
     <div class="card session-card">
       <div class="label">Session</div>
       <div class="stats">
-        <div><div class="k">Held</div><div id="held-count" class="v">0</div></div>
-        <div><div class="k">Sustain</div><div><span id="sustain" class="sustain">off</span></div></div>
         <div><div class="k">Lowest</div><div id="seen-low" class="v">—</div></div>
         <div><div class="k">Highest</div><div id="seen-high" class="v">—</div></div>
       </div>
@@ -69,6 +73,6 @@
     <div class="hint">No sound is played — this page only shows what the keyboard sends.<br>On-screen keys can be tapped to test without a MIDI keyboard.</div>
   </div>
 
-  <script src="js/app.js?v=202611220100" defer></script>
+  <script src="js/app.js?v=20261122010710" defer></script>
 </body>
 </html>
