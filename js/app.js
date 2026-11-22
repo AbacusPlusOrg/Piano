@@ -201,7 +201,7 @@
 
   function mergedKeyData(kb) {
     var over = previewProfile ? null : modelPropsFor(kb);
-    var profileId = previewProfile || (kb && kb.keySize) || (over && over.profile) || "full-size";
+    var profileId = previewProfile || (kb && kb.keySize) || (over && over.profile) || "mini";
     var base = KEY_PROFILES[profileId] || KEY_PROFILES["full-size"];
     var p = {
       whiteWidthMm: base.whiteWidthMm,
@@ -370,7 +370,7 @@
     var blacksEl = document.createElement("div");
     blacksEl.className = "blacks";
 
-    // Proportions come from data/key-proportions.json: full-size before a keyboard
+    // Proportions come from data/key-proportions.json: mini before a keyboard
     // is connected, then the matched model's measurements or its key-type default.
     var prop = keyProportions(activeKeyboard());
     var KEY_RATIO = prop.whiteAspect;
