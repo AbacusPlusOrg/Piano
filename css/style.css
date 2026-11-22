@@ -396,8 +396,9 @@ button {
 /* Log columns: time, bytes, event, note or controller, value, channel */
 .log .row {
   display: grid;
-  grid-template-columns: 8ch 8ch 10ch minmax(12ch, 18ch) 8ch 2ch;
-  column-gap: 1.6ch;
+  grid-template-columns: 8ch 8ch 8ch 13ch 8ch 3ch;
+  --gap: 1.6ch;
+  column-gap: var(--gap);
   white-space: nowrap;
   justify-content: start;
 }
@@ -410,7 +411,8 @@ button {
 .log .t { color: #7a6e63; display: grid; grid-template-columns: 1fr 3ch; text-align: right; }
 .log .t .gu { text-align: left; padding-left: 0.5ch; color: #5c534a; }
 .log .row.head .t { display: block; text-align: left; }
-.log .val, .log .c { text-align: right; }
+.log .val { text-align: right; }
+.log .c { text-align: center; }
 .log .row.touch .hex { color: #8eb8e0; }
 .log .hex { color: var(--accent); }
 .log .src-touch { color: #8eb8e0; }
@@ -519,14 +521,13 @@ body.blocked .connect-row { display: none; }
 /* Thin dividers between log column headers, centred in the column gap */
 .log .row.head > span { position: relative; overflow: visible; }
 .log .row.head > span + span::before {
-  content: ""; position: absolute; left: -0.85ch; top: 10%; bottom: 10%;
+  content: ""; position: absolute; left: calc(var(--gap) / -2 - 0.5px); top: 10%; bottom: 10%;
   border-left: 1px solid #4a4038;
 }
 @media (max-width: 440px) {
-  .log .row { column-gap: 0.8ch; grid-template-columns: 6ch 8ch 8ch minmax(12ch, 18ch) 8ch 2ch; }
+  .log .row { --gap: clamp(5px, calc(6vw - 16px), 11px); grid-template-columns: 6ch 8ch 8ch 12ch 8ch 2ch; }
   .log { padding-left: 6px; padding-right: 6px; }
   .log .row.head { align-items: end; }
   .log .row.head > span { white-space: normal; line-height: 1.2; }
-  .log .row.head > span + span::before { left: -0.45ch; }
 }
 .log .row.head > span, .log .row.head .t { text-align: center; }
