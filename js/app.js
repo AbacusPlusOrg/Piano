@@ -865,8 +865,6 @@
     document.body.classList.add("idle");
   }
 
-  // Match the browser's own settings wording: Brave says "Not allowed",
-  // Chrome and most others say "Blocked".
   var BROWSER_NAME = (function () {
     if (navigator.brave && typeof navigator.brave.isBrave === "function") return "Brave";
     var ua = navigator.userAgent || "";
@@ -884,7 +882,10 @@
     return "";
   })();
   var BROWSER_POSSESSIVE = BROWSER_NAME ? BROWSER_NAME + "'s" : "the browser's";
-  var DENIED_WORD = BROWSER_NAME === "Brave" ? "not allowed" : "blocked";
+  // Chromium browsers (Chrome 144+ on Android, desktop Page Info since ~94, and
+  // Brave, Edge, Samsung Internet, Opera, Vivaldi) label a denied site
+  // "Not allowed". Firefox still says "Blocked".
+  var DENIED_WORD = BROWSER_NAME === "Firefox" ? "blocked" : "not allowed";
 
   var PERM_TEXT = {
     granted: "MIDI permission: allowed",
