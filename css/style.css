@@ -411,6 +411,9 @@ button {
 .log .t { color: #7a6e63; display: grid; grid-template-columns: 1fr 3ch; text-align: right; }
 .log .t .gu { text-align: left; padding-left: 0.5ch; color: #5c534a; }
 .log .row.head .t { display: block; text-align: left; }
+.log .d.split { display: grid; grid-template-columns: minmax(0, 1fr) 4ch; }
+.log .d .dn { overflow: hidden; text-overflow: ellipsis; }
+.log .d .dc { overflow: visible; }
 .log .val { text-align: right; }
 .log .c { text-align: center; }
 .log .row.touch .hex { color: #8eb8e0; }

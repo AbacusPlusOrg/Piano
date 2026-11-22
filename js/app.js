@@ -759,6 +759,13 @@
     return '<span class="' + cls + '">' + escapeHtml(text) + "</span>";
   }
 
+  // Note / CC # cell: name and (number) in separate slots so the numbers line up.
+  function dCell(text) {
+    var m = /^(.*) \((\d+)\)$/.exec(text || "");
+    if (!m) return cell("d", text);
+    return '<span class="d split"><span class="dn">' + escapeHtml(m[1]) + '</span><span class="dc">(' + m[2] + ")</span></span>";
+  }
+
   function renderLog() {
     if (!state.log.length) {
       els.log.innerHTML = '<div class="empty">No messages yet.</div>';
@@ -779,7 +786,7 @@
         '<span class="t">' + fmtGap(r.gap) + "</span>" +
         // On-screen taps send no MIDI bytes, so say so instead.
         (r.source === "touch" ? cell("hex", "tap") : '<span class="hex">' + r.hex + "</span>") +
-        cell("ev", p[0]) + cell("d", p[1]) + cell("val", p[2]) + cell("c", p[3]) +
+        cell("ev", p[0]) + dCell(p[1]) + cell("val", p[2]) + cell("c", p[3]) +
         "</div>";
     }
     els.log.innerHTML = html;
