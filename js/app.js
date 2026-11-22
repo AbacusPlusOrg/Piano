@@ -1104,6 +1104,22 @@
     }
   });
 
+  /* ---------- landscape: keep the keys sized to the first screen, let the page scroll ---------- */
+
+  var landscapeMq = window.matchMedia("(orientation: landscape) and (max-height: 540px)");
+  function fitLandscapeKeys() {
+    var body = document.body;
+    body.style.removeProperty("--kbh");
+    if (!landscapeMq.matches) return;
+    body.classList.add("measuring");
+    var h = document.querySelector(".kb-wrap").getBoundingClientRect().height;
+    body.classList.remove("measuring");
+    body.style.setProperty("--kbh", Math.round(h) + "px");
+  }
+  fitLandscapeKeys();
+  window.addEventListener("resize", fitLandscapeKeys);
+  if (landscapeMq.addEventListener) landscapeMq.addEventListener("change", fitLandscapeKeys);
+
   /* ---------- UI events ---------- */
 
   els.btnConnect.addEventListener("click", function () {

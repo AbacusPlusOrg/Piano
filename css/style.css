@@ -402,6 +402,9 @@ button {
   white-space: nowrap;
   justify-content: space-between;
 }
+.log { overscroll-behavior: contain; }
+/* Keep columns grouped on wide screens instead of spreading edge to edge. */
+.log .row { max-width: 60ch; }
 .log .row > span { overflow: hidden; text-overflow: ellipsis; }
 .log .row.head span { color: inherit; }
 .log .row.head { color: var(--text-faint); position: sticky; top: -8px; background: #0f0d0b; padding: 2px 0; }
@@ -504,6 +507,13 @@ button {
     overflow: hidden;
   }
   .log { max-height: 68px; }
+  /* The first screen looks as before (keys fill it, the log peeks in at the bottom),
+     but the page scrolls so the log can be read at full height. JS measures --kbh. */
+  body { height: auto; max-height: none; min-height: 100dvh; overflow: visible;
+         grid-template-rows: auto auto var(--kbh, minmax(150px, 1fr)) auto auto; }
+  .log { max-height: 70dvh; }
+  body.measuring { height: 100dvh; max-height: 100dvh; overflow: hidden; grid-template-rows: auto auto minmax(150px, 1fr) auto auto; }
+  body.measuring .log { max-height: 68px; }
   .hint { display: none; }
   .key.white .oct { bottom: 10px; }
 }
