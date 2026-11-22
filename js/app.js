@@ -772,7 +772,7 @@
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Time Gap") + cell("hex", "Bytes") +
+    var html = '<div class="row head">' + cell("t", "Gap") + cell("hex", "Bytes") +
       cell("ev", "Event") + cell("d", "Note / CC #") + cell("val", "Value") + cell("c", "Ch") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
