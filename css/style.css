@@ -394,7 +394,7 @@ button {
 }
 .log.open { display: block; }
 .log .row { white-space: nowrap; }
-.log .t { color: #7a6e63; }
+.log .t { color: #7a6e63; display: inline-block; min-width: 10ch; text-align: right; }
 .log .hex { color: var(--accent); }
 .log .src-touch { color: #8eb8e0; }
 .log .row.event { color: var(--ok); }

@@ -646,14 +646,15 @@
     var d1 = bytes.length > 1 ? bytes[1] : 0;
     var d2 = bytes.length > 2 ? bytes[2] : 0;
     if (type === 0x90) {
-      if (d2 === 0) return "Note off " + noteName(d1) + " (" + d1 + ") vel 0 ch " + ch;
+      // A note on at velocity 0 works as a note off but is a different message.
+      if (d2 === 0) return "Note on " + noteName(d1) + " (" + d1 + ") vel 0 (off) ch " + ch;
       return "Note on " + noteName(d1) + " (" + d1 + ") vel " + d2 + " ch " + ch;
     }
     if (type === 0x80) return "Note off " + noteName(d1) + " (" + d1 + ") vel " + d2 + " ch " + ch;
     if (type === 0xA0) return "Poly aftertouch " + noteName(d1) + " (" + d1 + ") " + d2 + " ch " + ch;
     if (type === 0xB0) {
-      var ccName = (d1 === 64) ? "Sustain" : ("CC " + d1);
-      return ccName + " " + d2 + " ch " + ch;
+      var ccName = CC_NAMES[d1] ? " " + CC_NAMES[d1] : "";
+      return "CC " + d1 + ccName + " " + d2 + " ch " + ch;
     }
     if (type === 0xC0) return "Program change " + d1 + " ch " + ch;
     if (type === 0xD0) return "Channel aftertouch " + d1 + " ch " + ch;
@@ -662,6 +663,30 @@
       return "Pitch bend " + bend + " ch " + ch;
     }
     return "Status 0x" + st.toString(16).toUpperCase();
+  }
+
+  // Standard controller names (MIDI 1.0 spec), shown after the CC number.
+  var CC_NAMES = {
+    0: "Bank select", 1: "Mod wheel", 2: "Breath", 4: "Foot controller",
+    5: "Portamento time", 7: "Volume", 8: "Balance", 10: "Pan", 11: "Expression",
+    32: "Bank select LSB", 64: "Sustain", 65: "Portamento", 66: "Sostenuto",
+    67: "Soft pedal", 68: "Legato", 120: "All sound off", 121: "Reset controllers",
+    122: "Local control", 123: "All notes off"
+  };
+
+  // Gap since the previous log line, the way MIDI monitors show timing.
+  function pushLog(row) {
+    var prev = state.log.length ? state.log[state.log.length - 1].t : null;
+    row.gap = prev === null ? null : Math.max(0, row.t - prev);
+    state.log.push(row);
+    if (state.log.length > MAX_LOG) state.log.shift();
+    renderLog();
+  }
+
+  function fmtGap(g) {
+    if (g === null || g === undefined) return "start";
+    if (g >= 10000) return "+" + (g / 1000).toFixed(1) + " s";
+    return "+" + g.toFixed(1) + " ms";
   }
 
   function isRealtimeFiltered(bytes) {
@@ -678,16 +703,12 @@
       decoded: decodeMessage(bytes),
       source: source || "midi"
     };
-    state.log.push(row);
-    if (state.log.length > MAX_LOG) state.log.shift();
-    renderLog();
+    pushLog(row);
   }
 
   // Device connects and disconnects, shown in the log alongside messages.
   function logEvent(text) {
-    state.log.push({ t: performance.now(), event: text });
-    if (state.log.length > MAX_LOG) state.log.shift();
-    renderLog();
+    pushLog({ t: performance.now(), event: text });
   }
 
   // Log an input only when its connected/disconnected state actually changes.
@@ -711,13 +732,13 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + fmtGap(r.gap) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
       var src = r.source === "touch" ? ' <span class="src-touch">touch</span>' : "";
       html += '<div class="row">' +
-        '<span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        '<span class="t">' + fmtGap(r.gap) + "</span>  " +
         '<span class="hex">' + r.hex + "</span>  " +
         r.decoded + src +
         "</div>";
