@@ -632,7 +632,7 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/blocked/.test(r.event) ? " err" : (/^Disconnected/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (/blocked/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
@@ -868,7 +868,7 @@
   var PERM_TEXT = {
     granted: "MIDI permission: allowed",
     denied: "MIDI permission: blocked",
-    prompt: "MIDI permission: not set (the browser will ask)"
+    prompt: "MIDI permission: not set"
   };
 
   // Log the permission only when it actually changes (the first reading counts).
