@@ -405,13 +405,14 @@ button {
 @media (orientation: landscape) and (max-height: 540px) {
   body {
     display: grid;
-    grid-template-columns: auto auto 1fr;
-    grid-template-rows: auto minmax(168px, 1fr) auto auto;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto minmax(150px, 1fr) auto auto;
     grid-template-areas:
-      "title connect status"
-      "kb kb kb"
-      "readout readout readout"
-      "log log log";
+      "title title"
+      "connect status"
+      "kb kb"
+      "readout readout"
+      "log log";
     align-items: stretch;
     column-gap: 8px;
     row-gap: 5px;
@@ -423,6 +424,9 @@ button {
   }
   .top { grid-area: title; margin: 0; align-self: center; }
   .status-wrap { grid-area: status; margin: 0; min-width: 0; align-self: center; }
+  body.has-access .status-wrap,
+  body.no-midi .status-wrap,
+  body.blocked .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
   .connect-row { grid-area: connect; margin: 0; align-self: center; }
   .readout {
     grid-area: readout;
@@ -430,7 +434,7 @@ button {
     display: flex;
     gap: 8px;
   }
-  .kb-wrap { grid-area: kb; min-height: 168px; }
+  .kb-wrap { grid-area: kb; min-height: 150px; }
   .kb-scroll { flex: 1 1 auto; height: 0; min-height: 100px; padding-bottom: 0; }
   .log-wrap { grid-area: log; margin: 0; min-height: 0; }
   h1 { font-size: 1.02rem; }
