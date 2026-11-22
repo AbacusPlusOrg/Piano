@@ -476,6 +476,9 @@ button {
   .key.white .oct { bottom: 10px; }
 }
 
+/* First load: just the connect button, no separate prompt. */
+body.idle .status-wrap { display: none; }
+
 /* Once MIDI access is granted, devices are picked up automatically: no button needed. */
 body.has-access .connect-row,
 body.no-midi .connect-row { display: none; }

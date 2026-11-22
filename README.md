@@ -15,7 +15,7 @@ Once this is on GitHub Pages, open:
 Until then, you can try it on a laptop in Chrome at `http://localhost:<port>/` after serving this folder, or on the phone once there is an `https` link.
 
 1. Plug the Miditech Garagekey Mini into the phone (USB-B to USB-C). It is class-compliant and bus-powered; no extra driver.
-2. Open the page in Chrome and tap **Connect MIDI Keyboard**. Allow access if the browser asks.
+2. Open the page in Chrome and tap the **Tap to connect MIDI keyboard** button. Allow access if the browser asks.
 3. Play some keys. They should light while held, brighter at higher velocity.
 4. Press the octave − / + buttons and play again. Watch **Lowest seen** and **Highest seen**.
 5. Optionally open the log if something looks off.
@@ -24,7 +24,7 @@ On-screen keys can be tapped to test the lights without the hardware. Those even
 
 ## What to report back
 
-- The **device name** shown after Connect MIDI Keyboard.
+- The **device name** shown after connecting.
 - Whether notes **light correctly** while held, and go dark on release (try a short note and a held chord).
 - **Lowest seen** and **Highest seen** with the octave buttons at the default setting (expected range is C3–C6 on a Garagekey Mini (MIDI 48–84); the on-screen keyboard starts at C4–C5 and switches to the connected keyboard's range in the C4 = 60 convention — report the numbers the app shows, even if they differ).
 - What those two values do after you press octave − and octave + once each.

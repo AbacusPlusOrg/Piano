@@ -84,6 +84,8 @@
   }
 
   function setStatus(kind, html) {
+    // Any real news shows the status line; on first load the button says it all.
+    document.body.classList.remove("idle");
     els.status.className = "status" + (kind ? " is-" + kind : "");
     els.status.querySelector(".msg").innerHTML = html;
   }
@@ -743,7 +745,7 @@
     } else {
       setStatus("warn", "No MIDI keyboard found: Plug one in over USB");
       document.body.classList.remove("is-connected");
-      els.btnConnect.textContent = "Connect MIDI Keyboard";
+      els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       els.btnConnect.classList.remove("is-connected");
       releaseWakeLock();
     }
@@ -787,7 +789,7 @@
       setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
-          els.btnConnect.textContent = "Connect MIDI Keyboard";
+          els.btnConnect.textContent = "Tap to connect MIDI keyboard";
           setStatus("err", "No answer from the browser. Check its site permissions for MIDI, then tap again. Some browsers turn MIDI off.");
         }
       }, 8000);
@@ -813,7 +815,7 @@
       state.connecting = false;
       if (!fromGesture) return; // a silent auto-try failing is not news
       els.btnConnect.classList.remove("is-connected");
-      els.btnConnect.textContent = "Connect MIDI Keyboard";
+      els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
@@ -933,7 +935,8 @@
     // Tapping can't help in a browser without MIDI.
     if (!midiSupported()) document.body.classList.add("no-midi");
   } else {
-    setStatus("warn", "Plug in a MIDI keyboard, then tap Connect.");
+    // Nothing to report yet: the button alone invites the tap.
+    document.body.classList.add("idle");
     loadKeyboards();
     autoConnectIfGranted();
   }
