@@ -644,7 +644,7 @@
     if (type === 0x90) return d2 === 0 ? ["Note on", note, "0 off", ch] : ["Note on", note, String(d2), ch];
     if (type === 0x80) return ["Note off", note, String(d2), ch];
     if (type === 0xA0) return ["Poly AT", note, String(d2), ch];
-    if (type === 0xB0) return ["Control", d1 + (CC_NAMES[d1] ? " " + CC_NAMES[d1] : ""), String(d2), ch];
+    if (type === 0xB0) return ["Control", CC_NAMES[d1] ? CC_NAMES[d1] + " (" + d1 + ")" : "CC " + d1, String(d2), ch];
     if (type === 0xC0) return ["Program", String(d1), "", ch];
     if (type === 0xD0) return ["Aftertouch", "", String(d1), ch];
     if (type === 0xE0) return ["Pitch bend", "", String(((d2 << 7) | d1) - 8192), ch];
