@@ -5,7 +5,7 @@
   var NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   var BLACK_PC = { 1: true, 3: true, 6: true, 8: true, 10: true };
   var DEFAULT_LOW = 48; // C3 in the C4 = 60 convention
-  var DEFAULT_HIGH = 84; // C6 (Garagekey Mini default octave)
+  var DEFAULT_HIGH = 84; // C6
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
 
@@ -82,12 +82,12 @@
     var isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     var parts = [];
     if (isiOS) {
-      parts.push("Safari and every browser on iPhone and iPad do not support the Web MIDI API.");
+      parts.push("iPhone and iPad browsers don't support MIDI.");
     } else if (!midiSupported()) {
-      parts.push("This browser does not support the Web MIDI API. Use Chrome or another Chromium browser on Android or a laptop (Chrome, Edge, Opera, or Firefox).");
+      parts.push("This browser doesn't support MIDI. Try Chrome.");
     }
     if (!isSecure()) {
-      parts.push("MIDI also needs a secure context: open this page over <strong>https</strong> or from <strong>localhost</strong>. A plain http IP address will not work.");
+      parts.push("MIDI needs an https page.");
     }
     if (!parts.length) {
       parts.push("This browser cannot use MIDI. Use Chrome or another Chromium browser on Android or a laptop. Safari and iOS are not supported. The page must be served over https or localhost.");
@@ -556,12 +556,14 @@
     var names = listInputNames(access);
     if (names.length) {
       var list = names.map(function (n) { return "<strong>" + escapeHtml(n) + "</strong>"; }).join(", ");
-      setStatus("ok", "Connected: " + list + ". Play a key — it should light below.");
+      setStatus("ok", "Connected: " + list + ".");
+      document.body.classList.add("is-connected");
       els.btnConnect.textContent = names.length === 1 ? "Connected · " + names[0] : "Connected · " + names.length + " devices";
       els.btnConnect.classList.add("is-connected");
       requestWakeLock();
     } else {
-      setStatus("warn", "MIDI is allowed, but no input device is connected. Plug in the Garagekey Mini (or another class-compliant MIDI keyboard) and it should appear automatically.");
+      setStatus("warn", "No MIDI keyboard found. Plug one in over USB and it will appear here.");
+      document.body.classList.remove("is-connected");
       els.btnConnect.textContent = "Connect MIDI Keyboard Input";
       els.btnConnect.classList.remove("is-connected");
       releaseWakeLock();
@@ -592,7 +594,7 @@
   function requestMIDI(fromGesture) {
     if (!midiSupported() || !isSecure()) {
       // Keep the button tappable so a tap always explains what's wrong.
-      setStatus("err", unsupportedReason() + " <br><small>Browser: " + escapeHtml(navigator.userAgent) + "</small>");
+      setStatus("err", unsupportedReason());
       return;
     }
     // A tap always gets its own request. An earlier automatic request can hang
@@ -602,11 +604,11 @@
     var attempt = (state.attempt = (state.attempt || 0) + 1);
     if (fromGesture) {
       els.btnConnect.textContent = "Asking the browser…";
-      setStatus("warn", "Asking the browser for MIDI access. If a permission prompt appears, tap <strong>Allow</strong>.");
+      setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
           els.btnConnect.textContent = "Connect MIDI Keyboard Input";
-          setStatus("err", "The browser hasn't answered the MIDI request. Check for a permission prompt or a blocked-permission icon in the address bar, then tap again. If nothing ever appears, this browser may have Web MIDI turned off: try Chrome.");
+          setStatus("err", "No answer from the browser. Check its site permissions for MIDI, then tap again. Some browsers turn MIDI off.");
         }
       }, 8000);
     }
@@ -631,9 +633,9 @@
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
-        setStatus("err", "MIDI permission was denied. Tap the icon left of the address bar, open <strong>Permissions</strong>, allow MIDI devices, then tap <strong>Connect MIDI Keyboard Input</strong> again. " + escapeHtml(msg));
+        setStatus("err", "MIDI access was blocked. Allow MIDI in this site's permissions, then tap again.");
       } else {
-        setStatus("err", "Could not open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ". If this persists, try Chrome over https.");
+        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".");
       }
     });
   }
@@ -745,7 +747,7 @@
   if (!midiSupported() || !isSecure()) {
     setStatus("err", unsupportedReason());
   } else {
-    setStatus("warn", "Tap <strong>Connect MIDI Keyboard Input</strong> to allow this page to see your keyboard. A Garagekey Mini usually shows up as soon as it is plugged in over USB.");
+    setStatus("warn", "Plug in a MIDI keyboard, then tap Connect.");
     autoConnectIfGranted();
   }
 })();
