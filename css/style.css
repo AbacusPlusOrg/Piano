@@ -172,16 +172,17 @@ button {
   align-items: center;
   min-height: 2.6rem;
 }
-.trio, .stats {
+.stats {
   display: grid;
   gap: 8px 10px;
   font-size: 0.82rem;
 }
-.trio { grid-template-columns: repeat(3, auto); justify-content: space-between; margin-top: 8px; }
 .stats { grid-template-columns: 1fr; flex: 1; align-content: space-between; }
-.now-top { display: flex; align-items: center; gap: 12px; flex: 1; }
-.now-top .last-name { flex: 1; }
-.now-side { display: grid; grid-template-columns: auto auto; gap: 8px 14px; font-size: 0.82rem; }
+.now-grid { display: flex; align-items: center; gap: 14px; flex: 1; }
+.now-card .last-name { font-size: 3.2rem; flex: 0 0 auto; min-width: 2.3ch; }
+.now-meta { display: grid; gap: 10px; flex: 1; font-size: 0.82rem; }
+.pair { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; }
+.ch { color: var(--text-faint); font-size: 0.72rem; font-weight: 500; margin-left: 2px; }
 .k { color: var(--text-faint); font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
 .v { color: var(--text); font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .sustain {
@@ -454,14 +455,14 @@ button {
   }
   .card .label { display: none; }
   .last-name { font-size: 1.5rem; min-height: 0; flex: 0 0 auto; min-width: 2.4ch; }
-  .trio { margin: 0; gap: 14px; flex: 1; justify-content: start; }
   .stats { grid-template-columns: repeat(2, auto); justify-content: space-between; gap: 14px; flex: 1; }
-  .now-card { flex: 2 1 0; }
-  .now-top, .now-side { display: contents; }
-  .now-card .last-name { order: 0; flex: 0 0 auto; }
-  .now-card { justify-content: space-between; }
-  .now-card .trio { order: 1; flex: 0 0 auto; }
-  .now-side > div { order: 2; }
+  .now-card { flex: 0 1 auto; }
+  .session-card { flex: 0 1 auto; }
+  .readout { justify-content: flex-start; }
+  .now-card .last-name { font-size: 1.5rem; }
+  .now-meta, .pair { display: flex; align-items: center; gap: 18px; flex: 0 0 auto; }
+  .now-meta .pair + .pair { border-left: 1px solid var(--border); padding-left: 18px; }
+  .stats { display: flex; gap: 18px; flex: 0 0 auto; justify-content: flex-start; }
   .k { font-size: 0.6rem; }
   .v { font-size: 0.85rem; }
   .latency { display: none; }
