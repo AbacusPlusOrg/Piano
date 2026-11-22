@@ -822,7 +822,7 @@
       els.btnConnect.classList.add("is-connected");
       requestWakeLock();
     } else {
-      setStatus("warn", "No MIDI keyboard found: Plug one in over USB.");
+      setStatus("warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable.");
       document.body.classList.remove("is-connected");
       els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       els.btnConnect.classList.remove("is-connected");
