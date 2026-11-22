@@ -642,7 +642,7 @@
       els.btnConnect.classList.add("is-connected");
       requestWakeLock();
     } else {
-      setStatus("warn", "No MIDI keyboard found. Plug one in over USB and it will appear here.");
+      setStatus("warn", "No MIDI keyboard found: Plug one in over USB");
       document.body.classList.remove("is-connected");
       els.btnConnect.textContent = "Connect MIDI Keyboard";
       els.btnConnect.classList.remove("is-connected");
