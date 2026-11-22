@@ -829,6 +829,7 @@
   // Tapping can't undo a block, so hide the button and say where to fix it.
   function showBlocked() {
     document.body.classList.add("blocked");
+    els.btnConnect.textContent = "Tap to connect MIDI keyboard";
     setStatus("err", "MIDI is blocked for this site. Allow MIDI in the browser's site settings and this page will connect on its own.");
   }
 
@@ -837,17 +838,43 @@
   // Driven by the permission's change event, plus a re-check when the page
   // becomes visible again (coming back from settings), for browsers that
   // don't fire the change event. No polling.
+  // Let go of MIDI completely, e.g. after the site's MIDI setting was removed
+  // or blocked. The page then behaves as on a first visit.
+  function dropAccess(reason) {
+    var access = state.access;
+    if (!access) return;
+    access.onstatechange = null;
+    access.inputs.forEach(function (input) {
+      input.onmidimessage = null;
+      if (input.close) { try { input.close(); } catch (e) {} }
+    });
+    Object.keys(state.held).forEach(function (n) { noteOff(parseInt(n, 10), 0, 1, "midi"); });
+    state.access = null;
+    state.portStates = {};
+    document.body.classList.remove("has-access", "is-connected");
+    els.btnConnect.classList.remove("is-connected");
+    releaseWakeLock();
+    if (reason) logEvent(reason);
+  }
+
+  function showFirstVisit() {
+    document.body.classList.remove("blocked");
+    els.btnConnect.textContent = "Tap to connect MIDI keyboard";
+    document.body.classList.add("idle");
+  }
+
   function applyPermission(permState) {
     if (permState === "granted") {
       document.body.classList.remove("blocked");
       if (!state.access) requestMIDI(false);
     } else if (permState === "denied") {
-      if (!state.access) showBlocked();
+      dropAccess("MIDI blocked for this site");
+      showBlocked();
     } else if (permState === "prompt") {
-      if (document.body.classList.contains("blocked")) {
-        document.body.classList.remove("blocked");
-        els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-        setStatus("warn", "MIDI is no longer blocked. Tap to connect.");
+      // The setting was removed: start over with the connect button.
+      if (state.access || document.body.classList.contains("blocked")) {
+        dropAccess("MIDI permission removed");
+        showFirstVisit();
       }
     }
   }
@@ -886,7 +913,7 @@
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && !state.access) checkPermission();
+    if (document.visibilityState === "visible") checkPermission();
     if (document.visibilityState === "visible" && state.access && listInputNames(state.access).length) {
       requestWakeLock();
     }
