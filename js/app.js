@@ -832,7 +832,7 @@
   function showBlocked() {
     document.body.classList.add("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-    setStatus("err", "MIDI is blocked for this site. Allow MIDI in the browser's site settings, and this page will connect on its own.");
+    setStatus("err", "MIDI permissions are blocked for this site. Allow MIDI in the browser's site settings.");
   }
 
   // React to the MIDI permission: connect when it is (or becomes) granted,
