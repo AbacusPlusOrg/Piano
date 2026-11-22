@@ -400,7 +400,7 @@ button {
   --gap: 1.6ch;
   column-gap: var(--gap);
   white-space: nowrap;
-  justify-content: start;
+  justify-content: space-between;
 }
 .log .row > span { overflow: hidden; text-overflow: ellipsis; }
 .log .row.head span { color: inherit; }
@@ -528,9 +528,12 @@ body.blocked .connect-row { display: none; }
   border-left: 1px solid #4a4038;
 }
 @media (max-width: 440px) {
-  .log .row { --gap: clamp(5px, calc(6vw - 16px), 11px); grid-template-columns: 6ch 8ch 8ch 12ch 8ch 2ch; }
+  .log .row { --gap: clamp(5px, calc(6vw - 16px), 11px); grid-template-columns: 6ch 8ch 8ch 12ch 8ch 3ch; }
   .log { padding-left: 6px; padding-right: 6px; }
   .log .row.head { align-items: end; }
   .log .row.head > span { white-space: normal; line-height: 1.2; }
 }
 .log .row.head > span, .log .row.head .t { text-align: center; }
+@media (max-width: 380px) {
+  .log .row { grid-template-columns: 6ch 8ch 8ch 12ch 8ch 2ch; }
+}
