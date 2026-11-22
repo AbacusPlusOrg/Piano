@@ -685,8 +685,8 @@
   }
 
   // Device connects and disconnects, shown in the log alongside messages.
-  function logEvent(text, cls) {
-    state.log.push({ t: performance.now(), event: text, cls: cls });
+  function logEvent(text) {
+    state.log.push({ t: performance.now(), event: text });
     if (state.log.length > MAX_LOG) state.log.shift();
     renderLog();
   }
@@ -712,7 +712,7 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (r.cls ? " " + r.cls : /blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
@@ -864,17 +864,6 @@
     if (!fromGesture && state.connecting) return;
     state.connecting = true;
     var attempt = (state.attempt = (state.attempt || 0) + 1);
-    if (!fromGesture) {
-      // Permission is already allowed: connect without the button. If the
-      // browser won't answer without a tap, fall back to the button.
-      document.body.classList.add("auto-connecting");
-      setStatus("warn", "Connecting…");
-      setTimeout(function () {
-        if (state.attempt === attempt && !state.access) autoConnectFailed();
-      }, 3000);
-    } else {
-      document.body.classList.remove("auto-connecting");
-    }
     if (fromGesture) {
       els.btnConnect.textContent = "Asking the browser…";
       setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
@@ -894,8 +883,6 @@
     }
     p.then(function (access) {
       state.connecting = false;
-      document.body.classList.remove("auto-connecting");
-      state.retriedInit = false;
       state.access = access;
       notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
@@ -907,17 +894,7 @@
       updateConnectionStatus();
     }).catch(function (err) {
       state.connecting = false;
-      var errName = (err && err.name) || "";
-      // Android's MIDI service sometimes fails its first start-up
-      // ("Platform dependent initialization failed") and works on a retry.
-      if (errName === "InvalidStateError" && !state.retriedInit) {
-        state.retriedInit = true;
-        logEvent("MIDI start-up failed, retrying", "off");
-        setTimeout(function () { requestMIDI(fromGesture); }, 600);
-        return;
-      }
-      state.retriedInit = false; // the next tap gets its own retry
-      if (!fromGesture) { if (state.attempt === attempt) autoConnectFailed(); return; }
+      if (!fromGesture) return; // a silent auto-try failing is not news
       els.btnConnect.classList.remove("is-connected");
       els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       var name = (err && err.name) || "";
@@ -925,27 +902,14 @@
       if (name === "NotAllowedError" || name === "SecurityError") {
         notePermission("denied");
         showBlocked();
-      } else if (name === "InvalidStateError") {
-        logEvent("MIDI start-up failed: " + msg.replace(/\.+$/, ""), "err");
-        setStatus("err", "The device's MIDI service didn't start.<br>Unplug the keyboard, plug it back in, then tap again.");
       } else {
-        logEvent("Couldn't open MIDI: " + name, "err");
-        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg.replace(/\.+$/, "")) : "")) + ".");
+        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".");
       }
     });
   }
 
-  // The automatic connect didn't finish: offer the button.
-  function autoConnectFailed() {
-    if (!document.body.classList.contains("auto-connecting")) return;
-    document.body.classList.remove("auto-connecting");
-    els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-    setStatus("warn", "MIDI is allowed, but the browser needs a tap to connect.");
-  }
-
   // Tapping can't undo a block, so hide the button and say where to fix it.
   function showBlocked() {
-    document.body.classList.remove("auto-connecting");
     document.body.classList.add("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
     setStatus("err", "MIDI permission is " + DENIED_WORD + " for this site.<br>Allow MIDI in " + BROWSER_POSSESSIVE + " site settings.");
@@ -976,7 +940,7 @@
   }
 
   function showFirstVisit() {
-    document.body.classList.remove("blocked", "auto-connecting");
+    document.body.classList.remove("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
     document.body.classList.add("idle");
   }
