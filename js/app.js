@@ -702,6 +702,9 @@
     p.then(function (access) {
       state.connecting = false;
       state.access = access;
+      // Plugging and unplugging are picked up automatically from here on,
+      // so the Connect button has nothing left to do.
+      document.body.classList.add("has-access");
       attachInputs(access);
       hookStateChange(access);
       updateConnectionStatus();
@@ -826,6 +829,8 @@
   requestAnimationFrame(rebuildKeyboard);
   if (!midiSupported() || !isSecure()) {
     setStatus("err", unsupportedReason());
+    // Tapping can't help in a browser without MIDI.
+    if (!midiSupported()) document.body.classList.add("no-midi");
   } else {
     setStatus("warn", "Plug in a MIDI keyboard, then tap Connect.");
     autoConnectIfGranted();

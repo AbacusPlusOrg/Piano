@@ -474,5 +474,6 @@ button {
   .key.white .oct { bottom: 10px; }
 }
 
-/* Once a keyboard is connected, the button says so; hide the status line. */
-body.is-connected .status-wrap { display: none; }
+/* Once MIDI access is granted, devices are picked up automatically: no button needed. */
+body.has-access .connect-row,
+body.no-midi .connect-row { display: none; }
