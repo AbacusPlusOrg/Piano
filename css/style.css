@@ -405,8 +405,8 @@ button {
 .log .row.head span { color: inherit; }
 .log .row.head { color: var(--text-faint); position: sticky; top: -8px; background: #0f0d0b; padding: 2px 0; }
 .log .row.event .msg { grid-column: 2 / -1; font-family: system-ui, sans-serif; font-style: italic; }
-.log .row.event { border-top: 1px dashed #3a322b; border-bottom: 1px dashed #3a322b; margin: 2px 0; padding: 1px 0; }
-.log .row.event + .row.event { border-top: 0; margin-top: -2px; }
+.log .row.event { border-top: 1px dashed #3a322b; border-bottom: 1px dashed #3a322b; margin: 8px 0; padding: 5px 0; }
+.log .row.event + .row.event { border-top: 0; margin-top: -8px; }
 .log .t { color: #7a6e63; display: grid; grid-template-columns: 1fr 3ch; text-align: right; }
 .log .t .gu { text-align: left; padding-left: 0.5ch; color: #5c534a; }
 .log .row.head .t { display: block; text-align: left; }
