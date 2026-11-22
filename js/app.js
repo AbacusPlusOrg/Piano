@@ -105,7 +105,13 @@
     var isMac = /Macintosh|Mac OS X/.test(ua) && !isiOS;
     if (!midiSupported()) {
       // Every iPhone and iPad browser runs on Safari's engine, which has no MIDI.
-      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device or a computer with a non-Safari browser.";
+      if (isiOS) {
+        // Every iPhone/iPad browser runs on Safari's engine (WebKit), which has no MIDI.
+        // Name the browser only when its user agent says so; Safari and some others look identical.
+        var dev = /iPad/.test(ua) || !/iPhone|iPod/.test(ua) ? "iPad" : "iPhone";
+        var iosName = (BROWSER_NAME && BROWSER_NAME !== "Safari") ? BROWSER_NAME + " on " + dev : "iPhone and iPad browsers";
+        return iosName + (iosName.indexOf(" on ") > 0 ? " doesn't" : " don't") + " support MIDI.<br>Use an Android device or a computer with a non-Safari browser.";
+      }
       if (BROWSER_NAME === "Safari") return "Safari doesn't support MIDI.<br>Use another browser.";
       // A Chromium browser without MIDI is usually old or has it turned off.
       if (/^(Chrome|Edge|Brave|Opera|Vivaldi|Samsung Internet|Yandex)$/.test(BROWSER_NAME)) {
@@ -877,7 +883,7 @@
       [/OPR\/|OPT\/|Opera/, "Opera"],
       [/Vivaldi\//, "Vivaldi"],
       [/YaBrowser\//, "Yandex"],
-      [/DuckDuckGo\//, "DuckDuckGo"],
+      [/DuckDuckGo\/|Ddg\//, "DuckDuckGo"],
       [/Firefox\/|FxiOS\//, "Firefox"],
       [/Chrome\/|CriOS\//, "Chrome"],
       [/Safari\//, "Safari"]
