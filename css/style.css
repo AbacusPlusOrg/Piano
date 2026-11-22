@@ -396,7 +396,7 @@ button {
 /* Log columns: time, bytes, event, note or controller, value, channel */
 .log .row {
   display: grid;
-  grid-template-columns: 8ch 8ch 10ch minmax(9ch, 18ch) 5ch 2ch;
+  grid-template-columns: 8ch 8ch 10ch minmax(12ch, 18ch) 8ch 2ch;
   column-gap: 1.6ch;
   white-space: nowrap;
   justify-content: start;
@@ -522,8 +522,11 @@ body.blocked .connect-row { display: none; }
   content: ""; position: absolute; left: -0.85ch; top: 10%; bottom: 10%;
   border-left: 1px solid #4a4038;
 }
-@media (max-width: 400px) {
-  .log .row { column-gap: 1.2ch; grid-template-columns: 8ch 8ch 9ch minmax(9ch, 18ch) 5ch 2ch; }
-  .log .row.head > span + span::before { left: -0.65ch; }
+@media (max-width: 440px) {
+  .log .row { column-gap: 0.8ch; grid-template-columns: 6ch 8ch 8ch minmax(12ch, 18ch) 8ch 2ch; }
+  .log { padding-left: 6px; padding-right: 6px; }
+  .log .row.head { align-items: end; }
+  .log .row.head > span { white-space: normal; line-height: 1.2; }
+  .log .row.head > span + span::before { left: -0.45ch; }
 }
 .log .row.head > span, .log .row.head .t { text-align: center; }
