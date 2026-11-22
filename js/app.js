@@ -101,20 +101,23 @@
   function unsupportedReason() {
     var ua = navigator.userAgent || "";
     var isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    var parts = [];
-    if (isiOS) {
-      parts.push("iPhone and iPad browsers don't support MIDI.");
-    } else if (!midiSupported()) {
-      parts.push("This browser doesn't support MIDI. Try Chrome.");
+    var isAndroid = /Android/.test(ua);
+    var isMac = /Macintosh|Mac OS X/.test(ua) && !isiOS;
+    if (!midiSupported()) {
+      // Every iPhone and iPad browser runs on Safari's engine, which has no MIDI.
+      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device, or Chrome or Edge on a computer.";
+      if (isMac && BROWSER_NAME === "Safari") return "Safari doesn't support MIDI.<br>Use Chrome or Edge on this Mac.";
+      // A Chromium browser without MIDI is usually old or has it turned off.
+      if (/^(Chrome|Edge|Brave|Opera|Vivaldi|Samsung Internet|Yandex)$/.test(BROWSER_NAME)) {
+        return "MIDI isn't available in this version of " + BROWSER_NAME + ".<br>Update " + BROWSER_NAME + ", then reload this page.";
+      }
+      var who = BROWSER_NAME ? BROWSER_NAME + (isAndroid ? " for Android" : "") : "This browser";
+      return who + " doesn't support MIDI.<br>" + (isAndroid ? "Use Chrome or Brave on this device." : "Use Chrome or Edge.");
     }
-    if (!isSecure()) {
-      parts.push("MIDI needs an https page.");
-    }
-    if (!parts.length) {
-      parts.push("This browser cannot use MIDI. Use Chrome or another Chromium browser on Android or a laptop. Safari and iOS are not supported. The page must be served over https or localhost.");
-    }
-    return parts.join(" ");
+    if (!isSecure()) return "MIDI needs a secure (https) page.";
+    return "This browser can't use MIDI.<br>Use Chrome or Edge.";
   }
+
 
   /* ---------- keyboard drawing ---------- */
 
@@ -876,7 +879,8 @@
       [/YaBrowser\//, "Yandex"],
       [/DuckDuckGo\//, "DuckDuckGo"],
       [/Firefox\/|FxiOS\//, "Firefox"],
-      [/Chrome\/|CriOS\//, "Chrome"]
+      [/Chrome\/|CriOS\//, "Chrome"],
+      [/Safari\//, "Safari"]
     ];
     for (var i = 0; i < checks.length; i++) if (checks[i][0].test(ua)) return checks[i][1];
     return "";
