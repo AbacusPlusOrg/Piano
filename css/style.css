@@ -471,4 +471,5 @@ body.idle .status-wrap { display: none; }
 
 /* Once MIDI access is granted, devices are picked up automatically: no button needed. */
 body.has-access .connect-row,
-body.no-midi .connect-row { display: none; }
+body.no-midi .connect-row,
+body.blocked .connect-row { display: none; }

@@ -819,18 +819,50 @@
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
-        setStatus("err", "MIDI access was blocked. Allow MIDI in this site's permissions, then tap again.");
+        showBlocked();
       } else {
         setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".");
       }
     });
   }
 
-  // Only auto-connect when permission was already granted; otherwise wait for a tap.
-  function autoConnectIfGranted() {
+  // Tapping can't undo a block, so hide the button and say where to fix it.
+  function showBlocked() {
+    document.body.classList.add("blocked");
+    setStatus("err", "MIDI is blocked for this site. Allow MIDI in the browser's site settings and this page will connect on its own.");
+  }
+
+  // React to the MIDI permission: connect when it is (or becomes) granted,
+  // explain when it is blocked, and offer the button again if it is reset.
+  // Driven by the permission's change event, plus a re-check when the page
+  // becomes visible again (coming back from settings), for browsers that
+  // don't fire the change event. No polling.
+  function applyPermission(permState) {
+    if (permState === "granted") {
+      document.body.classList.remove("blocked");
+      if (!state.access) requestMIDI(false);
+    } else if (permState === "denied") {
+      if (!state.access) showBlocked();
+    } else if (permState === "prompt") {
+      if (document.body.classList.contains("blocked")) {
+        document.body.classList.remove("blocked");
+        els.btnConnect.textContent = "Tap to connect MIDI keyboard";
+        setStatus("warn", "MIDI is no longer blocked. Tap to connect.");
+      }
+    }
+  }
+
+  function checkPermission() {
     if (!navigator.permissions || !navigator.permissions.query) return;
     navigator.permissions.query({ name: "midi", sysex: false }).then(function (res) {
-      if (res && res.state === "granted") requestMIDI(false);
+      if (!res) return;
+      applyPermission(res.state);
+      if (!state.permWatch) {
+        state.permWatch = res;
+        var onChange = function () { applyPermission(res.state); };
+        if (res.addEventListener) res.addEventListener("change", onChange);
+        else res.onchange = onChange;
+      }
     }).catch(function () { /* unknown permission name: wait for a tap */ });
   }
 
@@ -854,6 +886,7 @@
   }
 
   document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && !state.access) checkPermission();
     if (document.visibilityState === "visible" && state.access && listInputNames(state.access).length) {
       requestWakeLock();
     }
@@ -938,6 +971,6 @@
     // Nothing to report yet: the button alone invites the tap.
     document.body.classList.add("idle");
     loadKeyboards();
-    autoConnectIfGranted();
+    checkPermission();
   }
 })();
