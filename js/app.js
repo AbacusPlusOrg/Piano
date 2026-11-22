@@ -632,7 +632,7 @@
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
-        html += '<div class="row event' + (/blocked/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+        html += '<div class="row event' + (/blocked|not allowed$/.test(r.event) ? " err" : (/^Disconnected|not set$/.test(r.event) ? " off" : "")) + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
           escapeHtml(r.event) + "</div>";
         continue;
       }
@@ -832,7 +832,7 @@
   function showBlocked() {
     document.body.classList.add("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-    setStatus("err", "MIDI permission is blocked for this site.<br>Allow MIDI in the browser's site settings.");
+    setStatus("err", "MIDI permission is " + DENIED_WORD + " for this site.<br>Allow MIDI in the browser's site settings.");
   }
 
   // React to the MIDI permission: connect when it is (or becomes) granted,
@@ -865,9 +865,13 @@
     document.body.classList.add("idle");
   }
 
+  // Match the browser's own settings wording: Brave says "Not allowed",
+  // Chrome and most others say "Blocked".
+  var DENIED_WORD = (navigator.brave && typeof navigator.brave.isBrave === "function") ? "not allowed" : "blocked";
+
   var PERM_TEXT = {
     granted: "MIDI permission: allowed",
-    denied: "MIDI permission: blocked",
+    denied: "MIDI permission: " + DENIED_WORD,
     prompt: "MIDI permission: not set"
   };
 
