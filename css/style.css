@@ -141,7 +141,7 @@ button {
 
 .readout {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   flex-shrink: 0;
   margin-top: 10px;
@@ -151,41 +151,36 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 .card .label {
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
-  margin-bottom: 4px;
-}
-.last-note {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 .last-name {
   font-family: Palatino, "Palatino Linotype", "Iowan Old Style", serif;
-  font-size: 2rem;
+  font-size: 2.4rem;
   line-height: 1;
   font-weight: 600;
-  min-width: 2.2ch;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 2.6rem;
 }
-.last-meta {
-  font-size: 0.82rem;
-  color: var(--text-dim);
-  line-height: 1.35;
-}
-.last-meta b { color: var(--text); font-weight: 600; }
-.stats {
+.trio, .stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 8px 10px;
   font-size: 0.82rem;
 }
-.stats .k { color: var(--text-faint); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.stats .v { color: var(--text); font-variant-numeric: tabular-nums; }
+.trio { grid-template-columns: repeat(3, auto); justify-content: space-between; margin-top: 8px; }
+.stats { grid-template-columns: 1fr 1fr; flex: 1; align-content: space-between; }
+.k { color: var(--text-faint); font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
+.v { color: var(--text); font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .sustain {
   display: inline-flex;
   align-items: center;
@@ -206,9 +201,10 @@ button {
 }
 .latency {
   grid-column: 1 / -1;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-dim);
-  margin-top: 2px;
+  margin-top: 0;
+  padding: 0 4px;
 }
 .latency em { color: var(--text-faint); font-style: normal; }
 
@@ -440,27 +436,21 @@ button {
   h1 { font-size: 1.02rem; }
   .btn-connect { padding: 8px 12px; font-size: 0.88rem; border-radius: 11px; }
   .btn-connect:not(.is-connected) { flex: 0 0 auto; }
+  .readout { align-items: stretch; }
   .card {
-    flex: 1;
-    display: flex;
+    flex: 1 1 0;
+    flex-direction: row;
     align-items: center;
-    gap: 10px;
-    padding: 5px 10px;
+    gap: 14px;
+    padding: 5px 12px;
   }
   .card .label { display: none; }
-  .last-name { font-size: 1.25rem; }
-  .last-note { flex-wrap: nowrap; }
-  .last-meta { white-space: nowrap; }
-  .stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 14px;
-    grid-template-columns: none;
-    width: 100%;
-  }
-  .latency { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stats { display: contents; }
-  .stats > div { display: flex; flex-direction: column; justify-content: center; }
+  .last-name { font-size: 1.5rem; min-height: 0; flex: 0 0 auto; min-width: 2.4ch; }
+  .trio { margin: 0; gap: 14px; flex: 1; justify-content: start; }
+  .stats { grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 14px; flex: 1; }
+  .k { font-size: 0.6rem; }
+  .v { font-size: 0.85rem; }
+  .latency { display: none; }
   .status {
     padding: 5px 10px;
     font-size: 0.74rem;
