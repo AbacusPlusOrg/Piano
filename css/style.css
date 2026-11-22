@@ -427,7 +427,8 @@ button {
   .status-wrap { grid-area: status; margin: 0; min-width: 0; align-self: center; }
   body.has-access .status-wrap,
   body.no-midi .status-wrap,
-  body.blocked .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
+  body.blocked .status-wrap,
+  body.auto-connecting .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
   .connect-row { grid-area: connect; margin: 0; align-self: center; }
   .readout {
     grid-area: readout;
@@ -477,4 +478,5 @@ body.idle .status-wrap { display: none; }
 /* Once MIDI access is granted, devices are picked up automatically: no button needed. */
 body.has-access .connect-row,
 body.no-midi .connect-row,
-body.blocked .connect-row { display: none; }
+body.blocked .connect-row,
+body.auto-connecting .connect-row { display: none; }

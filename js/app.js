@@ -864,6 +864,17 @@
     if (!fromGesture && state.connecting) return;
     state.connecting = true;
     var attempt = (state.attempt = (state.attempt || 0) + 1);
+    if (!fromGesture) {
+      // Permission is already allowed: connect without the button. If the
+      // browser won't answer without a tap, fall back to the button.
+      document.body.classList.add("auto-connecting");
+      setStatus("warn", "Connecting…");
+      setTimeout(function () {
+        if (state.attempt === attempt && !state.access) autoConnectFailed();
+      }, 3000);
+    } else {
+      document.body.classList.remove("auto-connecting");
+    }
     if (fromGesture) {
       els.btnConnect.textContent = "Asking the browser…";
       setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
@@ -883,6 +894,7 @@
     }
     p.then(function (access) {
       state.connecting = false;
+      document.body.classList.remove("auto-connecting");
       state.access = access;
       notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
@@ -894,7 +906,7 @@
       updateConnectionStatus();
     }).catch(function (err) {
       state.connecting = false;
-      if (!fromGesture) return; // a silent auto-try failing is not news
+      if (!fromGesture) { if (state.attempt === attempt) autoConnectFailed(); return; }
       els.btnConnect.classList.remove("is-connected");
       els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       var name = (err && err.name) || "";
@@ -908,8 +920,17 @@
     });
   }
 
+  // The automatic connect didn't finish: offer the button.
+  function autoConnectFailed() {
+    if (!document.body.classList.contains("auto-connecting")) return;
+    document.body.classList.remove("auto-connecting");
+    els.btnConnect.textContent = "Tap to connect MIDI keyboard";
+    setStatus("warn", "MIDI is allowed, but the browser needs a tap to connect.");
+  }
+
   // Tapping can't undo a block, so hide the button and say where to fix it.
   function showBlocked() {
+    document.body.classList.remove("auto-connecting");
     document.body.classList.add("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
     setStatus("err", "MIDI permission is " + DENIED_WORD + " for this site.<br>Allow MIDI in " + BROWSER_POSSESSIVE + " site settings.");
@@ -940,7 +961,7 @@
   }
 
   function showFirstVisit() {
-    document.body.classList.remove("blocked");
+    document.body.classList.remove("blocked", "auto-connecting");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
     document.body.classList.add("idle");
   }
