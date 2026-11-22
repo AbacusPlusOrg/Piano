@@ -527,6 +527,24 @@
     renderLog();
   }
 
+  // Device connects and disconnects, shown in the log alongside messages.
+  function logEvent(text) {
+    state.log.push({ t: performance.now(), event: text });
+    if (state.log.length > MAX_LOG) state.log.shift();
+    renderLog();
+  }
+
+  // Log an input only when its connected/disconnected state actually changes.
+  function notePortState(port) {
+    if (!port || port.type !== "input") return;
+    state.portStates = state.portStates || {};
+    var key = port.id || port.name;
+    if (state.portStates[key] === port.state) return;
+    state.portStates[key] = port.state;
+    var name = port.name || port.id || "MIDI keyboard";
+    logEvent((port.state === "connected" ? "Connected: " : "Disconnected: ") + name);
+  }
+
   function renderLog() {
     if (!state.log.length) {
       els.log.innerHTML = '<div class="empty">No messages yet.</div>';
@@ -536,6 +554,11 @@
     // Newest first, easier on a phone.
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
+      if (r.event) {
+        html += '<div class="row event' + (/^Disconnected/.test(r.event) ? " off" : "") + '"><span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
+          escapeHtml(r.event) + "</div>";
+        continue;
+      }
       var src = r.source === "touch" ? ' <span class="src-touch">touch</span>' : "";
       html += '<div class="row">' +
         '<span class="t">' + Number(r.t).toFixed(1) + "</span>  " +
@@ -658,6 +681,7 @@
 
   function hookStateChange(access) {
     access.onstatechange = function (e) {
+      notePortState(e && e.port);
       attachInputs(access);
       updateConnectionStatus();
       var port = e && e.port;
@@ -705,6 +729,7 @@
       // Plugging and unplugging are picked up automatically from here on,
       // so the Connect button has nothing left to do.
       document.body.classList.add("has-access");
+      access.inputs.forEach(function (input) { notePortState(input); });
       attachInputs(access);
       hookStateChange(access);
       updateConnectionStatus();

@@ -396,6 +396,8 @@ button {
 .log .t { color: #7a6e63; }
 .log .hex { color: var(--accent); }
 .log .src-touch { color: #8eb8e0; }
+.log .row.event { color: var(--ok); }
+.log .row.event.off { color: var(--warn); }
 .log.empty { color: var(--text-faint); }
 
 .hint {
