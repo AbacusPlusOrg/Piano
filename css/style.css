@@ -418,8 +418,9 @@ button {
 .log .d .dn { overflow: hidden; text-overflow: ellipsis; text-align: right; padding-right: 1ch; }
 .log .d .dc { overflow: visible; }
 .log .val { text-align: right; }
-.log .val.split { display: flex; justify-content: space-between; gap: 1ch; }
-.log .val .vw { text-align: left; }
+.log .val.split { display: grid; grid-template-columns: 4ch minmax(0, 1fr); }
+.log .val .vw { text-align: right; }
+.log .val .vn { text-align: right; }
 .log .c { text-align: center; }
 .log .row.touch .hex { color: #8eb8e0; }
 .log .hex { color: var(--accent); }
