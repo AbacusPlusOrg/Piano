@@ -786,7 +786,7 @@
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Gap") + dSplit("Note", "#") +
+    var html = '<div class="row head">' + cell("t", "Delta") + dSplit("Note", "#") +
       cell("ev", "Event") + cell("val", "Value") + cell("c", "Ch") + cell("hex", "Bytes") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
