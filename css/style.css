@@ -419,7 +419,7 @@ button {
 .log .d .dc { overflow: visible; text-align: left; white-space: nowrap; }
 .log .val { text-align: right; }
 .log .c { text-align: center; }
-.log .row.touch .hex { color: #8eb8e0; }
+.log .row.touch .hex { color: var(--accent); }
 .log .hex { color: var(--accent); }
 .log .src-touch { color: #8eb8e0; }
 .log .row.event { color: var(--ok); }
