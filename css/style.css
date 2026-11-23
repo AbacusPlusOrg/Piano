@@ -543,6 +543,7 @@ button {
   .lower {
     display: flex;
     align-items: stretch;
+    justify-content: center;
     gap: 14px;
     margin-top: 10px;
     min-width: 0;
@@ -564,21 +565,29 @@ button {
   .now-meta { gap: 8px; }
   .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
   .log-wrap {
-    flex: 1 1 0;
+    flex: 0 0 auto;
+    width: fit-content;
     margin: 0;
-    min-width: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    container-type: inline-size;
   }
   .log-bar { flex-wrap: nowrap; }
-  .log { flex: 1 1 auto; min-height: 0; max-height: none; }
+  /* 60ch rows + horizontal padding and border + room for the scrollbar. */
+  .log {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    width: calc(60ch + 22px + 16px);
+    scrollbar-gutter: stable;
+  }
+  .log .row { width: 60ch; }
+  .log-wrap .hint { width: 100%; }
   .key.white .oct { bottom: 10px; }
 
   /* Log hidden: the cards sit side by side across the full width, log buttons below. */
   body:has(#log:not(.open)) .lower { flex-direction: column; gap: 10px; flex: 0 0 auto; }
-  body:has(#log:not(.open)) .log-wrap { flex: 0 0 auto; min-height: auto; }
+  body:has(#log:not(.open)) .log-wrap { flex: 0 0 auto; min-height: auto; width: auto; max-width: none; align-self: stretch; }
   body:has(#log:not(.open)) .readout { flex: 0 0 auto; width: auto; flex-direction: row; flex-wrap: wrap; }
   body:has(#log:not(.open)) .readout .card { flex: 1 1 0; }
   body:has(#log:not(.open)) .readout .now-card { flex-grow: 1.4; }
