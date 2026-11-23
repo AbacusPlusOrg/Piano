@@ -396,7 +396,7 @@ button {
 /* Log columns: time, bytes, event, note or controller, value, channel */
 .log .row {
   display: grid;
-  grid-template-columns: 8ch 13ch 10ch 6ch 3ch 8ch;
+  grid-template-columns: 8ch 14ch 10ch 5ch 3ch 8ch;
   --gap: 1.6ch;
   column-gap: var(--gap);
   white-space: nowrap;
@@ -414,7 +414,7 @@ button {
 .log .t { color: #7a6e63; display: grid; grid-template-columns: 1fr 3ch; text-align: right; }
 .log .t .gu { text-align: left; padding-left: 0.5ch; color: #5c534a; }
 .log .row.head .t { display: block; text-align: left; }
-.log .d.split { display: grid; grid-template-columns: minmax(0, 1fr) 4ch; }
+.log .d.split { display: grid; grid-template-columns: minmax(0, 1fr) 5ch; }
 .log .d .dn { overflow: hidden; text-overflow: ellipsis; text-align: right; padding-right: 1ch; }
 .log .d .dc { overflow: visible; }
 .log .val { text-align: right; }
@@ -538,12 +538,12 @@ body.blocked .connect-row { display: none; }
   border-left: 1px solid #4a4038;
 }
 @media (max-width: 440px) {
-  .log .row { --gap: clamp(5px, calc(6vw - 16px), 11px); grid-template-columns: 6ch 12ch 10ch 6ch 3ch 8ch; }
+  .log .row { --gap: clamp(5px, calc(6vw - 16px), 11px); grid-template-columns: 6ch 13ch 10ch 5ch 3ch 8ch; }
   .log { padding-left: 6px; padding-right: 6px; }
   .log .row.head { align-items: end; }
   .log .row.head > span { white-space: normal; line-height: 1.2; }
 }
 .log .row.head > span, .log .row.head .t { text-align: center; }
 @media (max-width: 380px) {
-  .log .row { grid-template-columns: 6ch 12ch 10ch 6ch 2ch 8ch; }
+  .log .row { grid-template-columns: 6ch 13ch 10ch 5ch 2ch 8ch; }
 }
