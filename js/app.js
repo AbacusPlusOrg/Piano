@@ -758,11 +758,14 @@
     return '<span class="' + cls + '">' + escapeHtml(text) + "</span>";
   }
 
-  // Note / CC # cell: name and (number) in separate slots so the numbers line up.
+  // Note / CC # cell: name and "/ number" in separate slots so the slashes line up with the header.
+  function dSplit(name, num) {
+    return '<span class="d split"><span class="dn">' + name + '</span><span class="dc">/ ' + num + "</span></span>";
+  }
   function dCell(text) {
     var m = /^(.*) \((\d+)\)$/.exec(text || "");
     if (!m) return cell("d", text);
-    return '<span class="d split"><span class="dn">' + escapeHtml(m[1]) + '</span><span class="dc">(' + m[2] + ")</span></span>";
+    return dSplit(escapeHtml(m[1]), m[2]);
   }
 
   function renderLog() {
@@ -771,7 +774,7 @@
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Gap") + cell("d", "Note / CC #") +
+    var html = '<div class="row head">' + cell("t", "Gap") + dSplit("Note", "CC #") +
       cell("ev", "Event") + cell("val", "Value") + cell("c", "Ch") + cell("hex", "Bytes") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
