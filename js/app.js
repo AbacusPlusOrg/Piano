@@ -772,8 +772,8 @@
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Gap") + cell("hex", "Bytes") +
-      cell("ev", "Event") + cell("d", "Note / CC #") + cell("val", "Value") + cell("c", "Ch") + "</div>";
+    var html = '<div class="row head">' + cell("t", "Gap") + cell("ev", "Event") +
+      cell("d", "Note / CC #") + cell("val", "Value") + cell("c", "Ch") + cell("hex", "Bytes") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
@@ -784,9 +784,9 @@
       var p = r.parts || [r.decoded, "", "", ""];
       html += '<div class="row' + (r.source === "touch" ? " touch" : "") + '">' +
         '<span class="t">' + fmtGap(r.gap) + "</span>" +
+        cell("ev", p[0]) + dCell(p[1]) + cell("val", p[2]) + cell("c", p[3]) +
         // On-screen taps send no MIDI bytes, so say so instead.
         (r.source === "touch" ? cell("hex", "tap") : '<span class="hex">' + r.hex + "</span>") +
-        cell("ev", p[0]) + dCell(p[1]) + cell("val", p[2]) + cell("c", p[3]) +
         "</div>";
     }
     els.log.innerHTML = html;
