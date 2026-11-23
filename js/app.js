@@ -641,13 +641,13 @@
     var d1 = bytes.length > 1 ? bytes[1] : 0;
     var d2 = bytes.length > 2 ? bytes[2] : 0;
     var note = noteName(d1) + " (" + d1 + ")";
-    if (type === 0x90) return d2 === 0 ? ["Note on", note, "0 off", ch] : ["Note on", note, String(d2), ch];
+    if (type === 0x90) return d2 === 0 ? ["Note on", note, "off 0", ch] : ["Note on", note, String(d2), ch];
     if (type === 0x80) return ["Note off", note, String(d2), ch];
     if (type === 0xA0) return ["Poly AT", note, String(d2), ch];
     if (type === 0xB0) {
       var cv = String(d2);
       // Pedals (sustain, sostenuto, soft): 64 and up is down, below is up.
-      if (d1 >= 64 && d1 <= 67) cv += d2 >= 64 ? " down" : " up";
+      if (d1 >= 64 && d1 <= 67) cv = (d2 >= 64 ? "down " : "up ") + cv;
       return ["Control", CC_NAMES[d1] ? CC_NAMES[d1] + " (" + d1 + ")" : "CC " + d1, cv, ch];
     }
     if (type === 0xC0) return ["Program", String(d1), "", ch];
