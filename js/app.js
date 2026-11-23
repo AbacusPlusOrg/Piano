@@ -641,14 +641,13 @@
     var d1 = bytes.length > 1 ? bytes[1] : 0;
     var d2 = bytes.length > 2 ? bytes[2] : 0;
     var note = noteName(d1) + " (" + d1 + ")";
-    if (type === 0x90) return d2 === 0 ? ["Note on", note, "off 0", ch] : ["Note on", note, String(d2), ch];
+    if (type === 0x90) return d2 === 0 ? ["Note off", note, "0", ch] : ["Note on", note, String(d2), ch];
     if (type === 0x80) return ["Note off", note, String(d2), ch];
     if (type === 0xA0) return ["Poly AT", note, String(d2), ch];
     if (type === 0xB0) {
-      var cv = String(d2);
       // Pedals (sustain, sostenuto, soft): 64 and up is down, below is up.
-      if (d1 >= 64 && d1 <= 67) cv = (d2 >= 64 ? "down " : "up ") + cv;
-      return ["Control", CC_NAMES[d1] ? CC_NAMES[d1] + " (" + d1 + ")" : "CC " + d1, cv, ch];
+      var ev = d1 >= 64 && d1 <= 67 ? (d2 >= 64 ? "Pedal down" : "Pedal up") : "Control";
+      return [ev, CC_NAMES[d1] ? CC_NAMES[d1] + " (" + d1 + ")" : "CC " + d1, String(d2), ch];
     }
     if (type === 0xC0) return ["Program", String(d1), "", ch];
     if (type === 0xD0) return ["Aftertouch", "", String(d1), ch];
@@ -766,21 +765,14 @@
     return '<span class="d split"><span class="dn">' + escapeHtml(m[1]) + '</span><span class="dc">(' + m[2] + ")</span></span>";
   }
 
-  // Value cell: a leading word (down, up, off) sits left, the number stays right.
-  function vCell(text) {
-    var m = /^([a-z]+) (-?\d+)$/.exec(text || "");
-    if (!m) return cell("val", text);
-    return '<span class="val split"><span class="vw">' + escapeHtml(m[1]) + '</span><span class="vn">' + m[2] + "</span></span>";
-  }
-
   function renderLog() {
     if (!state.log.length) {
       els.log.innerHTML = '<div class="empty">No messages yet.</div>';
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Gap") + cell("ev", "Event") +
-      cell("d", "Note / CC #") + cell("val", "Value") + cell("c", "Ch") + cell("hex", "Bytes") + "</div>";
+    var html = '<div class="row head">' + cell("t", "Gap") + cell("d", "Note / CC #") +
+      cell("ev", "Event") + cell("val", "Value") + cell("c", "Ch") + cell("hex", "Bytes") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
       if (r.event) {
@@ -791,7 +783,7 @@
       var p = r.parts || [r.decoded, "", "", ""];
       html += '<div class="row' + (r.source === "touch" ? " touch" : "") + '">' +
         '<span class="t">' + fmtGap(r.gap) + "</span>" +
-        cell("ev", p[0]) + dCell(p[1]) + vCell(p[2]) + cell("c", p[3]) +
+        dCell(p[1]) + cell("ev", p[0]) + cell("val", p[2]) + cell("c", p[3]) +
         // On-screen taps send no MIDI bytes, so say so instead.
         (r.source === "touch" ? cell("hex", "tap") : '<span class="hex">' + r.hex + "</span>") +
         "</div>";
