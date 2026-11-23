@@ -537,6 +537,7 @@ body.blocked .connect-row { display: none; }
   content: ""; position: absolute; left: calc(var(--gap) / -2 - 0.5px); top: 10%; bottom: 10%;
   border-left: 1px solid #4a4038;
 }
+.log .row.head > span.d::before { left: calc(var(--gap) / -2 - 0.5px - 1ch); }
 @media (max-width: 440px) {
   .log .row { --gap: clamp(5px, calc(6vw - 16px), 11px); grid-template-columns: 6ch 10ch 15ch 5ch 3ch 8ch; }
   .log { padding-left: 6px; padding-right: 6px; }
