@@ -108,6 +108,21 @@ h1 span {
   -webkit-line-clamp: 2;
 }
 .status .msg strong { color: var(--text); font-weight: 600; }
+.status .dots { white-space: nowrap; }
+.status .dots span {
+  opacity: 0.2;
+  animation: status-dots 1.2s ease-in-out infinite both;
+}
+.status .dots span:nth-child(2) { animation-delay: 0.2s; }
+.status .dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes status-dots {
+  0%, 20% { opacity: 0.2; }
+  50% { opacity: 1; }
+  80%, 100% { opacity: 0.2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status .dots span { animation: none; opacity: 1; }
+}
 
 .connect-row {
   display: none; /* only shown when a tap is needed (body.idle) */

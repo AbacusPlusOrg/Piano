@@ -106,7 +106,7 @@ try {
       ["ok", "Connected: <strong>Digital Piano</strong>"],
       ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
-      ["warn", "Checking for MIDI…"],
+      ["warn", "Checking for MIDI<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
       ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."]
     ];
     const hs = samples.map(function (s) {
@@ -123,6 +123,34 @@ try {
   check("status box height is the same across states",
     statusHeights.length > 1 && statusHeights.every((h) => h === statusHeights[0] && h > 0),
     JSON.stringify(statusHeights));
+
+  async function loadChecking() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      if (navigator.permissions && navigator.permissions.query) {
+        const q = navigator.permissions.query.bind(navigator.permissions);
+        navigator.permissions.query = (d) =>
+          d && d.name === "midi" ? new Promise(() => {}) : q(d);
+      }
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 300));
+    const info = await p.evaluate(() => {
+      const msg = document.querySelector("#status .msg");
+      return {
+        text: msg ? msg.textContent.replace(/\s+/g, " ").trim() : "",
+        hasDots: !!(msg && msg.querySelector(".dots")),
+        dotCount: msg ? msg.querySelectorAll(".dots span").length : 0
+      };
+    });
+    await p.close();
+    return info;
+  }
+  const checking = await loadChecking();
+  check("checking status has animated dots",
+    checking.hasDots && checking.dotCount === 3 && checking.text === "Checking for MIDI...",
+    JSON.stringify(checking));
 
   function fakeMidiPerm(state) {
     const inputs = new Map();
