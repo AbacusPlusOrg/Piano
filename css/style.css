@@ -433,23 +433,22 @@ button {
   color: var(--text-faint);
 }
 
+/* Portrait: the wrapper around the cards and log does not affect layout. */
+.lower { display: contents; }
+
 @media (orientation: landscape) and (max-height: 540px) {
   body {
+    --lw: clamp(220px, 36%, 330px); /* left column: Last note and Session */
     display: grid;
     grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto minmax(150px, 1fr) auto auto;
     grid-template-areas:
       "title title"
       "connect status"
       "kb kb"
-      "readout readout"
-      "log log";
+      "bottom bottom";
     align-items: stretch;
     column-gap: 8px;
     row-gap: 5px;
-    height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
     padding-top: calc(4px + var(--safe-t));
     padding-bottom: calc(4px + var(--safe-b));
   }
@@ -459,43 +458,11 @@ button {
   body.no-midi .status-wrap,
   body.blocked .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
   .connect-row { grid-area: connect; margin: 0; align-self: center; }
-  .readout {
-    grid-area: readout;
-    margin: 0;
-    display: flex;
-    gap: 8px;
-  }
   .kb-wrap { grid-area: kb; min-height: 150px; }
   .kb-scroll { flex: 1 1 auto; height: 0; min-height: 100px; padding-bottom: 0; }
-  .log-wrap { grid-area: log; margin: 0; min-height: 0; }
   h1 { font-size: 1.02rem; }
   .btn-connect { padding: 8px 12px; font-size: 0.88rem; border-radius: 11px; }
   .btn-connect:not(.is-connected) { flex: 0 0 auto; }
-  .readout { align-items: stretch; }
-  .card {
-    flex: 1 1 0;
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-    padding: 5px 12px;
-  }
-  .card .label { display: none; }
-  .now-card { position: relative; padding-right: 44px; }
-  .now-card .label.head { display: block; position: absolute; top: 4px; right: 9px; margin: 0; }
-  .now-card .label.head > span:first-child { display: none; }
-  .now-card .ch { font-size: 0.6rem; }
-  .last-name { font-size: 1.5rem; min-height: 0; flex: 0 0 auto; min-width: 2.4ch; }
-  .stats { grid-template-columns: repeat(2, auto); justify-content: space-between; gap: 14px; flex: 1; }
-  .now-card { flex: 0 1 auto; }
-  .session-card { flex: 0 1 auto; }
-  .readout { justify-content: flex-start; }
-  .now-card .last-name { font-size: 1.5rem; }
-  .now-meta, .pair { display: flex; align-items: center; gap: 18px; flex: 0 0 auto; }
-  .now-meta .pair + .pair { border-left: 1px solid var(--border); padding-left: 18px; }
-  .stats { display: flex; gap: 18px; flex: 0 0 auto; justify-content: flex-start; }
-  .k { font-size: 0.6rem; }
-  .v { font-size: 0.85rem; }
-  .latency { display: none; }
   .status {
     padding: 5px 10px;
     font-size: 0.74rem;
@@ -506,16 +473,66 @@ button {
     text-overflow: ellipsis;
     overflow: hidden;
   }
-  .log { max-height: 68px; }
-  /* The first screen looks as before (keys fill it, the log peeks in at the bottom),
-     but the page scrolls so the log can be read at full height. JS measures --kbh. */
-  body { height: auto; max-height: none; min-height: 100dvh; overflow: visible;
-         grid-template-rows: auto auto var(--kbh, minmax(150px, 1fr)) auto auto; }
-  .log { max-height: 70dvh; }
-  body.measuring { height: 100dvh; max-height: 100dvh; overflow: hidden; grid-template-rows: auto auto minmax(150px, 1fr) auto auto; }
-  body.measuring .log { max-height: 68px; }
+
+  /* Below the keys: Last note and Session stacked on the left, the log on the right. */
+  .lower {
+    grid-area: bottom;
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 5px;
+    min-width: 0;
+  }
+  .readout {
+    flex: 0 0 var(--lw);
+    width: var(--lw);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card { padding: 8px 12px; }
+  .card .label { margin-bottom: 4px; }
+  .now-card .last-name { font-size: 2.3rem; min-height: 0; }
+  .now-grid { gap: 12px; }
+  .now-meta { gap: 8px; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .k { font-size: 0.6rem; }
+  .v { font-size: 0.88rem; }
+  .latency { font-size: 0.66rem; padding: 0 2px; }
+  .log-wrap {
+    flex: 1 1 0;
+    margin: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+  }
+  .log-bar { flex-wrap: nowrap; }
+  .log { flex: 1 0 auto; max-height: 70dvh; }
   .hint { display: none; }
   .key.white .oct { bottom: 10px; }
+
+  /* Log hidden: the cards sit side by side across the full width, log buttons below. */
+  body:has(#log:not(.open)) .lower { flex-direction: column; gap: 8px; }
+  body:has(#log:not(.open)) .readout { flex: 0 0 auto; width: auto; flex-direction: row; flex-wrap: wrap; }
+  body:has(#log:not(.open)) .readout .card { flex: 1 1 0; }
+  body:has(#log:not(.open)) .readout .now-card { flex-grow: 1.4; }
+  body:has(#log:not(.open)) .latency { flex: 1 0 100%; }
+  body:has(#log:not(.open)) .now-meta,
+  body:has(#log:not(.open)) .stats { max-width: 280px; }
+
+  /* The first screen keeps the keys as large as before, the log peeks in below,
+     and the page scrolls on to the cards and log. JS measures --kbh in this state. */
+  body { grid-template-rows: auto auto var(--kbh, minmax(150px, 1fr)) auto; }
+  body.measuring { height: 100dvh; max-height: 100dvh; overflow: hidden;
+                   grid-template-rows: auto auto minmax(150px, 1fr) 128px; }
+  body.measuring .lower { display: none; }
+}
+/* Narrow log column in landscape: same tighter columns as on narrow phones. */
+@container (max-width: 430px) {
+  .log .row { --gap: 9px; grid-template-columns: 6ch 10ch 15ch 5ch 3ch 8ch; }
+  .log { padding-left: 6px; padding-right: 6px; }
 }
 
 /* First load: just the connect button, no separate prompt. */
