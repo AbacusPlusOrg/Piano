@@ -896,8 +896,7 @@
     applyDeviceRange(names);
     if (names.length) {
       var list = names.map(function (n) { return "<strong>" + escapeHtml(n) + "</strong>"; }).join(", ");
-      var kb = names.length === 1 ? findKeyboard(names[0]) : null;
-      setStatus("ok", "Connected: " + list + (kb && kb.keys ? " · " + kb.keys + " keys" : ""));
+      setStatus("ok", "Connected: " + list);
       document.body.classList.add("is-connected");
       els.btnConnect.textContent = names.length === 1 ? "Connected · " + names[0] : "Connected · " + names.length + " devices";
       els.btnConnect.classList.add("is-connected");
