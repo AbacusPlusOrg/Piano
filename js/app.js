@@ -99,6 +99,17 @@
     bootDecided = true;
     if (bootTimer) { clearTimeout(bootTimer); bootTimer = null; }
   }
+  function setConnectPending(pending) {
+    if (pending) {
+      document.body.classList.add("asking");
+      els.btnConnect.disabled = true;
+      els.btnConnect.setAttribute("aria-disabled", "true");
+    } else {
+      document.body.classList.remove("asking");
+      els.btnConnect.disabled = false;
+      els.btnConnect.removeAttribute("aria-disabled");
+    }
+  }
   function setStatus(kind, html, retry) {
     // Any real news shows the status line; first paint is the checking bar, not the button.
     document.body.classList.remove("idle");
@@ -959,10 +970,11 @@
     if (fromGesture) {
       midiRequestHadGesture = true;
       var attempt = (state.attempt = (state.attempt || 0) + 1);
-      els.btnConnect.textContent = "Asking the browser…";
-      setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
+      setConnectPending(true);
+      setStatus("warn", "Waiting for permission<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span><br>Tap <strong>Allow</strong> if asked.");
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
+          setConnectPending(false);
           els.btnConnect.textContent = "Tap to connect MIDI keyboard";
           setStatus("err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again.");
         }
@@ -981,6 +993,7 @@
       midiRequest = null;
       midiRequestHadGesture = false;
       state.connecting = false;
+      setConnectPending(false);
       state.access = access;
       notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
@@ -996,6 +1009,7 @@
       midiRequest = null;
       midiRequestHadGesture = false;
       state.connecting = false;
+      setConnectPending(false);
       if (!showedGesture) return; // a silent auto-try failing is not news
       els.btnConnect.classList.remove("is-connected");
       els.btnConnect.textContent = "Tap to connect MIDI keyboard";
@@ -1044,7 +1058,9 @@
 
   function showFirstVisit() {
     document.body.classList.remove("blocked");
+    setConnectPending(false);
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
+    els.btnConnect.classList.remove("is-connected");
     document.body.classList.add("idle");
   }
 

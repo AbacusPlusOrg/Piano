@@ -107,7 +107,7 @@ try {
       ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
       ["warn", "Checking for MIDI<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
-      ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."],
+      ["warn", "Waiting for permission<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span><br>Tap <strong>Allow</strong> if asked."],
       ["err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."]
     ];
     const hs = samples.map(function (s) {
@@ -386,6 +386,31 @@ try {
     await p.evaluate(() => document.getElementById("btn-connect").click());
     await p.waitForFunction(() => {
       const msg = document.querySelector("#status .msg");
+      return msg && /Waiting for permission/.test(msg.textContent);
+    }, { timeout: 3000 });
+    const waiting = await p.evaluate(() => {
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      const btn = document.getElementById("btn-connect");
+      const row = document.querySelector(".connect-row");
+      const cs = row ? getComputedStyle(row) : null;
+      const btnCs = getComputedStyle(btn);
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        hasDots: !!(msg.querySelector(".dots")),
+        dotCount: msg.querySelectorAll(".dots span").length,
+        disabled: btn.disabled === true,
+        aria: btn.getAttribute("aria-disabled"),
+        asking: document.body.classList.contains("asking"),
+        btnVisible: !!(row && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0),
+        statusH: Math.round(st.getBoundingClientRect().height),
+        btnH: Math.round(btn.getBoundingClientRect().height),
+        opacity: parseFloat(btnCs.opacity),
+        translateY: btnCs.transform
+      };
+    });
+    await p.waitForFunction(() => {
+      const msg = document.querySelector("#status .msg");
       return msg && /No answer from the browser/.test(msg.textContent);
     }, { timeout: 3000 });
     const info = await p.evaluate(() => {
@@ -403,6 +428,7 @@ try {
       st.className = prev.cls;
       msg.innerHTML = prev.html;
       const restoredLink = msg.querySelector(".reload-link");
+      const btn = document.getElementById("btn-connect");
       return {
         text: msg.innerText.replace(/\s+/g, " ").trim(),
         hasLink: !!(link && link.textContent.trim() === "Reload"),
@@ -411,23 +437,74 @@ try {
         noAnswerH,
         connectedH,
         warnH,
-        restoredHasLink: !!(restoredLink && restoredLink.textContent.trim() === "Reload")
+        restoredHasLink: !!(restoredLink && restoredLink.textContent.trim() === "Reload"),
+        afterDisabled: btn.disabled,
+        afterAsking: document.body.classList.contains("asking"),
+        afterAria: btn.getAttribute("aria-disabled")
       };
     });
     await p.close();
-    return info;
+    return { waiting, after: info, ...info };
   }
   const noAnswer = await loadNoAnswer();
-  console.log("NO-ANSWER", JSON.stringify(noAnswer));
+  console.log("WAITING", JSON.stringify(noAnswer.waiting));
+  console.log("NO-ANSWER", JSON.stringify(noAnswer.after));
+  const wait = noAnswer.waiting;
+  check("waiting status has animated dots",
+    wait.hasDots === true && wait.dotCount === 3 && wait.text === "Waiting for permission... Tap Allow if asked.",
+    JSON.stringify(wait));
+  check("connect button is disabled and visible while the request is pending",
+    wait.disabled === true && wait.aria === "true" && wait.asking === true && wait.btnVisible === true && wait.opacity < 0.8,
+    JSON.stringify(wait));
+  check("pending connect button keeps the status-box height",
+    wait.statusH > 0 && wait.statusH === wait.btnH,
+    JSON.stringify({ statusH: wait.statusH, btnH: wait.btnH }));
   check("no-answer status says Reload to try again",
     noAnswer.text === "No answer from the browser. Reload to try again.",
     noAnswer.text);
   check("no-answer status has a Reload link",
     noAnswer.hasLink === true && noAnswer.tag === "button" && noAnswer.type === "button",
-    JSON.stringify(noAnswer));
+    JSON.stringify(noAnswer.after));
   check("no-answer status box height matches other states",
-    noAnswer.noAnswerH > 0 && noAnswer.noAnswerH === noAnswer.connectedH && noAnswer.noAnswerH === noAnswer.warnH,
-    JSON.stringify({ noAnswerH: noAnswer.noAnswerH, connectedH: noAnswer.connectedH, warnH: noAnswer.warnH }));
+    noAnswer.noAnswerH > 0 && noAnswer.noAnswerH === noAnswer.connectedH && noAnswer.noAnswerH === noAnswer.warnH && noAnswer.noAnswerH === wait.statusH,
+    JSON.stringify({ noAnswerH: noAnswer.noAnswerH, connectedH: noAnswer.connectedH, warnH: noAnswer.warnH, waitingH: wait.statusH }));
+  check("connect button is re-enabled after no-answer failure",
+    noAnswer.afterDisabled === false && noAnswer.afterAsking === false && noAnswer.afterAria === null,
+    JSON.stringify({ afterDisabled: noAnswer.afterDisabled, afterAsking: noAnswer.afterAsking, afterAria: noAnswer.afterAria }));
+
+  async function loadDenied() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      navigator.requestMIDIAccess = () => Promise.reject(Object.assign(new Error("denied"), { name: "NotAllowedError" }));
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: "prompt", onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 300));
+    await p.evaluate(() => document.getElementById("btn-connect").click());
+    await p.waitForFunction(() => document.body.classList.contains("blocked"), { timeout: 3000 });
+    const info = await p.evaluate(() => {
+      const btn = document.getElementById("btn-connect");
+      return {
+        disabled: btn.disabled,
+        asking: document.body.classList.contains("asking"),
+        aria: btn.getAttribute("aria-disabled"),
+        blocked: document.body.classList.contains("blocked"),
+        status: (document.querySelector("#status .msg") || {}).innerText || ""
+      };
+    });
+    await p.close();
+    return info;
+  }
+  const denied = await loadDenied();
+  console.log("DENIED", JSON.stringify(denied));
+  check("connect button is re-enabled after denied failure",
+    denied.disabled === false && denied.asking === false && denied.aria === null && denied.blocked === true,
+    JSON.stringify(denied));
 
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));
