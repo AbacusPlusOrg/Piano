@@ -766,6 +766,13 @@
     return '<span class="d split"><span class="dn">' + escapeHtml(m[1]) + '</span><span class="dc">(' + m[2] + ")</span></span>";
   }
 
+  // Value cell: a leading word (down, up, off) sits left, the number stays right.
+  function vCell(text) {
+    var m = /^([a-z]+) (-?\d+)$/.exec(text || "");
+    if (!m) return cell("val", text);
+    return '<span class="val split"><span class="vw">' + escapeHtml(m[1]) + '</span><span class="vn">' + m[2] + "</span></span>";
+  }
+
   function renderLog() {
     if (!state.log.length) {
       els.log.innerHTML = '<div class="empty">No messages yet.</div>';
@@ -784,7 +791,7 @@
       var p = r.parts || [r.decoded, "", "", ""];
       html += '<div class="row' + (r.source === "touch" ? " touch" : "") + '">' +
         '<span class="t">' + fmtGap(r.gap) + "</span>" +
-        cell("ev", p[0]) + dCell(p[1]) + cell("val", p[2]) + cell("c", p[3]) +
+        cell("ev", p[0]) + dCell(p[1]) + vCell(p[2]) + cell("c", p[3]) +
         // On-screen taps send no MIDI bytes, so say so instead.
         (r.source === "touch" ? cell("hex", "tap") : '<span class="hex">' + r.hex + "</span>") +
         "</div>";
