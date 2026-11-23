@@ -104,7 +104,7 @@ try {
     body.classList.add("has-access");
     const samples = [
       ["ok", "Connected: <strong>Digital Piano</strong>"],
-      ["warn", "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>."],
+      ["warn", "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\" aria-label=\"scan again\">scan again</button>."],
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
       ["warn", "Checking for MIDI<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
       ["warn", "Scanning<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
@@ -420,7 +420,7 @@ try {
       msg.innerHTML = "Connected: <strong>Digital Piano</strong>";
       const connectedH = Math.round(st.getBoundingClientRect().height);
       st.className = "status is-warn";
-      msg.innerHTML = "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>.";
+      msg.innerHTML = "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\" aria-label=\"scan again\">scan again</button>.";
       const warnH = Math.round(st.getBoundingClientRect().height);
       st.className = prev.cls;
       msg.innerHTML = prev.html;
@@ -584,7 +584,7 @@ try {
       const link = msg.querySelector(".scan-link");
       return {
         text: msg.innerText.replace(/\s+/g, " ").trim(),
-        hasScan: !!(link && link.textContent.trim() === "Scan again"),
+        hasScan: !!(link && link.textContent.trim() === "scan again"),
         hasAccess: document.body.classList.contains("has-access"),
         isConnected: document.body.classList.contains("is-connected"),
         statusH: Math.round(st.getBoundingClientRect().height),
@@ -725,7 +725,7 @@ try {
   console.log("HOTPLUG", JSON.stringify(hotplug));
   check("no-keyboard status offers Scan again",
     hotplug.empty.hasScan === true && hotplug.empty.hasAccess === true && hotplug.empty.isConnected === false
-      && hotplug.empty.text === "No MIDI keyboard detected. Plug one in, or Scan again.",
+      && hotplug.empty.text === "No MIDI keyboard detected. Plug one in, or scan again.",
     JSON.stringify(hotplug.empty));
   check("hotplug statechange burst is debounced before connecting",
     hotplug.duringDebounce.isConnected === false && /No MIDI keyboard detected/.test(hotplug.duringDebounce.text)
@@ -735,7 +735,7 @@ try {
   check("unplug returns to no-keyboard and clears the handler",
     hotplug.unplugged.isConnected === false && hotplug.unplugged.hasScan === true
       && hotplug.unplugged.handlerCleared === true
-      && hotplug.unplugged.text === "No MIDI keyboard detected. Plug one in, or Scan again.",
+      && hotplug.unplugged.text === "No MIDI keyboard detected. Plug one in, or scan again.",
     JSON.stringify(hotplug.unplugged));
   check("replug binds a single midimessage handler",
     hotplug.replugged.isConnected === true && hotplug.replugged.handlerBound === true
@@ -764,7 +764,7 @@ try {
     ["connected", "has-access is-connected", "status is-ok", "Connected: <strong>Digital Piano</strong>"],
     ["denied", "blocked", "status is-err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
     ["no-answer", "", "status is-err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."],
-    ["no-keyboard", "has-access", "status is-warn", "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>."],
+    ["no-keyboard", "has-access", "status is-warn", "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\" aria-label=\"scan again\">scan again</button>."],
     ["scanning", "has-access", "status is-warn", "Scanning" + DOTS]
   ];
   async function measureBelow(w, h, mobile) {
