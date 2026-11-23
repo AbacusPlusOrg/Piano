@@ -58,7 +58,6 @@
 
   var els = {
     status: document.getElementById("status"),
-    btnConnect: document.getElementById("btn-connect"),
     lastName: document.getElementById("last-name"),
     lastNum: document.getElementById("last-num"),
     lastVel: document.getElementById("last-vel"),
@@ -99,21 +98,30 @@
     bootDecided = true;
     if (bootTimer) { clearTimeout(bootTimer); bootTimer = null; }
   }
-  function setConnectPending(pending) {
-    if (pending) {
-      document.body.classList.add("asking");
-      els.btnConnect.disabled = true;
-      els.btnConnect.setAttribute("aria-disabled", "true");
-    } else {
-      document.body.classList.remove("asking");
-      els.btnConnect.disabled = false;
-      els.btnConnect.removeAttribute("aria-disabled");
-    }
+  function clearConnectAction() {
+    els.status.removeAttribute("tabindex");
+    els.status.removeAttribute("aria-label");
+    els.status.setAttribute("role", "status");
+  }
+  function showConnect() {
+    // The status box itself becomes the connect control; same slot, same height.
+    document.body.classList.remove("blocked");
+    statusRetry = false;
+    clearConnectAction();
+    els.status.className = "status is-connect";
+    els.status.querySelector(".msg").textContent = "Tap to connect MIDI keyboard";
+    els.status.setAttribute("role", "button");
+    els.status.setAttribute("tabindex", "0");
+    els.status.setAttribute("aria-label", "Tap to connect MIDI keyboard");
+    els.status.style.cursor = "pointer";
+  }
+  function isConnectAction() {
+    return els.status.classList.contains("is-connect");
   }
   function setStatus(kind, html, retry) {
-    // Any real news shows the status line; first paint is the checking bar, not the button.
-    document.body.classList.remove("idle");
+    // Any real news uses this same box (not a second button).
     statusRetry = !!retry;
+    clearConnectAction();
     els.status.className = "status" + (kind ? " is-" + kind : "") + (statusRetry ? " is-retry" : "");
     els.status.querySelector(".msg").innerHTML = html;
     els.status.style.cursor = statusRetry ? "pointer" : "";
@@ -919,14 +927,10 @@
       var list = names.map(function (n) { return "<strong>" + escapeHtml(n) + "</strong>"; }).join(", ");
       setStatus("ok", "Connected: " + list);
       document.body.classList.add("is-connected");
-      els.btnConnect.textContent = names.length === 1 ? "Connected · " + names[0] : "Connected · " + names.length + " devices";
-      els.btnConnect.classList.add("is-connected");
       requestWakeLock();
     } else {
       setStatus("warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable.");
       document.body.classList.remove("is-connected");
-      els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-      els.btnConnect.classList.remove("is-connected");
       releaseWakeLock();
     }
   }
@@ -970,12 +974,9 @@
     if (fromGesture) {
       midiRequestHadGesture = true;
       var attempt = (state.attempt = (state.attempt || 0) + 1);
-      setConnectPending(true);
       setStatus("warn", "Waiting for permission<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span><br>Tap <strong>Allow</strong> if asked.");
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
-          setConnectPending(false);
-          els.btnConnect.textContent = "Tap to connect MIDI keyboard";
           setStatus("err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again.");
         }
       }, 8000);
@@ -993,7 +994,6 @@
       midiRequest = null;
       midiRequestHadGesture = false;
       state.connecting = false;
-      setConnectPending(false);
       state.access = access;
       notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
@@ -1009,10 +1009,7 @@
       midiRequest = null;
       midiRequestHadGesture = false;
       state.connecting = false;
-      setConnectPending(false);
       if (!showedGesture) return; // a silent auto-try failing is not news
-      els.btnConnect.classList.remove("is-connected");
-      els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       var name = (err && err.name) || "";
       var msg = (err && err.message) || String(err);
       if (name === "NotAllowedError" || name === "SecurityError") {
@@ -1027,8 +1024,8 @@
 
   // Tapping can't undo a block, so hide the button and say where to fix it.
   function showBlocked() {
+    // Tapping can't undo a block, so this is a message, not a connect control.
     document.body.classList.add("blocked");
-    els.btnConnect.textContent = "Tap to connect MIDI keyboard";
     setStatus("err", "MIDI " + (DENIED_WORD === "blocked" ? "is blocked" : "isn't allowed") + " for this site.<br>Allow MIDI in " + BROWSER_POSSESSIVE + " site settings.");
   }
 
@@ -1051,17 +1048,12 @@
     state.access = null;
     state.portStates = {};
     document.body.classList.remove("has-access", "is-connected");
-    els.btnConnect.classList.remove("is-connected");
     releaseWakeLock();
     if (reason) logEvent(reason);
   }
 
   function showFirstVisit() {
-    document.body.classList.remove("blocked");
-    setConnectPending(false);
-    els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-    els.btnConnect.classList.remove("is-connected");
-    document.body.classList.add("idle");
+    showConnect();
   }
 
   var BROWSER_NAME = (function () {
@@ -1189,9 +1181,6 @@
 
   /* ---------- UI events ---------- */
 
-  els.btnConnect.addEventListener("click", function () {
-    requestMIDI(true);
-  });
   els.status.addEventListener("click", function (e) {
     var t = e.target;
     if (t && t.closest && t.closest(".reload-link")) {
@@ -1199,7 +1188,14 @@
       location.reload();
       return;
     }
-    if (statusRetry) requestMIDI(true);
+    if (isConnectAction() || statusRetry) requestMIDI(true);
+  });
+  els.status.addEventListener("keydown", function (e) {
+    if (!isConnectAction()) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      requestMIDI(true);
+    }
   });
   els.btnResetRange.addEventListener("click", resetRange);
   els.btnLog.addEventListener("click", function () {
@@ -1331,7 +1327,7 @@
     if (!midiSupported()) document.body.classList.add("no-midi");
   } else {
     // Stay on the checking status until the permission check resolves.
-    // Do not add idle here: that flashes the connect button.
+    // Do not show the tap-to-connect state here: that would flash the button.
     loadKeyboards();
     checkPermission();
     bootTimer = setTimeout(function () {

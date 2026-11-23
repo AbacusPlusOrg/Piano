@@ -22,7 +22,7 @@
   --glow: #ffb45a;
   --radius: 14px;
   --pad: 14px;
-  --status-h: calc(22px + 2.408rem); /* status and connect button: two text lines, padding, border */
+  --status-h: calc(22px + 2.408rem); /* status box: two text lines, padding, border */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
@@ -84,6 +84,7 @@ h1 span {
   font-size: 0.86rem;
   line-height: 1.4;
   color: var(--text-dim);
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 .status .dot {
   width: 8px;
@@ -141,56 +142,44 @@ h1 span {
 }
 @media (prefers-reduced-motion: reduce) {
   .status .dots span { animation: none; opacity: 1; }
+  .status { transition: none; }
 }
 
-.connect-row {
-  display: none; /* only shown when a tap is needed (body.idle) */
-  gap: 8px;
-  flex-shrink: 0;
-  margin-bottom: 10px;
+/* The status box itself is the connect control when a tap is needed. */
+.status.is-connect {
+  background: linear-gradient(180deg, #efb56a 0%, #d4893c 100%);
+  border-color: transparent;
+  color: #1a120a;
+  box-shadow: 0 1px 0 rgba(255, 230, 190, 0.35) inset, 0 8px 20px rgba(212, 137, 60, 0.22);
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.08rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 0 18px;
 }
+.status.is-connect .dot { display: none; }
+.status.is-connect .msg {
+  flex: 0 1 auto;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
+  text-align: center;
+  color: #1a120a;
+  font-weight: 650;
+}
+.status.is-connect:active { transform: translateY(1px); }
+.status.is-connect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 button {
   font: inherit;
   color: inherit;
   cursor: pointer;
-}
-.btn-connect {
-  flex: 1;
-  appearance: none;
-  border: 0;
-  border-radius: 16px;
-  padding: 0 18px;
-  height: var(--status-h);
-  min-height: var(--status-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.08rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  background: linear-gradient(180deg, #efb56a 0%, #d4893c 100%);
-  color: #1a120a;
-  box-shadow: 0 1px 0 rgba(255, 230, 190, 0.35) inset, 0 8px 20px rgba(212, 137, 60, 0.22);
-}
-.btn-connect:active { transform: translateY(1px); }
-.btn-connect:disabled {
-  opacity: 0.55;
-  cursor: default;
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 3px rgba(26, 18, 10, 0.28), 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-.btn-connect:disabled:hover,
-.btn-connect:disabled:active {
-  transform: translateY(1px);
-}
-.btn-connect.is-connected {
-  background: var(--surface-2);
-  color: var(--text);
-  box-shadow: none;
-  border: 1px solid var(--border);
-  font-size: 0.92rem;
-  padding: 0 14px;
-  font-weight: 600;
 }
 
 .readout {
@@ -504,7 +493,7 @@ button {
     grid-template-columns: auto 1fr;
     grid-template-areas:
       "title title"
-      "connect status"
+      "status status"
       "kb kb"
       "bottom bottom";
     align-items: stretch;
@@ -515,22 +504,19 @@ button {
   }
   .top { grid-area: title; margin: 0; align-self: center; }
   .status-wrap { grid-area: status; margin: 0; min-width: 0; align-self: center; }
-  body.has-access .status-wrap,
-  body.no-midi .status-wrap,
-  body.blocked .status-wrap,
-  body:not(.idle):not(.asking) .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
-  .connect-row { grid-area: connect; margin: 0; align-self: center; }
   .kb-wrap { grid-area: kb; min-height: 150px; }
   .kb-scroll { flex: 1 1 auto; height: 0; min-height: 100px; padding-bottom: 0; }
   h1 { font-size: 1.02rem; }
-  .btn-connect { padding: 0 12px; font-size: 0.88rem; border-radius: 11px; }
-  .btn-connect:not(.is-connected) { flex: 0 0 auto; }
   .status {
     padding: 5px 10px;
     font-size: 0.74rem;
     overflow: hidden;
     height: var(--status-h);
     min-height: var(--status-h);
+  }
+  .status.is-connect {
+    padding: 0 12px;
+    font-size: 0.88rem;
   }
 
   /* Below the keys: Last note and Session stacked on the left, the log on the right. */
@@ -661,15 +647,7 @@ button {
   .log { padding-left: 6px; padding-right: 6px; }
 }
 
-/* First paint is the checking status. The connect button appears only when a tap is needed. */
-body.idle .status-wrap { display: none; }
-body.idle .connect-row,
-body.asking .connect-row { display: flex; }
-
-/* Once MIDI access is granted, devices are picked up automatically: no button needed. */
-body.has-access .connect-row,
-body.no-midi .connect-row,
-body.blocked .connect-row { display: none; }
+/* First paint is the checking status. A tap-to-connect state reuses this same box. */
 
 /* Slot widths are measured from the live font in app.js (fitSlots). */
 .now-card .last-name { min-width: 0; white-space: nowrap; }

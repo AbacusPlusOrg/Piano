@@ -108,7 +108,8 @@ try {
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
       ["warn", "Checking for MIDI<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
       ["warn", "Waiting for permission<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span><br>Tap <strong>Allow</strong> if asked."],
-      ["err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."]
+      ["err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."],
+      ["connect", "Tap to connect MIDI keyboard"]
     ];
     const hs = samples.map(function (s) {
       st.className = "status is-" + s[0];
@@ -169,17 +170,16 @@ try {
         : q(d);
     window.__pfBtnSeen = false;
     window.__pfBtnStop = false;
-    function visible(el) {
-      if (!el) return false;
-      const cs = getComputedStyle(el);
+    function visibleConnect() {
+      const st = document.getElementById("status");
+      if (!st || !st.classList.contains("is-connect")) return false;
+      const cs = getComputedStyle(st);
       if (cs.display === "none" || cs.visibility === "hidden") return false;
-      const r = el.getBoundingClientRect();
+      const r = st.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
     }
     function sample() {
-      const row = document.querySelector(".connect-row");
-      const btn = document.getElementById("btn-connect");
-      if (visible(row) && visible(btn)) window.__pfBtnSeen = true;
+      if (visibleConnect()) window.__pfBtnSeen = true;
     }
     function startWatch() {
       if (!document.documentElement) { requestAnimationFrame(startWatch); return; }
@@ -198,13 +198,13 @@ try {
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 800));
     const info = await p.evaluate(() => {
-      const row = document.querySelector(".connect-row");
-      const btn = document.getElementById("btn-connect");
-      const cs = row ? getComputedStyle(row) : null;
-      const visible = !!(row && btn && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      const st = document.getElementById("status");
+      const visible = !!(st && st.classList.contains("is-connect") &&
+        getComputedStyle(st).display !== "none" && st.getBoundingClientRect().width > 0);
       return {
         seen: !!window.__pfBtnSeen,
         nowVisible: visible,
+        role: st ? st.getAttribute("role") : "",
         body: document.body.className,
         status: (document.querySelector("#status .msg") || {}).innerText || ""
       };
@@ -264,11 +264,10 @@ try {
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 2000));
     const at2s = await p.evaluate(() => {
-      const msg = document.querySelector("#status .msg");
-      const row = document.querySelector(".connect-row");
-      const btn = document.getElementById("btn-connect");
-      const cs = row ? getComputedStyle(row) : null;
-      const visible = !!(row && btn && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      const st = document.getElementById("status");
+      const msg = st && st.querySelector(".msg");
+      const visible = !!(st && st.classList.contains("is-connect") &&
+        getComputedStyle(st).display !== "none" && st.getBoundingClientRect().width > 0);
       return {
         visible,
         body: document.body.className,
@@ -277,21 +276,19 @@ try {
     });
     await new Promise((r) => setTimeout(r, 1100));
     const at31 = await p.evaluate(() => {
-      const row = document.querySelector(".connect-row");
-      const btn = document.getElementById("btn-connect");
-      const cs = row ? getComputedStyle(row) : null;
-      const visible = !!(row && btn && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
-      return { visible, body: document.body.className };
+      const st = document.getElementById("status");
+      const visible = !!(st && st.classList.contains("is-connect") &&
+        getComputedStyle(st).display !== "none" && st.getBoundingClientRect().width > 0);
+      return { visible, body: document.body.className, status: (st.querySelector(".msg") || {}).innerText || "" };
     });
     if (at31.visible) {
-      await p.evaluate(() => document.getElementById("btn-connect").click());
+      await p.evaluate(() => document.getElementById("status").click());
     }
     await new Promise((r) => setTimeout(r, 1500));
     const after = await p.evaluate(() => {
-      const row = document.querySelector(".connect-row");
-      const btn = document.getElementById("btn-connect");
-      const cs = row ? getComputedStyle(row) : null;
-      const visible = !!(row && btn && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      const st = document.getElementById("status");
+      const visible = !!(st && st.classList.contains("is-connect") &&
+        getComputedStyle(st).display !== "none" && st.getBoundingClientRect().width > 0);
       return {
         calls: window.__midiCalls,
         hasAccess: document.body.classList.contains("has-access"),
@@ -345,10 +342,14 @@ try {
     });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 300));
+    await p.waitForFunction(() => {
+      const st = document.getElementById("status");
+      return st && st.classList.contains("is-connect");
+    }, { timeout: 3000 });
     await p.evaluate(() => {
-      const btn = document.getElementById("btn-connect");
-      btn.click();
-      btn.click();
+      const st = document.getElementById("status");
+      st.click();
+      st.click();
     });
     await new Promise((r) => setTimeout(r, 700));
     const info = await p.evaluate(() => ({
@@ -383,7 +384,11 @@ try {
     });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 300));
-    await p.evaluate(() => document.getElementById("btn-connect").click());
+    await p.waitForFunction(() => {
+      const st = document.getElementById("status");
+      return st && st.classList.contains("is-connect");
+    }, { timeout: 3000 });
+    await p.evaluate(() => document.getElementById("status").click());
     await p.waitForFunction(() => {
       const msg = document.querySelector("#status .msg");
       return msg && /Waiting for permission/.test(msg.textContent);
@@ -391,22 +396,13 @@ try {
     const waiting = await p.evaluate(() => {
       const st = document.getElementById("status");
       const msg = st.querySelector(".msg");
-      const btn = document.getElementById("btn-connect");
-      const row = document.querySelector(".connect-row");
-      const cs = row ? getComputedStyle(row) : null;
-      const btnCs = getComputedStyle(btn);
       return {
         text: msg.innerText.replace(/\s+/g, " ").trim(),
         hasDots: !!(msg.querySelector(".dots")),
         dotCount: msg.querySelectorAll(".dots span").length,
-        disabled: btn.disabled === true,
-        aria: btn.getAttribute("aria-disabled"),
-        asking: document.body.classList.contains("asking"),
-        btnVisible: !!(row && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0),
-        statusH: Math.round(st.getBoundingClientRect().height),
-        btnH: Math.round(btn.getBoundingClientRect().height),
-        opacity: parseFloat(btnCs.opacity),
-        translateY: btnCs.transform
+        isConnect: st.classList.contains("is-connect"),
+        role: st.getAttribute("role"),
+        statusH: Math.round(st.getBoundingClientRect().height)
       };
     });
     await p.waitForFunction(() => {
@@ -428,7 +424,6 @@ try {
       st.className = prev.cls;
       msg.innerHTML = prev.html;
       const restoredLink = msg.querySelector(".reload-link");
-      const btn = document.getElementById("btn-connect");
       return {
         text: msg.innerText.replace(/\s+/g, " ").trim(),
         hasLink: !!(link && link.textContent.trim() === "Reload"),
@@ -438,9 +433,8 @@ try {
         connectedH,
         warnH,
         restoredHasLink: !!(restoredLink && restoredLink.textContent.trim() === "Reload"),
-        afterDisabled: btn.disabled,
-        afterAsking: document.body.classList.contains("asking"),
-        afterAria: btn.getAttribute("aria-disabled")
+        isConnect: st.classList.contains("is-connect"),
+        role: st.getAttribute("role")
       };
     });
     await p.close();
@@ -453,12 +447,9 @@ try {
   check("waiting status has animated dots",
     wait.hasDots === true && wait.dotCount === 3 && wait.text === "Waiting for permission... Tap Allow if asked.",
     JSON.stringify(wait));
-  check("connect button is disabled and visible while the request is pending",
-    wait.disabled === true && wait.aria === "true" && wait.asking === true && wait.btnVisible === true && wait.opacity < 0.8,
+  check("waiting status is not a connect button while the request is pending",
+    wait.isConnect === false && wait.role === "status",
     JSON.stringify(wait));
-  check("pending connect button keeps the status-box height",
-    wait.statusH > 0 && wait.statusH === wait.btnH,
-    JSON.stringify({ statusH: wait.statusH, btnH: wait.btnH }));
   check("no-answer status says Reload to try again",
     noAnswer.text === "No answer from the browser. Reload to try again.",
     noAnswer.text);
@@ -468,9 +459,9 @@ try {
   check("no-answer status box height matches other states",
     noAnswer.noAnswerH > 0 && noAnswer.noAnswerH === noAnswer.connectedH && noAnswer.noAnswerH === noAnswer.warnH && noAnswer.noAnswerH === wait.statusH,
     JSON.stringify({ noAnswerH: noAnswer.noAnswerH, connectedH: noAnswer.connectedH, warnH: noAnswer.warnH, waitingH: wait.statusH }));
-  check("connect button is re-enabled after no-answer failure",
-    noAnswer.afterDisabled === false && noAnswer.afterAsking === false && noAnswer.afterAria === null,
-    JSON.stringify({ afterDisabled: noAnswer.afterDisabled, afterAsking: noAnswer.afterAsking, afterAria: noAnswer.afterAria }));
+  check("no-answer status is not a connect button",
+    noAnswer.isConnect === false && noAnswer.role === "status" && noAnswer.hasLink === true,
+    JSON.stringify(noAnswer.after));
 
   async function loadDenied() {
     const p = await browser.newPage();
@@ -485,14 +476,17 @@ try {
     });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 300));
-    await p.evaluate(() => document.getElementById("btn-connect").click());
+    await p.waitForFunction(() => {
+      const st = document.getElementById("status");
+      return st && st.classList.contains("is-connect");
+    }, { timeout: 3000 });
+    await p.evaluate(() => document.getElementById("status").click());
     await p.waitForFunction(() => document.body.classList.contains("blocked"), { timeout: 3000 });
     const info = await p.evaluate(() => {
-      const btn = document.getElementById("btn-connect");
+      const st = document.getElementById("status");
       return {
-        disabled: btn.disabled,
-        asking: document.body.classList.contains("asking"),
-        aria: btn.getAttribute("aria-disabled"),
+        isConnect: st.classList.contains("is-connect"),
+        role: st.getAttribute("role"),
         blocked: document.body.classList.contains("blocked"),
         status: (document.querySelector("#status .msg") || {}).innerText || ""
       };
@@ -502,9 +496,84 @@ try {
   }
   const denied = await loadDenied();
   console.log("DENIED", JSON.stringify(denied));
-  check("connect button is re-enabled after denied failure",
-    denied.disabled === false && denied.asking === false && denied.aria === null && denied.blocked === true,
+  check("denied status is a message, not a connect button",
+    denied.isConnect === false && denied.role === "status" && denied.blocked === true && /isn't allowed|is blocked/.test(denied.status),
     JSON.stringify(denied));
+
+  // The range card (everything below the status box) must not shift as states change.
+  const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+  const layoutStates = [
+    ["checking", "", "status is-warn", "Checking for MIDI" + DOTS],
+    ["button", "", "status is-connect", "Tap to connect MIDI keyboard"],
+    ["waiting", "", "status is-warn", "Waiting for permission" + DOTS + "<br>Tap <strong>Allow</strong> if asked."],
+    ["connected", "has-access is-connected", "status is-ok", "Connected: <strong>Digital Piano</strong>"],
+    ["denied", "blocked", "status is-err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
+    ["no-answer", "", "status is-err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."]
+  ];
+  async function measureBelow(w, h, mobile) {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: !!mobile, hasTouch: !!mobile });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 200));
+    const info = await p.evaluate((states) => {
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      const prev = {
+        body: document.body.className,
+        status: st.className,
+        html: msg.innerHTML,
+        role: st.getAttribute("role"),
+        tab: st.getAttribute("tabindex"),
+        cursor: st.style.cursor,
+        aria: st.getAttribute("aria-label")
+      };
+      const tops = {};
+      const heights = {};
+      states.forEach((s) => {
+        document.body.className = s[1];
+        st.className = s[2];
+        msg.innerHTML = s[3];
+        if (s[0] === "button") {
+          st.setAttribute("role", "button");
+          st.setAttribute("tabindex", "0");
+        } else {
+          st.setAttribute("role", "status");
+          st.removeAttribute("tabindex");
+        }
+        tops[s[0]] = Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top);
+        heights[s[0]] = Math.round(st.getBoundingClientRect().height);
+      });
+      document.body.className = prev.body;
+      st.className = prev.status;
+      msg.innerHTML = prev.html;
+      if (prev.role) st.setAttribute("role", prev.role); else st.removeAttribute("role");
+      if (prev.tab) st.setAttribute("tabindex", prev.tab); else st.removeAttribute("tabindex");
+      st.style.cursor = prev.cursor;
+      if (prev.aria) st.setAttribute("aria-label", prev.aria); else st.removeAttribute("aria-label");
+      return { tops, heights, vw: window.innerWidth, vh: window.innerHeight };
+    }, layoutStates);
+    await p.close();
+    return info;
+  }
+  const belowViewports = [
+    ["portrait-412", 412, 915, true],
+    ["portrait-360", 360, 800, true],
+    ["portrait-320", 320, 680, true],
+    ["landscape-915x412", 915, 412, true],
+    ["desktop-1280", 1280, 800, false]
+  ];
+  for (const [name, w, h, mobile] of belowViewports) {
+    const info = await measureBelow(w, h, mobile);
+    const tops = Object.values(info.tops);
+    const heights = Object.values(info.heights);
+    const topsEqual = tops.length === 6 && tops.every((v) => v === tops[0] && v > 0);
+    const heightsEqual = heights.length === 6 && heights.every((v) => v === heights[0] && v > 0);
+    console.log("BELOW " + name, JSON.stringify(info));
+    check("range card top is identical across status states at " + name,
+      topsEqual && heightsEqual,
+      JSON.stringify(info));
+  }
 
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));
