@@ -529,6 +529,64 @@ button {
                    grid-template-rows: auto auto minmax(150px, 1fr) 128px; }
   body.measuring .lower { display: none; }
 }
+
+/* Desktop / wide screens: the same two-column lower layout as phone landscape,
+   without the short-screen body grid or first-screen key measuring.
+   Excludes short landscape (max-height 540px) so phones keep their own rules. */
+@media (min-width: 900px) and (min-height: 541px) {
+  body {
+    --lw: clamp(280px, 36%, 380px);
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  .lower {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+    margin-top: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .readout {
+    flex: 0 0 var(--lw);
+    width: var(--lw);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card { padding: 10px 14px; }
+  .card .label { margin-bottom: 4px; }
+  .now-card .last-name { font-size: 2.6rem; min-height: 0; }
+  .now-grid { gap: 12px; }
+  .now-meta { gap: 8px; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .log-wrap {
+    flex: 1 1 0;
+    margin: 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+  }
+  .log-bar { flex-wrap: nowrap; }
+  .log { flex: 1 1 auto; min-height: 0; max-height: none; }
+  .key.white .oct { bottom: 10px; }
+
+  /* Log hidden: the cards sit side by side across the full width, log buttons below. */
+  body:has(#log:not(.open)) .lower { flex-direction: column; gap: 10px; flex: 0 0 auto; }
+  body:has(#log:not(.open)) .log-wrap { flex: 0 0 auto; min-height: auto; }
+  body:has(#log:not(.open)) .readout { flex: 0 0 auto; width: auto; flex-direction: row; flex-wrap: wrap; }
+  body:has(#log:not(.open)) .readout .card { flex: 1 1 0; }
+  body:has(#log:not(.open)) .readout .now-card { flex-grow: 1.4; }
+  body:has(#log:not(.open)) .latency { flex: 1 0 100%; }
+  body:has(#log:not(.open)) .now-meta,
+  body:has(#log:not(.open)) .stats { max-width: 280px; }
+}
+
 /* Narrow log column in landscape: same tighter columns as on narrow phones. */
 @container (max-width: 430px) {
   .log .row { --gap: 9px; grid-template-columns: 6ch 10ch 15ch 5ch 3ch 8ch; }
