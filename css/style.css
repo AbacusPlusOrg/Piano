@@ -22,6 +22,7 @@
   --glow: #ffb45a;
   --radius: 14px;
   --pad: 14px;
+  --status-h: calc(22px + 2.408rem); /* status and connect button: two text lines, padding, border */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
@@ -72,9 +73,11 @@ h1 span {
 .status-wrap { flex-shrink: 0; margin-bottom: 10px; }
 .status {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   padding: 10px 12px;
+  height: var(--status-h);
+  min-height: var(--status-h);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -86,7 +89,7 @@ h1 span {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin-top: 5px;
+  margin-top: 0;
   flex-shrink: 0;
   background: var(--text-faint);
 }
@@ -96,7 +99,14 @@ h1 span {
 .status.is-warn .dot { background: var(--warn); }
 .status.is-err { background: var(--err-soft); border-color: rgba(212, 114, 90, 0.35); color: var(--text); }
 .status.is-err .dot { background: var(--err); }
-.status .msg { flex: 1; min-width: 0; overflow: hidden; }
+.status .msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 .status .msg strong { color: var(--text); font-weight: 600; }
 
 .connect-row {
@@ -115,7 +125,12 @@ button {
   appearance: none;
   border: 0;
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: 0 18px;
+  height: var(--status-h);
+  min-height: var(--status-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.08rem;
   font-weight: 650;
   letter-spacing: 0.02em;
@@ -135,7 +150,7 @@ button {
   box-shadow: none;
   border: 1px solid var(--border);
   font-size: 0.92rem;
-  padding: 10px 14px;
+  padding: 0 14px;
   font-weight: 600;
 }
 
@@ -445,6 +460,7 @@ button {
 @media (orientation: landscape) and (max-height: 540px) {
   body {
     --lw: clamp(220px, 36%, 330px); /* left column: Last note and Session */
+    --status-h: calc(12px + 2.072rem); /* 2px border + 10px padding + two 0.74rem × 1.4 lines */
     display: grid;
     grid-template-columns: auto 1fr;
     grid-template-areas:
@@ -462,22 +478,20 @@ button {
   .status-wrap { grid-area: status; margin: 0; min-width: 0; align-self: center; }
   body.has-access .status-wrap,
   body.no-midi .status-wrap,
-  body.blocked .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
+  body.blocked .status-wrap,
+  body:not(.idle) .status-wrap { grid-area: auto; grid-row: 2; grid-column: 1 / -1; }
   .connect-row { grid-area: connect; margin: 0; align-self: center; }
   .kb-wrap { grid-area: kb; min-height: 150px; }
   .kb-scroll { flex: 1 1 auto; height: 0; min-height: 100px; padding-bottom: 0; }
   h1 { font-size: 1.02rem; }
-  .btn-connect { padding: 8px 12px; font-size: 0.88rem; border-radius: 11px; }
+  .btn-connect { padding: 0 12px; font-size: 0.88rem; border-radius: 11px; }
   .btn-connect:not(.is-connected) { flex: 0 0 auto; }
   .status {
     padding: 5px 10px;
     font-size: 0.74rem;
     overflow: hidden;
-  }
-  .status .msg {
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
+    height: var(--status-h);
+    min-height: var(--status-h);
   }
 
   /* Below the keys: Last note and Session stacked on the left, the log on the right. */
@@ -610,6 +624,9 @@ button {
 
 /* First load: just the connect button, no separate prompt. */
 body.idle .status-wrap { display: none; }
+
+/* Never stack the button and the status: the slot is one or the other, same height. */
+body:not(.idle) .connect-row { display: none; }
 
 /* Once MIDI access is granted, devices are picked up automatically: no button needed. */
 body.has-access .connect-row,

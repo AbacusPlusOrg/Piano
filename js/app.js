@@ -91,11 +91,14 @@
     return s.join(" ");
   }
 
-  function setStatus(kind, html) {
+  var statusRetry = false;
+  function setStatus(kind, html, retry) {
     // Any real news shows the status line; on first load the button says it all.
     document.body.classList.remove("idle");
-    els.status.className = "status" + (kind ? " is-" + kind : "");
+    statusRetry = !!retry;
+    els.status.className = "status" + (kind ? " is-" + kind : "") + (statusRetry ? " is-retry" : "");
     els.status.querySelector(".msg").innerHTML = html;
+    els.status.style.cursor = statusRetry ? "pointer" : "";
   }
 
   function midiSupported() {
@@ -113,7 +116,7 @@
     var isMac = /Macintosh|Mac OS X/.test(ua) && !isiOS;
     if (!midiSupported()) {
       // Every iPhone and iPad browser runs on Safari's engine, which has no MIDI.
-      if (isiOS) return "iPhone and iPad browsers don't support MIDI.<br>Use an Android device or a computer with a non-Safari browser.";
+      if (isiOS) return "iPhone and iPad can't use MIDI.<br>Use an Android device or a computer.";
       if (BROWSER_NAME === "Safari") return "Safari doesn't support MIDI.<br>Use another browser.";
       // A Chromium browser without MIDI is usually old or has it turned off.
       if (/^(Chrome|Edge|Brave|Opera|Vivaldi|Samsung Internet|Yandex)$/.test(BROWSER_NAME)) {
@@ -122,7 +125,7 @@
       var who = BROWSER_NAME ? BROWSER_NAME + (isAndroid ? " for Android" : "") : "This browser";
       return who + " doesn't support MIDI.<br>" + (isAndroid ? "Use another browser on this device." : "Use another browser.");
     }
-    if (!isSecure()) return "MIDI needs a secure (https) page.<br>Open this page with https:// at the start of the address.";
+    if (!isSecure()) return "MIDI needs a secure (https) page.<br>Open this page at an https:// address.";
     return "This browser can't use MIDI.<br>Use another browser.";
   }
 
@@ -949,7 +952,7 @@
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
           els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-          setStatus("err", "No answer from the browser. Check its site permissions for MIDI, then tap again. Some browsers turn MIDI off.");
+          setStatus("err", "No answer from the browser.<br>Check MIDI in site settings, then tap again.", true);
         }
       }, 8000);
     }
@@ -982,7 +985,7 @@
         notePermission("denied");
         showBlocked();
       } else {
-        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".");
+        setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".", true);
       }
     });
   }
@@ -1137,6 +1140,9 @@
 
   els.btnConnect.addEventListener("click", function () {
     requestMIDI(true);
+  });
+  els.status.addEventListener("click", function () {
+    if (statusRetry) requestMIDI(true);
   });
   els.btnResetRange.addEventListener("click", resetRange);
   els.btnLog.addEventListener("click", function () {

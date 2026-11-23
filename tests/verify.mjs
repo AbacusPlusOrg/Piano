@@ -95,6 +95,35 @@ try {
   console.log("STATUS  " + statusText.replace(/\s+/g, " "));
   check("status mentions connect or MIDI", /midi|connect|allow|device|permission/i.test(statusText), statusText.slice(0, 180));
 
+  const statusHeights = await page.evaluate(() => {
+    const body = document.body;
+    const st = document.getElementById("status");
+    const msg = st.querySelector(".msg");
+    const prev = { body: body.className, status: st.className, html: msg.innerHTML, cursor: st.style.cursor };
+    body.classList.remove("idle");
+    body.classList.add("has-access");
+    const samples = [
+      ["ok", "Connected: <strong>Digital Piano</strong>"],
+      ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
+      ["err", "MIDI permission is not allowed for this site.<br>Allow MIDI in the browser's site settings."],
+      ["warn", "Checking whether this browser can use MIDI…"],
+      ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."]
+    ];
+    const hs = samples.map(function (s) {
+      st.className = "status is-" + s[0];
+      msg.innerHTML = s[1];
+      return Math.round(st.getBoundingClientRect().height);
+    });
+    body.className = prev.body;
+    st.className = prev.status;
+    msg.innerHTML = prev.html;
+    st.style.cursor = prev.cursor;
+    return hs;
+  });
+  check("status box height is the same across states",
+    statusHeights.length > 1 && statusHeights.every((h) => h === statusHeights[0] && h > 0),
+    JSON.stringify(statusHeights));
+
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));
   check("portrait keys keep piano proportion (h/w ~4.0)", Math.abs(portLay.kb.h / (portLay.kb.w / portLay.whiteCount) - 4.0) < 0.3, JSON.stringify(portLay.kb));
