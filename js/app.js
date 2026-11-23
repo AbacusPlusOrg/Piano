@@ -4,7 +4,7 @@
 
   var NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   var BLACK_PC = { 1: true, 3: true, 6: true, 8: true, 10: true };
-  var DEFAULT_LOW = 60; // C4 in the C4 = 60 convention
+  var DEFAULT_LOW = 48; // C3 in the C4 = 60 convention (two octaves, middle C centered)
   var DEFAULT_HIGH = 72; // C5
   // MIDI doesn't tell a page how many keys a keyboard has. These ranges come from
   // owners' reports at the keyboard's default octave; anything else is learned from
@@ -275,7 +275,7 @@
       r = r ? { low: Math.min(r.low, learned.low), high: Math.max(r.high, learned.high) } : { low: learned.low, high: learned.high };
     }
     if (!r) return null;
-    // Too few notes learned yet: keep at least the default octave in view.
+    // Too few notes learned yet: keep at least the default two octaves in view.
     if (r.high - r.low < 12) r = { low: Math.min(r.low, DEFAULT_LOW), high: Math.max(r.high, DEFAULT_HIGH) };
     return { low: snapLow(r.low), high: snapHigh(r.high) };
   }
