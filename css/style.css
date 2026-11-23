@@ -160,6 +160,7 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
+  font-weight: 700;
   margin-bottom: 6px;
 }
 .last-name {
