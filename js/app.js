@@ -718,7 +718,7 @@
   function fmtGap(g) {
     // Number and unit in separate spans so numbers right-align and units line up.
     var num, unit;
-    if (g === null || g === undefined) return '<span class="gn">first</span><span class="gu"></span>';
+    if (g === null || g === undefined) return '<span class="gn">start</span><span class="gu"></span>';
     // ms, then s, m, h, d; one decimal below 10, whole numbers above, so it stays 3 digits.
     if (g < 999.5) { num = String(Math.round(g)); unit = "ms"; }
     else {
