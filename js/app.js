@@ -908,19 +908,65 @@
     try { setStatus("err", escapeHtml(text)); } catch (e) {}
   }
 
-  function attachInputs(access) {
-    access.inputs.forEach(function (input) {
-      input.onmidimessage = onMIDIMessage;
-      // Some Android browsers don't open the port just from setting the handler.
-      if (input.open && input.connection !== "open") {
-        input.open().catch(function (e) { logNote("Could not open " + (input.name || "input") + ": " + (e && e.message || e)); });
+  var STATUS_DOTS = "<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>";
+  var NO_KEYBOARD_HTML = "No MIDI keyboard found.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>.";
+  var STATE_CHANGE_DEBOUNCE = 200;
+  var SCAN_MIN_MS = 400;
+  var attachedInputs = [];
+  var stateChangeTimer = null;
+  var pendingStatePorts = [];
+  var stateChangeHandler = null;
+  var hookedAccess = null;
+  var scanInFlight = false;
+
+  function inputKey(input) {
+    return (input && (input.id || input.name)) || input;
+  }
+
+  // Bind live inputs, open ports that are connected but not yet open, and
+  // drop handlers on ports that have gone. Assigning onmidimessage (instead
+  // of addEventListener) so a replug cannot stack handlers.
+  function syncInputs(access) {
+    var seen = {};
+    if (access && access.inputs) {
+      access.inputs.forEach(function (input) {
+        seen[inputKey(input)] = true;
+        if (input.state === "disconnected") {
+          if (input.onmidimessage) input.onmidimessage = null;
+          return;
+        }
+        if (input.onmidimessage !== onMIDIMessage) {
+          input.onmidimessage = onMIDIMessage;
+        }
+        // Some Android browsers leave a connected port in "closed" or "pending"
+        // until open() is called.
+        if (input.open && input.connection !== "open") {
+          input.open().then(function () {
+            updateConnectionStatus();
+          }).catch(function (e) {
+            logEvent("Could not open " + (input.name || "input") + ": " + (e && e.message || e));
+          });
+        }
+      });
+    }
+    attachedInputs.forEach(function (input) {
+      if (!seen[inputKey(input)] && input.onmidimessage) {
+        input.onmidimessage = null;
       }
     });
+    attachedInputs = [];
+    if (access && access.inputs) {
+      access.inputs.forEach(function (input) {
+        if (input.onmidimessage === onMIDIMessage) attachedInputs.push(input);
+      });
+    }
   }
 
   function updateConnectionStatus() {
     var access = state.access;
     if (!access) return;
+    // Keep the brief Scanning… state visible for its minimum time.
+    if (scanInFlight) return;
     var names = listInputNames(access);
     applyDeviceRange(names);
     if (names.length) {
@@ -929,7 +975,7 @@
       document.body.classList.add("is-connected");
       requestWakeLock();
     } else {
-      setStatus("warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable.");
+      setStatus("warn", NO_KEYBOARD_HTML);
       document.body.classList.remove("is-connected");
       releaseWakeLock();
     }
@@ -941,20 +987,116 @@
     });
   }
 
+  function unhookStateChange(access) {
+    if (stateChangeTimer) {
+      clearTimeout(stateChangeTimer);
+      stateChangeTimer = null;
+    }
+    pendingStatePorts = [];
+    if (!access && hookedAccess) access = hookedAccess;
+    if (!access) return;
+    if (access.removeEventListener && stateChangeHandler) {
+      try { access.removeEventListener("statechange", stateChangeHandler); } catch (e) {}
+    }
+    if (access.onstatechange === stateChangeHandler) access.onstatechange = null;
+    if (hookedAccess === access) hookedAccess = null;
+    stateChangeHandler = null;
+  }
+
   function hookStateChange(access) {
-    access.onstatechange = function (e) {
-      notePortState(e && e.port);
-      attachInputs(access);
-      updateConnectionStatus();
-      var port = e && e.port;
-      if (port && port.type === "input" && port.state === "disconnected") {
-        // Drop stuck MIDI notes if this was the last input.
-        if (listInputNames(access).length === 0) {
-          var leftover = Object.keys(state.held);
-          leftover.forEach(function (n) { noteOff(parseInt(n, 10), 0, 1, "midi"); });
+    if (!access) return;
+    if (hookedAccess === access && stateChangeHandler) return;
+    if (hookedAccess) unhookStateChange(hookedAccess);
+    stateChangeHandler = function (e) {
+      if (e && e.port) pendingStatePorts.push(e.port);
+      if (stateChangeTimer) clearTimeout(stateChangeTimer);
+      // Android often fires a burst of statechange events for one plug.
+      stateChangeTimer = setTimeout(function () {
+        stateChangeTimer = null;
+        var ports = pendingStatePorts;
+        pendingStatePorts = [];
+        ports.forEach(function (port) { notePortState(port); });
+        syncInputs(access);
+        updateConnectionStatus();
+        var lostLast = ports.some(function (p) {
+          return p && p.type === "input" && p.state === "disconnected";
+        }) && listInputNames(access).length === 0;
+        if (lostLast) {
+          Object.keys(state.held).forEach(function (n) { noteOff(parseInt(n, 10), 0, 1, "midi"); });
+        }
+      }, STATE_CHANGE_DEBOUNCE);
+    };
+    hookedAccess = access;
+    // Prefer addEventListener when the access is an EventTarget; otherwise
+    // the onstatechange property. Do not hook both, or one event would run twice
+    // (the debounce would still fire once, but notePortState would see duplicates).
+    if (typeof access.addEventListener === "function") {
+      access.addEventListener("statechange", stateChangeHandler);
+    } else {
+      access.onstatechange = stateChangeHandler;
+    }
+  }
+
+  // A new MIDIAccess when the current one looks empty/stale (common on Android).
+  // Goes through the same single-flight guard. Never used from the prompt state,
+  // so it cannot reintroduce auto-connect before the user taps.
+  function refreshMIDIAccess() {
+    if (midiRequest) return midiRequest;
+    if (!state.access || !midiSupported() || !isSecure()) {
+      return Promise.resolve(state.access);
+    }
+    var old = state.access;
+    var p;
+    try {
+      p = navigator.requestMIDIAccess({ sysex: false });
+    } catch (e) {
+      p = Promise.reject(e);
+    }
+    midiRequest = p.then(function (access) {
+      midiRequest = null;
+      if (!access) return old;
+      if (old && old !== access) {
+        unhookStateChange(old);
+        if (old.inputs) {
+          old.inputs.forEach(function (input) {
+            if (input.onmidimessage) input.onmidimessage = null;
+          });
         }
       }
-    };
+      state.access = access;
+      document.body.classList.add("has-access");
+      access.inputs.forEach(function (input) { notePortState(input); });
+      hookStateChange(access);
+      syncInputs(access);
+      return access;
+    }, function () {
+      midiRequest = null;
+      return old;
+    });
+    return midiRequest;
+  }
+
+  function scanAgain() {
+    if (scanInFlight) return;
+    if (!state.access) return;
+    scanInFlight = true;
+    setStatus("warn", "Scanning" + STATUS_DOTS);
+    var started = performance.now();
+    function finish() {
+      var wait = Math.max(0, SCAN_MIN_MS - (performance.now() - started));
+      setTimeout(function () {
+        scanInFlight = false;
+        if (state.access) syncInputs(state.access);
+        updateConnectionStatus();
+      }, wait);
+    }
+    syncInputs(state.access);
+    if (listInputNames(state.access).length) {
+      finish();
+      return;
+    }
+    // Still none: the current MIDIAccess may be stale; ask for a fresh one.
+    refreshMIDIAccess().then(finish, finish);
   }
 
   // Only one requestMIDIAccess may be in flight. A tap and an automatic
@@ -1000,8 +1142,8 @@
       // so the Connect button has nothing left to do.
       document.body.classList.add("has-access");
       access.inputs.forEach(function (input) { notePortState(input); });
-      attachInputs(access);
       hookStateChange(access);
+      syncInputs(access);
       updateConnectionStatus();
       return access;
     }, function (err) {
@@ -1039,11 +1181,15 @@
   function dropAccess(reason) {
     var access = state.access;
     if (!access) return;
-    access.onstatechange = null;
+    unhookStateChange(access);
     access.inputs.forEach(function (input) {
       input.onmidimessage = null;
       if (input.close) { try { input.close(); } catch (e) {} }
     });
+    attachedInputs.forEach(function (input) {
+      if (input.onmidimessage) input.onmidimessage = null;
+    });
+    attachedInputs = [];
     Object.keys(state.held).forEach(function (n) { noteOff(parseInt(n, 10), 0, 1, "midi"); });
     state.access = null;
     state.portStates = {};
@@ -1186,6 +1332,11 @@
     if (t && t.closest && t.closest(".reload-link")) {
       e.preventDefault();
       location.reload();
+      return;
+    }
+    if (t && t.closest && t.closest(".scan-link")) {
+      e.preventDefault();
+      scanAgain();
       return;
     }
     if (isConnectAction() || statusRetry) requestMIDI(true);

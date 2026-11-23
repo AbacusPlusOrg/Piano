@@ -104,9 +104,10 @@ try {
     body.classList.add("has-access");
     const samples = [
       ["ok", "Connected: <strong>Digital Piano</strong>"],
-      ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
+      ["warn", "No MIDI keyboard found.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>."],
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
       ["warn", "Checking for MIDI<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
+      ["warn", "Scanning<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
       ["warn", "Waiting for permission<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span><br>Tap <strong>Allow</strong> if asked."],
       ["err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."],
       ["connect", "Tap to connect MIDI keyboard"]
@@ -419,7 +420,7 @@ try {
       msg.innerHTML = "Connected: <strong>Digital Piano</strong>";
       const connectedH = Math.round(st.getBoundingClientRect().height);
       st.className = "status is-warn";
-      msg.innerHTML = "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable.";
+      msg.innerHTML = "No MIDI keyboard found.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>.";
       const warnH = Math.round(st.getBoundingClientRect().height);
       st.className = prev.cls;
       msg.innerHTML = prev.html;
@@ -500,6 +501,260 @@ try {
     denied.isConnect === false && denied.role === "status" && denied.blocked === true && /isn't allowed|is blocked/.test(denied.status),
     JSON.stringify(denied));
 
+  async function loadHotplug() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      function makeInput(id, name, state) {
+        const input = {
+          id, name, type: "input",
+          state: state || "connected",
+          connection: "closed",
+          _handler: null,
+          _sets: 0,
+          _messages: 0,
+          get onmidimessage() { return this._handler; },
+          set onmidimessage(fn) {
+            this._sets++;
+            this._handler = fn;
+          },
+          open() {
+            this.connection = "open";
+            this._opened = (this._opened || 0) + 1;
+            return Promise.resolve(this);
+          },
+          close() { this.connection = "closed"; },
+          fire(bytes) {
+            if (typeof this._handler === "function") {
+              this._messages++;
+              this._handler({
+                data: bytes,
+                timeStamp: performance.now(),
+                target: this
+              });
+            }
+          }
+        };
+        return input;
+      }
+      function makeAccess() {
+        const inputs = new Map();
+        const access = {
+          inputs,
+          outputs: new Map(),
+          onstatechange: null,
+          sysexEnabled: false,
+          _listeners: [],
+          addEventListener(type, fn) {
+            if (type === "statechange") this._listeners.push(fn);
+          },
+          removeEventListener(type, fn) {
+            this._listeners = this._listeners.filter((f) => f !== fn);
+          },
+          dispatch(port) {
+            const ev = { port, type: "statechange" };
+            if (typeof this.onstatechange === "function") this.onstatechange(ev);
+            this._listeners.slice().forEach((fn) => fn(ev));
+          }
+        };
+        return access;
+      }
+      window.__fakeMidi = {
+        requestCount: 0,
+        access: makeAccess(),
+        makeInput,
+        makeAccess
+      };
+      navigator.requestMIDIAccess = () => {
+        window.__fakeMidi.requestCount++;
+        return Promise.resolve(window.__fakeMidi.access);
+      };
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: "granted", onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 400));
+
+    const empty = await p.evaluate(() => {
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      const link = msg.querySelector(".scan-link");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        hasScan: !!(link && link.textContent.trim() === "Scan again"),
+        hasAccess: document.body.classList.contains("has-access"),
+        isConnected: document.body.classList.contains("is-connected"),
+        statusH: Math.round(st.getBoundingClientRect().height),
+        kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top),
+        requests: window.__fakeMidi.requestCount
+      };
+    });
+
+    // Burst of statechange events for one plug; status should update after the debounce, not immediately.
+    await p.evaluate(() => {
+      const input = window.__fakeMidi.makeInput("in1", "GarageKey Mini", "connected");
+      window.__fakeMidi.input = input;
+      window.__fakeMidi.access.inputs.set("in1", input);
+      window.__fakeMidi.access.dispatch(input);
+      window.__fakeMidi.access.dispatch(input);
+      window.__fakeMidi.access.dispatch(input);
+    });
+    const duringDebounce = await p.evaluate(() => {
+      const msg = document.querySelector("#status .msg");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected")
+      };
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    const plugged = await p.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      const msg = document.querySelector("#status .msg");
+      const st = document.getElementById("status");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected"),
+        opened: input._opened || 0,
+        connection: input.connection,
+        handlerBound: typeof input.onmidimessage === "function",
+        sets: input._sets,
+        statusH: Math.round(st.getBoundingClientRect().height),
+        kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top)
+      };
+    });
+
+    // Unplug.
+    await p.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      input.state = "disconnected";
+      input.connection = "closed";
+      window.__fakeMidi.access.dispatch(input);
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    const unplugged = await p.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      const msg = document.querySelector("#status .msg");
+      const st = document.getElementById("status");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        hasScan: !!(msg.querySelector(".scan-link")),
+        isConnected: document.body.classList.contains("is-connected"),
+        handlerCleared: input.onmidimessage == null,
+        sets: input._sets,
+        statusH: Math.round(st.getBoundingClientRect().height),
+        kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top)
+      };
+    });
+
+    // Replug the same input; handler should be a single function, one message => one log row.
+    await p.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      input.state = "connected";
+      input.connection = "closed";
+      window.__fakeMidi.access.dispatch(input);
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    const replugged = await p.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      const before = window.__pfTest.getState().logLength;
+      input.fire(new Uint8Array([0x90, 60, 100]));
+      const after = window.__pfTest.getState().logLength;
+      return {
+        text: document.querySelector("#status .msg").innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected"),
+        handlerBound: typeof input.onmidimessage === "function",
+        sets: input._sets,
+        messages: input._messages,
+        logBefore: before,
+        logAfter: after,
+        held: !!window.__pfTest.getState().held["60"]
+      };
+    });
+
+    // Unplug again, then add a *new* input without a statechange and tap Scan again.
+    await p.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      input.state = "disconnected";
+      window.__fakeMidi.access.inputs.delete("in1");
+      window.__fakeMidi.access.dispatch(input);
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    await p.evaluate(() => {
+      const next = window.__fakeMidi.makeInput("in2", "Digital Piano", "connected");
+      window.__fakeMidi.input2 = next;
+      window.__fakeMidi.access.inputs.set("in2", next);
+    });
+    const beforeScan = await p.evaluate(() => ({
+      text: document.querySelector("#status .msg").innerText.replace(/\s+/g, " ").trim(),
+      hasScan: !!document.querySelector(".scan-link"),
+      requests: window.__fakeMidi.requestCount,
+      kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top)
+    }));
+    const scanning = await p.evaluate(() => {
+      document.querySelector(".scan-link").click();
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        hasDots: !!msg.querySelector(".dots"),
+        statusH: Math.round(st.getBoundingClientRect().height),
+        kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top)
+      };
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const afterScan = await p.evaluate(() => {
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected"),
+        opened: window.__fakeMidi.input2._opened || 0,
+        requests: window.__fakeMidi.requestCount,
+        statusH: Math.round(st.getBoundingClientRect().height),
+        kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top)
+      };
+    });
+
+    await p.close();
+    return { empty, duringDebounce, plugged, unplugged, replugged, beforeScan, scanning, afterScan };
+  }
+  const hotplug = await loadHotplug();
+  console.log("HOTPLUG", JSON.stringify(hotplug));
+  check("no-keyboard status offers Scan again",
+    hotplug.empty.hasScan === true && hotplug.empty.hasAccess === true && hotplug.empty.isConnected === false
+      && hotplug.empty.text === "No MIDI keyboard found. Plug one in, or Scan again.",
+    JSON.stringify(hotplug.empty));
+  check("hotplug statechange burst is debounced before connecting",
+    hotplug.duringDebounce.isConnected === false && /No MIDI keyboard found/.test(hotplug.duringDebounce.text)
+      && hotplug.plugged.isConnected === true && /Connected: GarageKey Mini/.test(hotplug.plugged.text)
+      && hotplug.plugged.opened >= 1 && hotplug.plugged.handlerBound === true,
+    JSON.stringify({ duringDebounce: hotplug.duringDebounce, plugged: hotplug.plugged }));
+  check("unplug returns to no-keyboard and clears the handler",
+    hotplug.unplugged.isConnected === false && hotplug.unplugged.hasScan === true
+      && hotplug.unplugged.handlerCleared === true
+      && hotplug.unplugged.text === "No MIDI keyboard found. Plug one in, or Scan again.",
+    JSON.stringify(hotplug.unplugged));
+  check("replug binds a single midimessage handler",
+    hotplug.replugged.isConnected === true && hotplug.replugged.handlerBound === true
+      && hotplug.replugged.messages === 1
+      && hotplug.replugged.logAfter === hotplug.replugged.logBefore + 1
+      && hotplug.replugged.held === true,
+    JSON.stringify(hotplug.replugged));
+  check("Scan again shows scanning dots then finds a newly added input",
+    /Scanning/.test(hotplug.scanning.text) && hotplug.scanning.hasDots === true
+      && hotplug.afterScan.isConnected === true && /Connected: Digital Piano/.test(hotplug.afterScan.text)
+      && hotplug.afterScan.opened >= 1 && hotplug.beforeScan.hasScan === true,
+    JSON.stringify({ beforeScan: hotplug.beforeScan, scanning: hotplug.scanning, afterScan: hotplug.afterScan }));
+  const hotplugTops = [hotplug.empty.kbTop, hotplug.plugged.kbTop, hotplug.unplugged.kbTop, hotplug.beforeScan.kbTop, hotplug.scanning.kbTop, hotplug.afterScan.kbTop];
+  const hotplugHeights = [hotplug.empty.statusH, hotplug.plugged.statusH, hotplug.unplugged.statusH, hotplug.scanning.statusH, hotplug.afterScan.statusH];
+  check("hotplug and Scan again keep status height and range-card top constant",
+    hotplugTops.every((v) => v === hotplugTops[0] && v > 0)
+      && hotplugHeights.every((v) => v === hotplugHeights[0] && v > 0),
+    JSON.stringify({ tops: hotplugTops, heights: hotplugHeights }));
+
   // The range card (everything below the status box) must not shift as states change.
   const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
   const layoutStates = [
@@ -508,7 +763,9 @@ try {
     ["waiting", "", "status is-warn", "Waiting for permission" + DOTS + "<br>Tap <strong>Allow</strong> if asked."],
     ["connected", "has-access is-connected", "status is-ok", "Connected: <strong>Digital Piano</strong>"],
     ["denied", "blocked", "status is-err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
-    ["no-answer", "", "status is-err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."]
+    ["no-answer", "", "status is-err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."],
+    ["no-keyboard", "has-access", "status is-warn", "No MIDI keyboard found.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>."],
+    ["scanning", "has-access", "status is-warn", "Scanning" + DOTS]
   ];
   async function measureBelow(w, h, mobile) {
     const p = await browser.newPage();
@@ -567,8 +824,8 @@ try {
     const info = await measureBelow(w, h, mobile);
     const tops = Object.values(info.tops);
     const heights = Object.values(info.heights);
-    const topsEqual = tops.length === 6 && tops.every((v) => v === tops[0] && v > 0);
-    const heightsEqual = heights.length === 6 && heights.every((v) => v === heights[0] && v > 0);
+    const topsEqual = tops.length === 8 && tops.every((v) => v === tops[0] && v > 0);
+    const heightsEqual = heights.length === 8 && heights.every((v) => v === heights[0] && v > 0);
     console.log("BELOW " + name, JSON.stringify(info));
     check("range card top is identical across status states at " + name,
       topsEqual && heightsEqual,

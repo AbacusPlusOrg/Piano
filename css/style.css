@@ -109,7 +109,8 @@ h1 span {
   -webkit-line-clamp: 2;
 }
 .status .msg strong { color: var(--text); font-weight: 600; }
-.status .msg .reload-link {
+.status .msg .reload-link,
+.status .msg .scan-link {
   appearance: none;
   background: none;
   border: 0;
@@ -124,7 +125,8 @@ h1 span {
   text-underline-offset: 2px;
   cursor: pointer;
 }
-.status .msg .reload-link:focus-visible {
+.status .msg .reload-link:focus-visible,
+.status .msg .scan-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
