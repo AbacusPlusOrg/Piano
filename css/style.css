@@ -110,7 +110,7 @@ h1 span {
 .status .msg strong { color: var(--text); font-weight: 600; }
 
 .connect-row {
-  display: flex;
+  display: none; /* only shown when a tap is needed (body.idle) */
   gap: 8px;
   flex-shrink: 0;
   margin-bottom: 10px;
@@ -622,11 +622,9 @@ button {
   .log { padding-left: 6px; padding-right: 6px; }
 }
 
-/* First load: just the connect button, no separate prompt. */
+/* First paint is the checking status. The connect button appears only when a tap is needed. */
 body.idle .status-wrap { display: none; }
-
-/* Never stack the button and the status: the slot is one or the other, same height. */
-body:not(.idle) .connect-row { display: none; }
+body.idle .connect-row { display: flex; }
 
 /* Once MIDI access is granted, devices are picked up automatically: no button needed. */
 body.has-access .connect-row,

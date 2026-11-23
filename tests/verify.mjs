@@ -106,7 +106,7 @@ try {
       ["ok", "Connected: <strong>Digital Piano</strong>"],
       ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
-      ["warn", "Checking whether this browser can use MIDI…"],
+      ["warn", "Checking for MIDI…"],
       ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."]
     ];
     const hs = samples.map(function (s) {
@@ -123,6 +123,79 @@ try {
   check("status box height is the same across states",
     statusHeights.length > 1 && statusHeights.every((h) => h === statusHeights[0] && h > 0),
     JSON.stringify(statusHeights));
+
+  function fakeMidiPerm(state) {
+    const inputs = new Map();
+    inputs.set("in1", {
+      id: "in1", name: "Digital Piano", type: "input", state: "connected",
+      connection: "open", onmidimessage: null,
+      open() { return Promise.resolve(this); }, close() {}
+    });
+    const access = { inputs, outputs: new Map(), onstatechange: null, sysexEnabled: false };
+    navigator.requestMIDIAccess = () => Promise.resolve(access);
+    const q = navigator.permissions.query.bind(navigator.permissions);
+    navigator.permissions.query = (d) =>
+      d && d.name === "midi"
+        ? Promise.resolve({ state: state, onchange: null, addEventListener() {}, removeEventListener() {} })
+        : q(d);
+    window.__pfBtnSeen = false;
+    window.__pfBtnStop = false;
+    function visible(el) {
+      if (!el) return false;
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }
+    function sample() {
+      const row = document.querySelector(".connect-row");
+      const btn = document.getElementById("btn-connect");
+      if (visible(row) && visible(btn)) window.__pfBtnSeen = true;
+    }
+    function startWatch() {
+      if (!document.documentElement) { requestAnimationFrame(startWatch); return; }
+      new MutationObserver(sample).observe(document.documentElement, {
+        subtree: true, childList: true, attributes: true, attributeFilter: ["class", "style"]
+      });
+      (function tick() { sample(); if (!window.__pfBtnStop) requestAnimationFrame(tick); })();
+    }
+    startWatch();
+  }
+
+  async function loadWithPerm(perm) {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(fakeMidiPerm, perm);
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 800));
+    const info = await p.evaluate(() => {
+      const row = document.querySelector(".connect-row");
+      const btn = document.getElementById("btn-connect");
+      const cs = row ? getComputedStyle(row) : null;
+      const visible = !!(row && btn && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      return {
+        seen: !!window.__pfBtnSeen,
+        nowVisible: visible,
+        body: document.body.className,
+        status: (document.querySelector("#status .msg") || {}).innerText || ""
+      };
+    });
+    await p.evaluate(() => { window.__pfBtnStop = true; });
+    await p.close();
+    return info;
+  }
+
+  const grantedLoad = await loadWithPerm("granted");
+  console.log("LOAD granted", JSON.stringify(grantedLoad));
+  check("connect button never appears when permission is already granted",
+    grantedLoad.seen === false && grantedLoad.nowVisible === false,
+    JSON.stringify(grantedLoad));
+
+  const promptLoad = await loadWithPerm("prompt");
+  console.log("LOAD prompt", JSON.stringify(promptLoad));
+  check("connect button appears when permission is prompt",
+    promptLoad.seen === true && promptLoad.nowVisible === true,
+    JSON.stringify(promptLoad));
 
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));

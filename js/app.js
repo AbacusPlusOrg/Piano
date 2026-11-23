@@ -92,8 +92,14 @@
   }
 
   var statusRetry = false;
+  var bootDecided = false;
+  var bootTimer = null;
+  function markBootDecided() {
+    bootDecided = true;
+    if (bootTimer) { clearTimeout(bootTimer); bootTimer = null; }
+  }
   function setStatus(kind, html, retry) {
-    // Any real news shows the status line; on first load the button says it all.
+    // Any real news shows the status line; first paint is the checking bar, not the button.
     document.body.classList.remove("idle");
     statusRetry = !!retry;
     els.status.className = "status" + (kind ? " is-" + kind : "") + (statusRetry ? " is-retry" : "");
@@ -1066,24 +1072,34 @@
   function applyPermission(permState) {
     notePermission(permState);
     if (permState === "granted") {
+      markBootDecided();
       document.body.classList.remove("blocked");
       if (!state.access) requestMIDI(false);
     } else if (permState === "denied") {
+      markBootDecided();
       dropAccess();
       showBlocked();
     } else if (permState === "prompt") {
-      // The setting was removed: start over with the connect button.
-      if (state.access || document.body.classList.contains("blocked")) {
-        dropAccess();
-        showFirstVisit();
-      }
+      // A tap is needed: first visit, or the setting was cleared.
+      markBootDecided();
+      if (state.access || document.body.classList.contains("blocked")) dropAccess();
+      showFirstVisit();
     }
   }
 
   function checkPermission() {
-    if (!navigator.permissions || !navigator.permissions.query) return;
+    if (!navigator.permissions || !navigator.permissions.query) {
+      // Can't tell whether MIDI is already allowed: a tap is needed.
+      markBootDecided();
+      showFirstVisit();
+      return;
+    }
     navigator.permissions.query({ name: "midi", sysex: false }).then(function (res) {
-      if (!res) return;
+      if (!res) {
+        markBootDecided();
+        showFirstVisit();
+        return;
+      }
       applyPermission(res.state);
       if (!state.permWatch) {
         state.permWatch = res;
@@ -1091,7 +1107,11 @@
         if (res.addEventListener) res.addEventListener("change", onChange);
         else res.onchange = onChange;
       }
-    }).catch(function () { /* unknown permission name: wait for a tap */ });
+    }).catch(function () {
+      // Unknown permission name: wait for a tap, don't auto-request MIDI.
+      markBootDecided();
+      showFirstVisit();
+    });
   }
 
   /* ---------- wake lock ---------- */
@@ -1273,9 +1293,13 @@
     // Tapping can't help in a browser without MIDI.
     if (!midiSupported()) document.body.classList.add("no-midi");
   } else {
-    // Nothing to report yet: the button alone invites the tap.
-    document.body.classList.add("idle");
+    // Stay on the checking status until the permission check resolves.
+    // Do not add idle here: that flashes the connect button.
     loadKeyboards();
     checkPermission();
+    bootTimer = setTimeout(function () {
+      bootTimer = null;
+      if (!bootDecided) showFirstVisit();
+    }, 1500);
   }
 })();
