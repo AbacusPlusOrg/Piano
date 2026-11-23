@@ -646,8 +646,12 @@
     if (type === 0xA0) return ["Poly AT", note, String(d2), ch];
     if (type === 0xB0) {
       // Pedals (sustain, sostenuto, soft): 64 and up is down, below is up.
-      var ev = d1 >= 64 && d1 <= 67 ? (d2 >= 64 ? "Pedal down" : "Pedal up") : "Control";
-      return [ev, CC_NAMES[d1] ? CC_NAMES[d1] + " (" + d1 + ")" : "CC " + d1, String(d2), ch];
+      // The controller's name goes in Event. Pedals (64 and up is down) say down or up;
+      // the portamento switch says on or off.
+      var ev = CC_NAMES[d1] || "Control";
+      if (d1 === 64 || d1 === 66 || d1 === 67) ev += d2 >= 64 ? " down" : " up";
+      else if (d1 === 65) ev += d2 >= 64 ? " on" : " off";
+      return [ev, "Ctrl (" + d1 + ")", String(d2), ch];
     }
     if (type === 0xC0) return ["Program", String(d1), "", ch];
     if (type === 0xD0) return ["Aftertouch", "", String(d1), ch];
@@ -695,10 +699,10 @@
 
   // Standard controller names (MIDI 1.0 spec), shown after the CC number.
   var CC_NAMES = {
-    0: "Bank select", 1: "Mod wheel", 2: "Breath", 4: "Foot controller",
-    5: "Portamento time", 7: "Volume", 8: "Balance", 10: "Pan", 11: "Expression",
-    32: "Bank select LSB", 64: "Sustain", 65: "Portamento", 66: "Sostenuto",
-    67: "Soft pedal", 68: "Legato", 120: "All sound off", 121: "Reset controllers",
+    0: "Bank select", 1: "Mod wheel", 2: "Breath", 4: "Foot pedal",
+    5: "Porta time", 7: "Volume", 8: "Balance", 10: "Pan", 11: "Expression",
+    32: "Bank sel LSB", 64: "Sustain", 65: "Portamento", 66: "Sostenuto",
+    67: "Soft pedal", 68: "Legato", 120: "All sound off", 121: "Reset ctrls",
     122: "Local control", 123: "All notes off"
   };
 
@@ -774,7 +778,7 @@
       return;
     }
     // Header, then newest first (easier on a phone).
-    var html = '<div class="row head">' + cell("t", "Gap") + dSplit("Note", "CC #") +
+    var html = '<div class="row head">' + cell("t", "Gap") + dSplit("Note", "#") +
       cell("ev", "Event") + cell("val", "Value") + cell("c", "Ch") + cell("hex", "Bytes") + "</div>";
     for (var i = state.log.length - 1; i >= 0; i--) {
       var r = state.log[i];
