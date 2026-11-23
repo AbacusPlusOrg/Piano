@@ -719,8 +719,16 @@
     // Number and unit in separate spans so numbers right-align and units line up.
     var num, unit;
     if (g === null || g === undefined) return '<span class="gn">first</span><span class="gu"></span>';
-    if (g >= 1000) { num = (g / 1000).toFixed(g >= 100000 ? 0 : 1); unit = "s"; }
-    else { num = String(Math.round(g)); unit = "ms"; }
+    // ms, then s, m, h, d; one decimal below 10, whole numbers above, so it stays 3 digits.
+    if (g < 999.5) { num = String(Math.round(g)); unit = "ms"; }
+    else {
+      var steps = [[1000, "s", 60], [60000, "m", 60], [3600000, "h", 24], [86400000, "d", Infinity]];
+      for (var i = 0; i < steps.length; i++) {
+        var v = g / steps[i][0];
+        var txt = v < 9.95 ? v.toFixed(1) : String(Math.round(v));
+        if (Number(txt) < steps[i][2] || i === steps.length - 1) { num = txt; unit = steps[i][1]; break; }
+      }
+    }
     return '<span class="gn">' + num + '</span><span class="gu">' + unit + "</span>";
   }
 

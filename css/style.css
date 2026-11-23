@@ -396,7 +396,7 @@ button {
 /* Log columns: time, bytes, event, note or controller, value, channel */
 .log .row {
   display: grid;
-  grid-template-columns: 8ch 10ch 15ch 5ch 3ch 8ch;
+  grid-template-columns: 6ch 10ch 17ch 5ch 3ch 8ch;
   --gap: 1.6ch;
   column-gap: var(--gap);
   white-space: nowrap;
