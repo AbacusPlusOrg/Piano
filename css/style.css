@@ -393,6 +393,10 @@ button {
   color: #d9cbb8;
 }
 .log.open { display: block; }
+/* Portrait phones: the log is always its max height, so later rows don't shift the page. */
+@media (orientation: portrait) and (max-width: 899px) {
+  .log.open { height: 28vh; }
+}
 /* Log columns: time, bytes, event, note or controller, value, channel */
 .log .row {
   display: grid;
