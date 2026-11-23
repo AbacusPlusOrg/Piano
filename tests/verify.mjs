@@ -107,7 +107,8 @@ try {
       ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
       ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
       ["warn", "Checking for MIDI<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>"],
-      ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."]
+      ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."],
+      ["err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again."]
     ];
     const hs = samples.map(function (s) {
       st.className = "status is-" + s[0];
@@ -363,6 +364,70 @@ try {
   check("double-click on connect calls requestMIDIAccess once",
     dbl.calls === 1 && dbl.hasAccess === true,
     JSON.stringify(dbl));
+
+  async function loadNoAnswer() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      navigator.requestMIDIAccess = () => new Promise(() => {});
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: "prompt", onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+      const orig = window.setTimeout;
+      window.setTimeout = function (fn, ms, ...args) {
+        if (ms === 8000) ms = 40;
+        return orig.call(this, fn, ms, ...args);
+      };
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 300));
+    await p.evaluate(() => document.getElementById("btn-connect").click());
+    await p.waitForFunction(() => {
+      const msg = document.querySelector("#status .msg");
+      return msg && /No answer from the browser/.test(msg.textContent);
+    }, { timeout: 3000 });
+    const info = await p.evaluate(() => {
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      const link = msg.querySelector(".reload-link");
+      const noAnswerH = Math.round(st.getBoundingClientRect().height);
+      const prev = { html: msg.innerHTML, cls: st.className };
+      st.className = "status is-ok";
+      msg.innerHTML = "Connected: <strong>Digital Piano</strong>";
+      const connectedH = Math.round(st.getBoundingClientRect().height);
+      st.className = "status is-warn";
+      msg.innerHTML = "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable.";
+      const warnH = Math.round(st.getBoundingClientRect().height);
+      st.className = prev.cls;
+      msg.innerHTML = prev.html;
+      const restoredLink = msg.querySelector(".reload-link");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        hasLink: !!(link && link.textContent.trim() === "Reload"),
+        tag: link ? link.tagName.toLowerCase() : "",
+        type: link ? link.getAttribute("type") : "",
+        noAnswerH,
+        connectedH,
+        warnH,
+        restoredHasLink: !!(restoredLink && restoredLink.textContent.trim() === "Reload")
+      };
+    });
+    await p.close();
+    return info;
+  }
+  const noAnswer = await loadNoAnswer();
+  console.log("NO-ANSWER", JSON.stringify(noAnswer));
+  check("no-answer status says Reload to try again",
+    noAnswer.text === "No answer from the browser. Reload to try again.",
+    noAnswer.text);
+  check("no-answer status has a Reload link",
+    noAnswer.hasLink === true && noAnswer.tag === "button" && noAnswer.type === "button",
+    JSON.stringify(noAnswer));
+  check("no-answer status box height matches other states",
+    noAnswer.noAnswerH > 0 && noAnswer.noAnswerH === noAnswer.connectedH && noAnswer.noAnswerH === noAnswer.warnH,
+    JSON.stringify({ noAnswerH: noAnswer.noAnswerH, connectedH: noAnswer.connectedH, warnH: noAnswer.warnH }));
 
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));

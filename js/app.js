@@ -964,7 +964,7 @@
       setTimeout(function () {
         if (state.attempt === attempt && state.connecting && !state.access) {
           els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-          setStatus("err", "No answer from the browser.<br>Check MIDI in site settings, then tap again.", true);
+          setStatus("err", "No answer from the browser.<br><button type=\"button\" class=\"reload-link\">Reload</button> to try again.");
         }
       }, 8000);
     }
@@ -1176,7 +1176,13 @@
   els.btnConnect.addEventListener("click", function () {
     requestMIDI(true);
   });
-  els.status.addEventListener("click", function () {
+  els.status.addEventListener("click", function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest(".reload-link")) {
+      e.preventDefault();
+      location.reload();
+      return;
+    }
     if (statusRetry) requestMIDI(true);
   });
   els.btnResetRange.addEventListener("click", resetRange);
