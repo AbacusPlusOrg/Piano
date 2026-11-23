@@ -909,7 +909,7 @@
   }
 
   var STATUS_DOTS = "<span class=\"dots\"><span>.</span><span>.</span><span>.</span></span>";
-  var NO_KEYBOARD_HTML = "No MIDI keyboard found.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>.";
+  var NO_KEYBOARD_HTML = "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\">Scan again</button>.";
   var STATE_CHANGE_DEBOUNCE = 200;
   var SCAN_MIN_MS = 400;
   var attachedInputs = [];
