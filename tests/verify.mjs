@@ -105,7 +105,7 @@ try {
     const samples = [
       ["ok", "Connected: <strong>Digital Piano</strong>"],
       ["warn", "No MIDI keyboard found.<br>Connect a MIDI keyboard with a USB cable."],
-      ["err", "MIDI permission is not allowed for this site.<br>Allow MIDI in the browser's site settings."],
+      ["err", "MIDI isn't allowed for this site.<br>Allow MIDI in the browser's site settings."],
       ["warn", "Checking whether this browser can use MIDI…"],
       ["warn", "Waiting for permission. Tap <strong>Allow</strong> if asked."]
     ];

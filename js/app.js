@@ -994,7 +994,7 @@
   function showBlocked() {
     document.body.classList.add("blocked");
     els.btnConnect.textContent = "Tap to connect MIDI keyboard";
-    setStatus("err", "MIDI permission is " + DENIED_WORD + " for this site.<br>Allow MIDI in " + BROWSER_POSSESSIVE + " site settings.");
+    setStatus("err", "MIDI " + (DENIED_WORD === "blocked" ? "is blocked" : "isn't allowed") + " for this site.<br>Allow MIDI in " + BROWSER_POSSESSIVE + " site settings.");
   }
 
   // React to the MIDI permission: connect when it is (or becomes) granted,
