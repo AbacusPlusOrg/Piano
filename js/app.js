@@ -29,6 +29,7 @@
   var RANGE_STORE_KEY = "aplus.deviceRanges.v1";
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
+  var MIDI_CHECK_TIMEOUT = 3000;
 
   var state = {
     access: null,
@@ -941,18 +942,23 @@
     };
   }
 
+  // Only one requestMIDIAccess may be in flight. A tap and an automatic
+  // connect (permission already granted) share this promise; it is cleared
+  // when the request settles so a failure can be retried.
+  var midiRequest = null;
+  var midiRequestHadGesture = false;
+
   function requestMIDI(fromGesture) {
     if (!midiSupported() || !isSecure()) {
       // Keep the button tappable so a tap always explains what's wrong.
       setStatus("err", unsupportedReason());
       return;
     }
-    // A tap always gets its own request. An earlier automatic request can hang
-    // forever on some Android browsers, so it must never block a tap.
-    if (!fromGesture && state.connecting) return;
-    state.connecting = true;
-    var attempt = (state.attempt = (state.attempt || 0) + 1);
+    // Already holding a MIDIAccess: nothing to ask for.
+    if (state.access) return;
     if (fromGesture) {
+      midiRequestHadGesture = true;
+      var attempt = (state.attempt = (state.attempt || 0) + 1);
       els.btnConnect.textContent = "Asking the browser…";
       setStatus("warn", "Waiting for permission. Tap <strong>Allow</strong> if asked.");
       setTimeout(function () {
@@ -962,14 +968,18 @@
         }
       }, 8000);
     }
+    if (midiRequest) return midiRequest;
 
+    state.connecting = true;
     var p;
     try {
       p = navigator.requestMIDIAccess({ sysex: false });
     } catch (e) {
       p = Promise.reject(e);
     }
-    p.then(function (access) {
+    midiRequest = p.then(function (access) {
+      midiRequest = null;
+      midiRequestHadGesture = false;
       state.connecting = false;
       state.access = access;
       notePermission("granted");
@@ -980,9 +990,13 @@
       attachInputs(access);
       hookStateChange(access);
       updateConnectionStatus();
-    }).catch(function (err) {
+      return access;
+    }, function (err) {
+      var showedGesture = midiRequestHadGesture;
+      midiRequest = null;
+      midiRequestHadGesture = false;
       state.connecting = false;
-      if (!fromGesture) return; // a silent auto-try failing is not news
+      if (!showedGesture) return; // a silent auto-try failing is not news
       els.btnConnect.classList.remove("is-connected");
       els.btnConnect.textContent = "Tap to connect MIDI keyboard";
       var name = (err && err.name) || "";
@@ -994,6 +1008,7 @@
         setStatus("err", "Couldn't open MIDI: " + escapeHtml(name + (msg ? (": " + msg) : "")) + ".", true);
       }
     });
+    return midiRequest;
   }
 
   // Tapping can't undo a block, so hide the button and say where to fix it.
@@ -1300,6 +1315,6 @@
     bootTimer = setTimeout(function () {
       bootTimer = null;
       if (!bootDecided) showFirstVisit();
-    }, 1500);
+    }, MIDI_CHECK_TIMEOUT);
   }
 })();

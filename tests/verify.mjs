@@ -225,6 +225,145 @@ try {
     promptLoad.seen === true && promptLoad.nowVisible === true,
     JSON.stringify(promptLoad));
 
+  // (c) + (a): stalled permission query, then granted after the 3s timeout,
+  // with a click in between. requestMIDIAccess is delayed so the click and
+  // the auto-connect overlap.
+  async function loadGuardRace() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      window.__midiCalls = 0;
+      navigator.requestMIDIAccess = () => {
+        window.__midiCalls++;
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({
+            inputs: (() => {
+              const inputs = new Map();
+              inputs.set("in1", {
+                id: "in1", name: "Digital Piano", type: "input", state: "connected",
+                connection: "open", onmidimessage: null,
+                open() { return Promise.resolve(this); }, close() {}
+              });
+              return inputs;
+            })(),
+            outputs: new Map(), onstatechange: null, sysexEnabled: false
+          }), 800);
+        });
+      };
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? new Promise((resolve) => {
+              setTimeout(() => {
+                resolve({ state: "granted", onchange: null, addEventListener() {}, removeEventListener() {} });
+              }, 3600);
+            })
+          : q(d);
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 2000));
+    const at2s = await p.evaluate(() => {
+      const msg = document.querySelector("#status .msg");
+      const row = document.querySelector(".connect-row");
+      const btn = document.getElementById("btn-connect");
+      const cs = row ? getComputedStyle(row) : null;
+      const visible = !!(row && btn && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      return {
+        visible,
+        body: document.body.className,
+        status: msg ? msg.textContent.replace(/\s+/g, " ").trim() : ""
+      };
+    });
+    await new Promise((r) => setTimeout(r, 1100));
+    const at31 = await p.evaluate(() => {
+      const row = document.querySelector(".connect-row");
+      const btn = document.getElementById("btn-connect");
+      const cs = row ? getComputedStyle(row) : null;
+      const visible = !!(row && btn && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      return { visible, body: document.body.className };
+    });
+    if (at31.visible) {
+      await p.evaluate(() => document.getElementById("btn-connect").click());
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+    const after = await p.evaluate(() => {
+      const row = document.querySelector(".connect-row");
+      const btn = document.getElementById("btn-connect");
+      const cs = row ? getComputedStyle(row) : null;
+      const visible = !!(row && btn && cs && cs.display !== "none" && btn.getBoundingClientRect().width > 0);
+      return {
+        calls: window.__midiCalls,
+        hasAccess: document.body.classList.contains("has-access"),
+        isConnected: document.body.classList.contains("is-connected"),
+        btnVisible: visible,
+        status: (document.querySelector("#status .msg") || {}).innerText || ""
+      };
+    });
+    await p.close();
+    return { at2s, at31, after };
+  }
+  const race = await loadGuardRace();
+  console.log("GUARD race", JSON.stringify(race));
+  check("connect button hidden at 2s while permission check is stalled",
+    race.at2s.visible === false && /Checking for MIDI/.test(race.at2s.status),
+    JSON.stringify(race.at2s));
+  check("connect button visible after 3s safety timeout",
+    race.at31.visible === true,
+    JSON.stringify(race.at31));
+  check("click then granted auto-connect calls requestMIDIAccess once and connects",
+    race.after.calls === 1 && race.after.hasAccess === true && race.after.isConnected === true && race.after.btnVisible === false,
+    JSON.stringify(race.after));
+
+  async function loadDoubleClick() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      window.__midiCalls = 0;
+      navigator.requestMIDIAccess = () => {
+        window.__midiCalls++;
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({
+            inputs: (() => {
+              const inputs = new Map();
+              inputs.set("in1", {
+                id: "in1", name: "Digital Piano", type: "input", state: "connected",
+                connection: "open", onmidimessage: null,
+                open() { return Promise.resolve(this); }, close() {}
+              });
+              return inputs;
+            })(),
+            outputs: new Map(), onstatechange: null, sysexEnabled: false
+          }), 400);
+        });
+      };
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: "prompt", onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 300));
+    await p.evaluate(() => {
+      const btn = document.getElementById("btn-connect");
+      btn.click();
+      btn.click();
+    });
+    await new Promise((r) => setTimeout(r, 700));
+    const info = await p.evaluate(() => ({
+      calls: window.__midiCalls,
+      hasAccess: document.body.classList.contains("has-access"),
+      isConnected: document.body.classList.contains("is-connected")
+    }));
+    await p.close();
+    return info;
+  }
+  const dbl = await loadDoubleClick();
+  console.log("GUARD double-click", JSON.stringify(dbl));
+  check("double-click on connect calls requestMIDIAccess once",
+    dbl.calls === 1 && dbl.hasAccess === true,
+    JSON.stringify(dbl));
+
   const portLay = await layoutInfo(page);
   console.log("LAYOUT portrait", JSON.stringify(portLay));
   check("portrait keys keep piano proportion (h/w ~4.0)", Math.abs(portLay.kb.h / (portLay.kb.w / portLay.whiteCount) - 4.0) < 0.3, JSON.stringify(portLay.kb));
