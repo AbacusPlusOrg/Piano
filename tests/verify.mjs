@@ -1400,6 +1400,169 @@ try {
       && resume.deniedAfter.blocked === true,
     JSON.stringify({ promptStart: resume.promptStart, promptAfter: resume.promptAfter, deniedStart: resume.deniedStart, deniedAfter: resume.deniedAfter }));
 
+  async function loadDebug() {
+    function fakeMidiBootstrap(mode) {
+      function makeInput(id, name, manufacturer, state) {
+        return {
+          id, name, manufacturer: manufacturer || "", type: "input",
+          state: state || "connected",
+          connection: "closed",
+          _handler: null,
+          get onmidimessage() { return this._handler; },
+          set onmidimessage(fn) { this._handler = fn; },
+          open() { this.connection = "open"; return Promise.resolve(this); },
+          close() { this.connection = "closed"; }
+        };
+      }
+      function makeOutput(id, name) {
+        return { id, name, type: "output", state: "connected", connection: "closed", manufacturer: "" };
+      }
+      function makeAccess() {
+        const inputs = new Map();
+        const outputs = new Map();
+        const access = {
+          inputs, outputs, onstatechange: null, sysexEnabled: false, _listeners: [],
+          addEventListener(type, fn) { if (type === "statechange") this._listeners.push(fn); },
+          removeEventListener(type, fn) { this._listeners = this._listeners.filter((f) => f !== fn); },
+          dispatch(port) {
+            const ev = { port, type: "statechange" };
+            if (typeof this.onstatechange === "function") this.onstatechange(ev);
+            this._listeners.slice().forEach((fn) => fn(ev));
+          }
+        };
+        return access;
+      }
+      const access = makeAccess();
+      window.__fakeMidi = { requestCount: 0, access, makeInput, makeOutput };
+      if (mode === "with-input") {
+        const input = makeInput("in1", "GarageKey Mini", "Miditech", "connected");
+        access.inputs.set("in1", input);
+        const output = makeOutput("out1", "GarageKey Mini");
+        access.outputs.set("out1", output);
+        window.__fakeMidi.input = input;
+      }
+      navigator.requestMIDIAccess = () => {
+        window.__fakeMidi.requestCount++;
+        return Promise.resolve(window.__fakeMidi.access);
+      };
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: "granted", onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+    }
+    async function openPage(mode, hash) {
+      const p = await browser.newPage();
+      p.on("pageerror", (err) => jsErrors.push(String(err)));
+      await p.evaluateOnNewDocument(fakeMidiBootstrap, mode || "empty");
+      await p.goto(URL + (hash || ""), { waitUntil: "domcontentloaded", timeout: 15000 });
+      await new Promise((r) => setTimeout(r, 400));
+      return p;
+    }
+    function panelInfo(page) {
+      return page.evaluate(() => {
+        const panel = document.getElementById("debug-panel");
+        const link = document.getElementById("btn-troubleshoot");
+        const st = document.getElementById("status");
+        const kb = document.querySelector(".kb-wrap");
+        const body = document.getElementById("debug-body");
+        const text = (body && body.innerText || "").replace(/\s+/g, " ").trim();
+        return {
+          linkVisible: !!(link && link.getBoundingClientRect().height > 0 && getComputedStyle(link).display !== "none"),
+          linkText: link ? link.textContent.trim() : "",
+          open: window.__pfTest.debug.isOpen(),
+          panelHidden: panel ? panel.hidden : null,
+          panelVisible: !!(panel && !panel.hidden && panel.getBoundingClientRect().height > 0),
+          text,
+          statusTop: Math.round(st.getBoundingClientRect().top),
+          statusH: Math.round(st.getBoundingClientRect().height),
+          kbTop: Math.round(kb.getBoundingClientRect().top),
+          kbBottom: Math.round(kb.getBoundingClientRect().bottom),
+          panelTop: panel && !panel.hidden ? Math.round(panel.getBoundingClientRect().top) : null,
+          report: window.__pfTest.debug.report()
+        };
+      });
+    }
+
+    // Link is visible and the panel starts closed. Opening does not move status/keyboard.
+    const pLink = await openPage("empty");
+    const before = await panelInfo(pLink);
+    await pLink.evaluate(() => document.getElementById("btn-troubleshoot").click());
+    await new Promise((r) => setTimeout(r, 50));
+    const opened = await panelInfo(pLink);
+    await pLink.close();
+
+    // #debug opens the panel with a connected device and lists inputs.
+    const pHash = await openPage("with-input", "#debug");
+    const hashed = await panelInfo(pHash);
+    await pHash.close();
+
+    // Copy report includes the inputs count; statechange updates the open panel.
+    const pLive = await openPage("empty");
+    await pLive.evaluate(() => window.__pfTest.debug.open());
+    await new Promise((r) => setTimeout(r, 50));
+    const emptyOpen = await panelInfo(pLive);
+    const copied = await pLive.evaluate(() => {
+      window.__copied = null;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); };
+      }
+      document.getElementById("btn-debug-copy").click();
+      return window.__copied || window.__pfTest.debug.report();
+    });
+    await pLive.evaluate(() => {
+      const input = window.__fakeMidi.makeInput("in1", "GarageKey Mini", "Miditech", "connected");
+      window.__fakeMidi.input = input;
+      window.__fakeMidi.access.inputs.set("in1", input);
+      window.__fakeMidi.access.dispatch(input);
+    });
+    await new Promise((r) => setTimeout(r, 300)); // statechange debounce 200ms
+    const afterChange = await panelInfo(pLive);
+    await pLive.close();
+
+    return { before, opened, hashed, emptyOpen, copied, afterChange };
+  }
+  const dbg = await loadDebug();
+  console.log("DEBUG", JSON.stringify({
+    before: { ...dbg.before, report: undefined, text: (dbg.before.text || "").slice(0, 80) },
+    opened: { ...dbg.opened, report: undefined, text: (dbg.opened.text || "").slice(0, 200) },
+    hashed: { ...dbg.hashed, report: undefined, text: (dbg.hashed.text || "").slice(0, 200) },
+    emptyOpen: { ...dbg.emptyOpen, report: undefined, text: (dbg.emptyOpen.text || "").slice(0, 160) },
+    copiedHead: (dbg.copied || "").split("\\n").slice(0, 12).join(" | "),
+    afterChange: { ...dbg.afterChange, report: undefined, text: (dbg.afterChange.text || "").slice(0, 200) }
+  }));
+  check("Troubleshoot link is visible and opens the panel",
+    dbg.before.linkVisible === true && dbg.before.linkText === "Troubleshoot"
+      && dbg.before.open === false && dbg.before.panelVisible === false
+      && dbg.opened.open === true && dbg.opened.panelVisible === true
+      && /Inputs seen/i.test(dbg.opened.text),
+    JSON.stringify({ before: { linkVisible: dbg.before.linkVisible, open: dbg.before.open }, opened: { open: dbg.opened.open, visible: dbg.opened.panelVisible, text: dbg.opened.text.slice(0, 180) } }));
+  check("troubleshooting panel opens via #debug and lists fake MIDI inputs",
+    dbg.hashed.open === true && dbg.hashed.panelVisible === true
+      && /Inputs seen/i.test(dbg.hashed.text) && /GarageKey Mini/.test(dbg.hashed.text)
+      && /Inputs seen: 1/.test(dbg.hashed.report)
+      && /Miditech/.test(dbg.hashed.text)
+      && /Outputs seen: 1/.test(dbg.hashed.report),
+    JSON.stringify({ text: dbg.hashed.text.slice(0, 240), report: (dbg.hashed.report || "").split("\\n").slice(0, 16) }));
+  check("troubleshooting Copy report includes the inputs count",
+    typeof dbg.copied === "string" && /Inputs seen: 0/.test(dbg.copied)
+      && /Web MIDI support:/.test(dbg.copied)
+      && /Permission:/.test(dbg.copied),
+    (dbg.copied || "").slice(0, 400));
+  check("troubleshooting panel updates when a statechange adds an input",
+    /Inputs seen: 0/.test(dbg.emptyOpen.report)
+      && /GarageKey Mini/.test(dbg.afterChange.text)
+      && /Inputs seen: 1/.test(dbg.afterChange.report)
+      && /State change:/.test(dbg.afterChange.text),
+    JSON.stringify({ empty: (dbg.emptyOpen.report || "").split("\\n").slice(0, 14), after: dbg.afterChange.text.slice(0, 240) }));
+  check("opening the troubleshooting panel does not move the status box or keyboard",
+    dbg.before.statusTop === dbg.opened.statusTop
+      && dbg.before.statusH === dbg.opened.statusH
+      && dbg.before.kbTop === dbg.opened.kbTop
+      && dbg.opened.panelTop != null && dbg.opened.panelTop >= dbg.opened.kbBottom
+      && dbg.before.statusTop > 0 && dbg.before.kbTop > 0,
+    JSON.stringify({ before: dbg.before, opened: { statusTop: dbg.opened.statusTop, statusH: dbg.opened.statusH, kbTop: dbg.opened.kbTop, kbBottom: dbg.opened.kbBottom, panelTop: dbg.opened.panelTop } }));
+
   // The range card (everything below the status box) must not shift as states change.
   const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
   const layoutStates = [

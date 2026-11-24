@@ -549,6 +549,131 @@ button {
   color: var(--text-faint);
 }
 
+.debug-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 8px 0 0;
+  align-self: flex-start;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.debug-link:hover, .debug-link:focus-visible { color: var(--accent); }
+.debug-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.debug-panel {
+  margin-top: 10px;
+  min-width: 0;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.debug-panel[hidden] { display: none !important; }
+.debug-panel .label.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.debug-close {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.debug-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.debug-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.debug-row .k {
+  margin-bottom: 2px;
+}
+.debug-row .v {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.debug-ports { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.debug-port {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--text);
+}
+.debug-port .meta { color: var(--text-dim); font-size: 0.72rem; }
+.debug-events {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  max-height: 11.5em;
+  overflow: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+.debug-events li {
+  display: grid;
+  grid-template-columns: 8.5em 1fr;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(61, 52, 44, 0.6);
+  color: var(--text-dim);
+}
+.debug-events li:last-child { border-bottom: 0; }
+.debug-events .t { color: var(--text-faint); }
+.debug-events .m { color: var(--text); }
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.debug-actions button {
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.debug-actions button:hover { border-color: var(--accent); }
+.debug-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Portrait: the wrapper around the cards and log does not affect layout. */
 .lower { display: contents; }
 
@@ -623,6 +748,14 @@ button {
   .log-bar { flex-wrap: nowrap; }
   .log { flex: 1 0 auto; max-height: 70dvh; }
   .hint { display: none; }
+  .debug-link { margin-top: 6px; }
+  .lower { flex-wrap: wrap; }
+  .debug-panel {
+    flex: 1 1 100%;
+    margin-top: 0;
+    max-height: 42dvh;
+    overflow: auto;
+  }
   .key.white .oct { bottom: 10px; }
 
   /* Log hidden: the cards sit side by side across the full width, log buttons below. */
@@ -695,6 +828,12 @@ button {
   }
   .log .row { width: 60ch; }
   .log-wrap .hint { width: 100%; }
+  .lower { flex-wrap: wrap; }
+  .debug-panel {
+    flex: 1 1 100%;
+    max-height: 36dvh;
+    overflow: auto;
+  }
   .key.white .oct { bottom: 10px; }
 
   /* Log hidden: the cards sit side by side across the full width, log buttons below. */
