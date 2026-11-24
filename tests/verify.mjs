@@ -1466,7 +1466,8 @@ try {
         const st = document.getElementById("status");
         const kb = document.querySelector(".kb-wrap");
         const body = document.getElementById("debug-body");
-        const text = (body && body.innerText || "").replace(/\s+/g, " ").trim();
+        const summary = document.getElementById("debug-summary");
+        const text = ((summary && summary.innerText || "") + " " + (body && body.innerText || "")).replace(/\s+/g, " ").trim();
         return {
           linkVisible: !!(link && link.getBoundingClientRect().height > 0 && getComputedStyle(link).display !== "none"),
           linkText: link ? link.textContent.trim() : "",
@@ -1535,24 +1536,33 @@ try {
     dbg.before.linkVisible === true && dbg.before.linkText === "Troubleshoot"
       && dbg.before.open === false && dbg.before.panelVisible === false
       && dbg.opened.open === true && dbg.opened.panelVisible === true
-      && /Inputs seen/i.test(dbg.opened.text),
+      && /Devices/i.test(dbg.opened.text) && /Browser sees no MIDI keyboard/i.test(dbg.opened.text),
     JSON.stringify({ before: { linkVisible: dbg.before.linkVisible, open: dbg.before.open }, opened: { open: dbg.opened.open, visible: dbg.opened.panelVisible, text: dbg.opened.text.slice(0, 180) } }));
   check("troubleshooting panel opens via #debug and lists fake MIDI inputs",
     dbg.hashed.open === true && dbg.hashed.panelVisible === true
-      && /Inputs seen/i.test(dbg.hashed.text) && /GarageKey Mini/.test(dbg.hashed.text)
-      && /Inputs seen: 1/.test(dbg.hashed.report)
+      && /Devices/i.test(dbg.hashed.text) && /GarageKey Mini/.test(dbg.hashed.text)
+      && /Keyboard connected: GarageKey Mini/i.test(dbg.hashed.text)
+      && /Inputs \(1\)/.test(dbg.hashed.report)
       && /Miditech/.test(dbg.hashed.text)
-      && /Outputs seen: 1/.test(dbg.hashed.report),
+      && /Outputs \(1\)/.test(dbg.hashed.report)
+      && /^Connection$/m.test(dbg.hashed.report)
+      && /^Browser$/m.test(dbg.hashed.report),
     JSON.stringify({ text: dbg.hashed.text.slice(0, 240), report: (dbg.hashed.report || "").split("\\n").slice(0, 16) }));
   check("troubleshooting Copy report includes the inputs count",
-    typeof dbg.copied === "string" && /Inputs seen: 0/.test(dbg.copied)
+    typeof dbg.copied === "string" && /Inputs \(0\)/.test(dbg.copied)
+      && /Browser sees no MIDI keyboard/.test(dbg.copied)
+      && /^Devices$/m.test(dbg.copied)
+      && /^Connection$/m.test(dbg.copied)
+      && /^Browser$/m.test(dbg.copied)
       && /Web MIDI support:/.test(dbg.copied)
       && /Permission:/.test(dbg.copied),
     (dbg.copied || "").slice(0, 400));
   check("troubleshooting panel updates when a statechange adds an input",
-    /Inputs seen: 0/.test(dbg.emptyOpen.report)
+    /Inputs \(0\)/.test(dbg.emptyOpen.report)
+      && /Browser sees no MIDI keyboard/.test(dbg.emptyOpen.report)
       && /GarageKey Mini/.test(dbg.afterChange.text)
-      && /Inputs seen: 1/.test(dbg.afterChange.report)
+      && /Keyboard connected: GarageKey Mini/.test(dbg.afterChange.report)
+      && /Inputs \(1\)/.test(dbg.afterChange.report)
       && /State change:/.test(dbg.afterChange.text),
     JSON.stringify({ empty: (dbg.emptyOpen.report || "").split("\\n").slice(0, 14), after: dbg.afterChange.text.slice(0, 240) }));
   check("opening the troubleshooting panel does not move the status box or keyboard",

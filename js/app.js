@@ -77,6 +77,7 @@
     log: document.getElementById("log"),
     btnTroubleshoot: document.getElementById("btn-troubleshoot"),
     debugPanel: document.getElementById("debug-panel"),
+    debugSummary: document.getElementById("debug-summary"),
     debugBody: document.getElementById("debug-body"),
     btnDebugClose: document.getElementById("btn-debug-close"),
     btnDebugScan: document.getElementById("btn-debug-scan"),
@@ -1843,6 +1844,7 @@
     return {
       midiSupported: midiSupported(),
       browser: BROWSER_NAME || "Unknown",
+      userAgent: navigator.userAgent || "",
       secure: isSecure(),
       permission: permLabel(),
       hasAccess: !!state.access,
@@ -1863,49 +1865,91 @@
     };
   }
 
-  function describeAccess(snap) {
-    if (!snap.hasAccess) return "not obtained";
-    var parts = [];
-    parts.push("obtained at " + fmtDebugTime(snap.accessAt));
-    parts.push("refreshed " + snap.refreshCount + " time" + (snap.refreshCount === 1 ? "" : "s"));
-    if (snap.lastRefreshReason) {
-      parts.push("last refresh: " + snap.lastRefreshReason + " (" + fmtDebugTime(snap.lastRefreshAt) + ")");
+  function connectedInputs(snap) {
+    return snap.inputs.filter(function (p) { return p.state === "connected"; });
+  }
+
+  function debugVerdict(snap) {
+    if (!snap.midiSupported) return "This browser has no Web MIDI.";
+    if (!snap.secure) return "This page is not in a secure context, so MIDI is unavailable.";
+    if (snap.permission === "denied") return "MIDI permission denied.";
+    if (snap.permission === "prompt" && !snap.hasAccess) {
+      return "MIDI permission has not been granted.";
     }
-    return parts.join(", ");
+    var live = connectedInputs(snap);
+    if (live.length === 1) return "Keyboard connected: " + live[0].name + ".";
+    if (live.length > 1) {
+      return "Keyboards connected: " + live.map(function (p) { return p.name; }).join(", ") + ".";
+    }
+    if (snap.hasAccess) return "Browser sees no MIDI keyboard.";
+    return "MIDI access has not been obtained.";
   }
 
-  function describePort(p) {
-    var line = p.name + " — " + p.state + ", " + p.connection;
-    var extra = [];
-    if (p.manufacturer) extra.push("Manufacturer: " + p.manufacturer);
-    if (p.id) extra.push("Id: " + p.id);
-    return { line: line, extra: extra.join(". ") };
+  function describeAccess(snap) {
+    if (!snap.hasAccess) return "Not obtained.";
+    return "Obtained at " + fmtDebugTime(snap.accessAt) + ".";
   }
 
-  function describeStateChange(rec) {
-    if (!rec) return "—";
-    return fmtDebugTime(rec.t) + ", " + rec.name + (rec.type ? " (" + rec.type + ")" : "") + ", " + (rec.state || "unknown");
+  function describeRefresh(snap) {
+    var s = String(snap.refreshCount) + " time" + (snap.refreshCount === 1 ? "" : "s");
+    return s + ".";
   }
 
-  function describeMidi(rec) {
-    if (!rec) return "—";
-    return fmtDebugTime(rec.t) + ", " + hexBytes(rec.bytes);
+  function describeLastRefresh(snap) {
+    if (!snap.lastRefreshReason) return "—";
+    return snap.lastRefreshReason + " (" + fmtDebugTime(snap.lastRefreshAt) + ").";
   }
 
   function describeAuto(snap) {
-    var s = "polling " + (snap.polling ? "on" : "off");
+    var s = "Polling " + (snap.polling ? "on" : "off");
     if (snap.lastPollAt) {
       s += ", last poll " + fmtDebugTime(snap.lastPollAt);
       if (snap.lastPollResult === "found") s += " (found a device)";
       else if (snap.lastPollResult === "none") s += " (none)";
     }
-    return s;
+    return s + ".";
   }
 
   function describePage(snap) {
-    var s = snap.pageHidden ? "hidden" : "visible";
+    var s = snap.pageHidden ? "Hidden" : "Visible";
     if (snap.lastReturnAt) s += ", last returned " + fmtDebugTime(snap.lastReturnAt);
-    return s;
+    return s + ".";
+  }
+
+  function describeStateChange(rec) {
+    if (!rec) return "—";
+    return fmtDebugTime(rec.t) + ", " + rec.name + (rec.type ? " (" + rec.type + ")" : "") + ", " + (rec.state || "unknown") + ".";
+  }
+
+  function describeMidi(rec) {
+    if (!rec) return "—";
+    return fmtDebugTime(rec.t) + ", " + hexBytes(rec.bytes) + ".";
+  }
+
+  function renderPort(p) {
+    var meta = [];
+    if (p.manufacturer) meta.push(p.manufacturer);
+    meta.push((p.state || "unknown") + ", " + (p.connection || "unknown"));
+    return "<div class=\"debug-port\">" +
+      "<div class=\"debug-port-name\">" + escapeHtml(p.name) + "</div>" +
+      "<div class=\"debug-port-meta\">" + escapeHtml(meta.join(" · ")) + "</div>" +
+      (p.id ? "<div class=\"debug-port-id\">Id: " + escapeHtml(p.id) + "</div>" : "") +
+      "</div>";
+  }
+
+  function renderPortGroup(label, ports) {
+    var html = "<div class=\"debug-sub\">" + escapeHtml(label) + "</div>";
+    if (!ports.length) return html + "<p class=\"debug-none\">None.</p>";
+    return html + "<div class=\"debug-ports\">" + ports.map(renderPort).join("") + "</div>";
+  }
+
+  function gridRow(label, value, extraClass) {
+    return "<div class=\"k\">" + escapeHtml(label) + "</div>" +
+      "<div class=\"v" + (extraClass ? " " + extraClass : "") + "\">" + escapeHtml(value) + "</div>";
+  }
+
+  function section(title, inner) {
+    return "<section class=\"debug-section\"><h3 class=\"debug-h\">" + escapeHtml(title) + "</h3>" + inner + "</section>";
   }
 
   function buildDebugReport() {
@@ -1914,75 +1958,97 @@
     lines.push("A+Piano troubleshooting report");
     lines.push("Time: " + new Date().toLocaleString());
     lines.push("");
-    lines.push("Web MIDI support: " + (snap.midiSupported ? "yes" : "no"));
-    lines.push("Browser: " + snap.browser);
-    lines.push("Secure context: " + (snap.secure ? "yes" : "no"));
-    lines.push("Permission: " + snap.permission);
-    lines.push("MIDI access: " + describeAccess(snap));
+    lines.push(debugVerdict(snap));
     lines.push("");
-    lines.push("Inputs seen: " + snap.inputs.length);
-    snap.inputs.forEach(function (p) {
-      var d = describePort(p);
-      lines.push("  " + d.line);
-      if (d.extra) lines.push("    " + d.extra + ".");
-    });
+    lines.push("Devices");
+    lines.push("  Inputs (" + snap.inputs.length + ")");
+    if (!snap.inputs.length) {
+      lines.push("    None.");
+    } else {
+      snap.inputs.forEach(function (p) {
+        var meta = [];
+        if (p.manufacturer) meta.push(p.manufacturer);
+        meta.push((p.state || "unknown") + ", " + (p.connection || "unknown"));
+        lines.push("    " + p.name);
+        lines.push("      " + meta.join(" · "));
+        if (p.id) lines.push("      Id: " + p.id);
+      });
+    }
+    lines.push("  Outputs (" + snap.outputs.length + ")");
+    if (!snap.outputs.length) {
+      lines.push("    None.");
+    } else {
+      snap.outputs.forEach(function (p) {
+        var meta = [];
+        if (p.manufacturer) meta.push(p.manufacturer);
+        meta.push((p.state || "unknown") + ", " + (p.connection || "unknown"));
+        lines.push("    " + p.name);
+        lines.push("      " + meta.join(" · "));
+        if (p.id) lines.push("      Id: " + p.id);
+      });
+    }
     lines.push("");
-    lines.push("Outputs seen: " + snap.outputs.length);
-    snap.outputs.forEach(function (p) {
-      var d = describePort(p);
-      lines.push("  " + d.line);
-      if (d.extra) lines.push("    " + d.extra + ".");
-    });
+    lines.push("Connection");
+    lines.push("  Permission: " + snap.permission + ".");
+    lines.push("  MIDI access: " + describeAccess(snap));
+    lines.push("  Refreshed: " + describeRefresh(snap));
+    if (snap.lastRefreshReason) lines.push("  Last refresh: " + describeLastRefresh(snap));
+    lines.push("  Auto-detect: " + describeAuto(snap));
+    lines.push("  Last statechange: " + describeStateChange(snap.lastStateChange));
+    lines.push("  Last MIDI message: " + describeMidi(snap.lastMidi));
     lines.push("");
-    lines.push("Last statechange: " + describeStateChange(snap.lastStateChange));
-    lines.push("Last MIDI message: " + describeMidi(snap.lastMidi));
+    lines.push("Browser");
+    lines.push("  Web MIDI support: " + (snap.midiSupported ? "yes" : "no"));
+    lines.push("  Secure context: " + (snap.secure ? "yes" : "no"));
+    lines.push("  Page: " + describePage(snap));
+    lines.push("  Browser: " + snap.browser);
+    lines.push("  User agent: " + (snap.userAgent || "—"));
     lines.push("");
-    lines.push("Auto-detect: " + describeAuto(snap));
-    lines.push("Page: " + describePage(snap));
-    lines.push("");
-    lines.push("Event log:");
-    if (!snap.events.length) lines.push("  (none)");
-    snap.events.forEach(function (e) {
-      lines.push("  " + fmtDebugTime(e.t) + "  " + e.text);
-    });
+    lines.push("Event log");
+    if (!snap.events.length) {
+      lines.push("  (none)");
+    } else {
+      snap.events.slice().reverse().forEach(function (e) {
+        lines.push("  " + fmtDebugTime(e.t) + "  " + e.text);
+      });
+    }
     lines.push("");
     return lines.join("\n");
   }
 
-  function renderPortList(ports, emptyLabel) {
-    if (!ports.length) return "<div class=\"v\">" + escapeHtml(emptyLabel) + "</div>";
-    return "<div class=\"debug-ports\">" + ports.map(function (p) {
-      var d = describePort(p);
-      return "<div class=\"debug-port\"><div>" + escapeHtml(d.line) + "</div>" +
-        (d.extra ? "<div class=\"meta\">" + escapeHtml(d.extra) + ".</div>" : "") + "</div>";
-    }).join("") + "</div>";
-  }
-
   function renderDebug() {
-    if (!els.debugBody || !debugState.open) return;
+    if (!debugState.open) return;
     var snap = debugSnapshot();
+    if (els.debugSummary) els.debugSummary.textContent = debugVerdict(snap);
+    if (!els.debugBody) return;
     var ev = snap.events.slice().reverse().map(function (e) {
       return "<li><span class=\"t\">" + escapeHtml(fmtDebugTime(e.t)) + "</span>" +
         "<span class=\"m\">" + escapeHtml(e.text) + "</span></li>";
     }).join("");
-    els.debugBody.innerHTML =
-      row("Web MIDI support", (snap.midiSupported ? "yes" : "no") + ". Browser: " + snap.browser + ". Secure context: " + (snap.secure ? "yes" : "no") + ".") +
-      row("Permission", snap.permission + ".") +
-      row("MIDI access", describeAccess(snap) + ".") +
-      "<div class=\"debug-row\"><div class=\"k\">Inputs seen</div><div class=\"v\">" + snap.inputs.length + ".</div>" + renderPortList(snap.inputs, "") + "</div>" +
-      "<div class=\"debug-row\"><div class=\"k\">Outputs seen</div><div class=\"v\">" + snap.outputs.length + ".</div>" + renderPortList(snap.outputs, "") + "</div>" +
-      row("Last statechange", describeStateChange(snap.lastStateChange) + (snap.lastStateChange ? "." : "")) +
-      row("Last MIDI message", describeMidi(snap.lastMidi) + (snap.lastMidi ? "." : "")) +
-      row("Auto-detect", describeAuto(snap) + ".") +
-      row("Page", describePage(snap) + ".") +
-      "<div class=\"debug-row\"><div class=\"k\">Event log</div>" +
-        (ev ? "<ul class=\"debug-events\">" + ev + "</ul>" : "<div class=\"v\">No events yet.</div>") +
+    var conn = "<div class=\"debug-grid\">" +
+      gridRow("Permission", snap.permission + ".") +
+      gridRow("MIDI access", describeAccess(snap)) +
+      gridRow("Refreshed", describeRefresh(snap)) +
+      (snap.lastRefreshReason ? gridRow("Last refresh", describeLastRefresh(snap)) : "") +
+      gridRow("Auto-detect", describeAuto(snap)) +
+      gridRow("Last statechange", describeStateChange(snap.lastStateChange)) +
+      gridRow("Last MIDI message", describeMidi(snap.lastMidi)) +
       "</div>";
-  }
-
-  function row(label, value) {
-    return "<div class=\"debug-row\"><div class=\"k\">" + escapeHtml(label) + "</div>" +
-      "<div class=\"v\">" + escapeHtml(value) + "</div></div>";
+    var browser = "<div class=\"debug-grid\">" +
+      gridRow("Web MIDI", snap.midiSupported ? "Yes." : "No.") +
+      gridRow("Secure context", snap.secure ? "Yes." : "No.") +
+      gridRow("Page", describePage(snap)) +
+      gridRow("Browser", snap.browser + ".") +
+      gridRow("User agent", snap.userAgent || "—", "debug-ua") +
+      "</div>";
+    var events = ev
+      ? "<ul class=\"debug-events\">" + ev + "</ul>"
+      : "<p class=\"debug-none\">No events yet.</p>";
+    els.debugBody.innerHTML =
+      section("Devices", renderPortGroup("Inputs", snap.inputs) + renderPortGroup("Outputs", snap.outputs)) +
+      section("Connection", conn) +
+      section("Browser", browser) +
+      section("Event log", events);
   }
 
   function isDebugHash() {
