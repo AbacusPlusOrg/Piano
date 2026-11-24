@@ -208,6 +208,47 @@ try {
   // Leave the shared page and storage in the default off state for later tests.
   await page.evaluate(() => window.__pfTest.sound.setEnabled(false));
 
+  const pLandSound = await browser.newPage();
+  pLandSound.on("pageerror", (err) => jsErrors.push(String(err)));
+  await pLandSound.setViewport({
+    width: 915, height: 412, deviceScaleFactor: 1,
+    isMobile: true, hasTouch: true, isLandscape: true
+  });
+  await pLandSound.evaluateOnNewDocument(() => {
+    try { localStorage.removeItem("aplus.pane.v1"); localStorage.removeItem("aplus.sound.v1"); } catch (e) {}
+  });
+  await pLandSound.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+  await new Promise((r) => setTimeout(r, 300));
+  const landSound = await pLandSound.evaluate(() => {
+    const st = document.getElementById("status");
+    const kb = document.querySelector(".kb-wrap");
+    const btn = document.getElementById("btn-sound");
+    const vol = document.getElementById("sound-volume");
+    const stR = st.getBoundingClientRect();
+    const btnR = btn.getBoundingClientRect();
+    const volR = vol.getBoundingClientRect();
+    const mid = (r) => (r.top + r.bottom) / 2;
+    return {
+      statusH: Math.round(stR.height),
+      statusTop: Math.round(stR.top),
+      kbTop: Math.round(kb.getBoundingClientRect().top),
+      sliderVisible: !!(vol && volR.height > 0 && getComputedStyle(vol).display !== "none"),
+      toggleVisible: !!(btn && btnR.height > 0 && getComputedStyle(btn).display !== "none"),
+      sliderInBox: volR.top >= stR.top - 1 && volR.bottom <= stR.bottom + 1,
+      toggleInBox: btnR.top >= stR.top - 1 && btnR.bottom <= stR.bottom + 1,
+      centered: Math.abs(mid(volR) - mid(stR)) < 3 && Math.abs(mid(btnR) - mid(stR)) < 3,
+      beside: volR.left >= btnR.right - 0.5
+    };
+  });
+  await pLandSound.close();
+  check("volume slider is visible in phone landscape and the status box stays 45px",
+    landSound.sliderVisible === true && landSound.toggleVisible === true
+      && landSound.statusH === 45
+      && landSound.sliderInBox === true && landSound.toggleInBox === true
+      && landSound.centered === true && landSound.beside === true
+      && landSound.kbTop > landSound.statusTop,
+    JSON.stringify(landSound));
+
   const statusText = await page.evaluate(() => document.querySelector("#status .msg").innerText);
   console.log("STATUS  " + statusText.replace(/\s+/g, " "));
   check("status mentions connect or MIDI", /midi|connect|allow|device|permission/i.test(statusText), statusText.slice(0, 180));
