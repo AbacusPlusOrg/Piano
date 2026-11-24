@@ -190,7 +190,8 @@ button {
   grid-template-columns: 1.6fr 1fr;
   gap: 8px;
   flex-shrink: 0;
-  margin-top: 10px;
+  margin: 0;
+  min-width: 0;
 }
 .card {
   background: var(--bg-elev);
@@ -459,11 +460,12 @@ button {
 }
 
 .log-wrap {
-  flex: 0 0 auto;
-  margin-top: 10px;
+  flex: 1 1 auto;
+  margin: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 .log-bar {
   display: flex;
@@ -490,9 +492,11 @@ button {
 .toggle input { accent-color: var(--accent); margin: 0; }
 .log-bar .spacer { flex: 1; }
 .log {
-  display: none;
+  display: block;
   margin-top: 8px;
-  max-height: 28vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   background: #0f0d0b;
   border: 1px solid var(--border);
@@ -502,11 +506,6 @@ button {
   font-size: 0.7rem;
   line-height: 1.45;
   color: #d9cbb8;
-}
-.log.open { display: block; }
-/* Portrait phones: the log is always its max height, so later rows don't shift the page. */
-@media (orientation: portrait) and (max-width: 899px) {
-  .log.open { height: 28vh; }
 }
 /* Log columns: time, bytes, event, note or controller, value, channel */
 .log .row {
@@ -549,62 +548,12 @@ button {
   color: var(--text-faint);
 }
 
-.debug-link {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 8px 0 0;
-  align-self: flex-start;
-  color: var(--text-faint);
-  font: inherit;
-  font-size: 0.7rem;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-.debug-link:hover, .debug-link:focus-visible { color: var(--accent); }
-.debug-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .debug-panel {
-  margin-top: 10px;
   min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
-}
-.debug-panel[hidden] { display: none !important; }
-.debug-panel .label.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.debug-close {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  color: var(--accent);
-  font: inherit;
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-.debug-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 .debug-summary {
   margin: 0 0 10px;
@@ -757,8 +706,70 @@ button {
 .debug-events .t { color: var(--text-faint); white-space: nowrap; }
 .debug-events .m { color: var(--text); min-width: 0; overflow-wrap: anywhere; }
 
-/* Portrait: the wrapper around the cards and log does not affect layout. */
-.lower { display: contents; }
+/* Shared Stats / Log / Help section below the keyboard. */
+.lower {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 10px;
+  flex: 0 0 auto;
+}
+.pane-switch {
+  display: flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  gap: 3px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.pane-switch [role="tab"] {
+  appearance: none;
+  flex: 1 1 0;
+  margin: 0;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+.pane-switch [role="tab"][aria-selected="true"] {
+  background: var(--accent);
+  color: #1a120a;
+}
+.pane-switch [role="tab"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pane-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: var(--pane-h, 12.5rem);
+  height: max(var(--pane-h, 12.5rem), 30vh);
+  overflow: hidden;
+}
+.pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pane[hidden] { display: none !important; }
+.pane-stats { overflow: auto; }
+.pane-help, .pane-log { overflow: hidden; }
 
 @media (orientation: landscape) and (max-height: 540px) {
   body {
@@ -794,23 +805,24 @@ button {
     font-size: 0.88rem;
   }
 
-  /* Below the keys: Last note and Session stacked on the left, the log on the right. */
+  /* Below the keys: the Stats / Log / Help switch and a shared pane. */
   .lower {
     grid-area: bottom;
     display: flex;
+    flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 6px;
     margin-top: 5px;
     min-width: 0;
+    min-height: 0;
   }
-  .readout {
-    flex: 0 0 var(--lw);
-    width: var(--lw);
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  .pane-switch { padding: 2px; }
+  .pane-switch [role="tab"] { padding: 5px 8px; font-size: 0.76rem; }
+  .pane-stage {
+    flex: 1 1 auto;
+    height: max(var(--pane-h, 10rem), 28vh);
   }
+  .readout { width: 100%; }
   .card { padding: 8px 12px; }
   .card .label { margin-bottom: 4px; }
   .now-card .last-name { font-size: 2.3rem; min-height: 0; }
@@ -820,39 +832,15 @@ button {
   .k { font-size: 0.6rem; }
   .v { font-size: 0.88rem; }
   .latency { font-size: 0.66rem; padding: 0 2px; }
-  .log-wrap {
-    flex: 1 1 0;
-    margin: 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    container-type: inline-size;
-  }
+  .log-wrap { container-type: inline-size; }
   .log-bar { flex-wrap: nowrap; }
-  .log { flex: 1 0 auto; max-height: 70dvh; }
+  .log { flex: 1 1 auto; min-height: 0; max-height: none; }
   .hint { display: none; }
-  .debug-link { margin-top: 6px; }
-  .lower { flex-wrap: wrap; }
-  .debug-panel {
-    flex: 1 1 100%;
-    margin-top: 0;
-    max-height: 70dvh;
-    overflow: hidden;
-  }
-  .debug-body { overflow: auto; flex: 1 1 auto; }
+  .debug-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
   .key.white .oct { bottom: 10px; }
 
-  /* Log hidden: the cards sit side by side across the full width, log buttons below. */
-  body:has(#log:not(.open)) .lower { flex-direction: column; gap: 8px; }
-  body:has(#log:not(.open)) .readout { flex: 0 0 auto; width: auto; flex-direction: row; flex-wrap: wrap; }
-  body:has(#log:not(.open)) .readout .card { flex: 1 1 0; }
-  body:has(#log:not(.open)) .readout .now-card { flex-grow: 1.4; }
-  body:has(#log:not(.open)) .latency { flex: 1 0 100%; }
-  body:has(#log:not(.open)) .now-meta,
-  body:has(#log:not(.open)) .stats { max-width: 280px; }
-
-  /* The first screen keeps the keys as large as before, the log peeks in below,
-     and the page scrolls on to the cards and log. JS measures --kbh in this state. */
+  /* The first screen keeps the keys as large as before, the section peeks in below,
+     and the page scrolls on to the switch and pane. JS measures --kbh in this state. */
   body { grid-template-rows: auto auto var(--kbh, minmax(150px, 1fr)) auto; }
   body.measuring { height: 100dvh; max-height: 100dvh; overflow: hidden;
                    grid-template-rows: auto auto minmax(150px, 1fr) 128px; }
@@ -871,21 +859,23 @@ button {
   }
   .lower {
     display: flex;
+    flex-direction: column;
     align-items: stretch;
-    justify-content: center;
-    gap: 14px;
+    gap: 10px;
     margin-top: 10px;
     min-width: 0;
     flex: 1 1 auto;
     min-height: 0;
   }
+  .pane-stage {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: var(--pane-h, 12.5rem);
+    max-height: none;
+  }
   .readout {
-    flex: 0 0 var(--lw);
-    width: var(--lw);
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    width: 100%;
+    max-width: 46rem;
   }
   .card { padding: 10px 14px; }
   .card .label { margin-bottom: 4px; }
@@ -893,43 +883,21 @@ button {
   .now-grid { gap: 12px; }
   .now-meta { gap: 8px; }
   .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .log-wrap {
-    flex: 0 0 auto;
-    width: fit-content;
-    margin: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
+  .log-wrap { width: 100%; min-height: 0; }
   .log-bar { flex-wrap: nowrap; }
   /* 60ch rows + horizontal padding and border + room for the scrollbar. */
   .log {
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
-    width: calc(60ch + 22px + 16px);
+    width: 100%;
+    max-width: calc(60ch + 22px + 16px);
     scrollbar-gutter: stable;
   }
   .log .row { width: 60ch; }
-  .log-wrap .hint { width: 100%; }
-  .lower { flex-wrap: wrap; }
-  .debug-panel {
-    flex: 1 1 100%;
-    max-height: 50dvh;
-    overflow: hidden;
-  }
-  .debug-body { overflow: auto; flex: 1 1 auto; }
+  .hint { width: 100%; }
+  .debug-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
   .key.white .oct { bottom: 10px; }
-
-  /* Log hidden: the cards sit side by side across the full width, log buttons below. */
-  body:has(#log:not(.open)) .lower { flex-direction: column; gap: 10px; flex: 0 0 auto; }
-  body:has(#log:not(.open)) .log-wrap { flex: 0 0 auto; min-height: auto; width: auto; max-width: none; align-self: stretch; }
-  body:has(#log:not(.open)) .readout { flex: 0 0 auto; width: auto; flex-direction: row; flex-wrap: wrap; }
-  body:has(#log:not(.open)) .readout .card { flex: 1 1 0; }
-  body:has(#log:not(.open)) .readout .now-card { flex-grow: 1.4; }
-  body:has(#log:not(.open)) .latency { flex: 1 0 100%; }
-  body:has(#log:not(.open)) .now-meta,
-  body:has(#log:not(.open)) .stats { max-width: 280px; }
 }
 
 /* Narrow log column in landscape: same tighter columns as on narrow phones. */

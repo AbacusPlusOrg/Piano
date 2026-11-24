@@ -8,7 +8,7 @@
   <meta name="description" content="A+Piano MIDI Input Test: note detection and visual feedback.">
   <title>A+Piano — MIDI Input Test</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2314110e'/%3E%3Crect x='3' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='6.4' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='9.8' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='4.6' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3Crect x='8' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=1795482863">
+  <link rel="stylesheet" href="css/style.css?v=1795483777">
 </head>
 <body>
   <div class="top">
@@ -33,55 +33,60 @@
   </div>
 
   <div class="lower">
-  <div class="readout">
-    <div class="card now-card">
-      <div class="label head"><span>Last note</span><span class="ch">ch <span id="last-ch">—</span></span></div>
-      <div class="now-grid">
-        <div id="last-name" class="last-name">—</div>
-        <div class="now-meta">
-          <div class="pair"><div><div class="k">MIDI</div><div id="last-num" class="v">—</div></div>
-            <div><div class="k">Velocity</div><div class="v"><span id="last-vel">—</span></div></div></div>
-          <div class="pair"><div><div class="k">Held</div><div id="held-count" class="v">0</div></div>
-            <div><div class="k">Sustain</div><div><span id="sustain" class="sustain">off</span></div></div></div>
+    <div id="pane-switch" class="pane-switch" role="tablist" aria-label="Stats, Log, and Help">
+      <button type="button" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="true" tabindex="0">Stats</button>
+      <button type="button" role="tab" id="tab-log" aria-controls="panel-log" aria-selected="false" tabindex="-1">Log</button>
+      <button type="button" role="tab" id="tab-help" aria-controls="panel-help" aria-selected="false" tabindex="-1">Help</button>
+    </div>
+    <div id="pane-stage" class="pane-stage">
+      <div id="panel-stats" class="pane pane-stats" role="tabpanel" aria-labelledby="tab-stats">
+        <div class="readout">
+          <div class="card now-card">
+            <div class="label head"><span>Last note</span><span class="ch">ch <span id="last-ch">—</span></span></div>
+            <div class="now-grid">
+              <div id="last-name" class="last-name">—</div>
+              <div class="now-meta">
+                <div class="pair"><div><div class="k">MIDI</div><div id="last-num" class="v">—</div></div>
+                  <div><div class="k">Velocity</div><div class="v"><span id="last-vel">—</span></div></div></div>
+                <div class="pair"><div><div class="k">Held</div><div id="held-count" class="v">0</div></div>
+                  <div><div class="k">Sustain</div><div><span id="sustain" class="sustain">off</span></div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card session-card">
+            <div class="label">Session</div>
+            <div class="stats">
+              <div><div class="k">Highest</div><div id="seen-high" class="v">—</div></div>
+              <div><div class="k">Lowest</div><div id="seen-low" class="v">—</div></div>
+            </div>
+          </div>
+          <div id="latency" class="latency">On-screen delay: — <em>(estimate of visual lag, not audio)</em></div>
+        </div>
+      </div>
+      <div id="panel-log" class="pane pane-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+        <div class="log-wrap">
+          <div class="log-bar">
+            <label class="toggle"><input type="checkbox" id="filter-rt" checked> Hide clock &amp; active sensing</label>
+            <span class="spacer"></span>
+            <button type="button" id="btn-clear">Clear log</button>
+          </div>
+          <div id="log" class="log"><div class="empty">No messages yet.</div></div>
+        </div>
+      </div>
+      <div id="panel-help" class="pane pane-help" role="tabpanel" aria-labelledby="tab-help" hidden>
+        <div id="debug-panel" class="debug-panel">
+          <p id="debug-summary" class="debug-summary"></p>
+          <div class="debug-actions">
+            <button type="button" id="btn-debug-scan">Scan now</button>
+            <button type="button" id="btn-debug-copy">Copy report</button>
+          </div>
+          <div id="debug-body" class="debug-body"></div>
         </div>
       </div>
     </div>
-    <div class="card session-card">
-      <div class="label">Session</div>
-      <div class="stats">
-        <div><div class="k">Highest</div><div id="seen-high" class="v">—</div></div>
-        <div><div class="k">Lowest</div><div id="seen-low" class="v">—</div></div>
-      </div>
-    </div>
-    <div id="latency" class="latency">On-screen delay: — <em>(estimate of visual lag, not audio)</em></div>
-  </div>
-
-  <div class="log-wrap">
-    <div class="log-bar">
-      <button type="button" id="btn-log">Hide log</button>
-      <label class="toggle"><input type="checkbox" id="filter-rt" checked> Hide clock &amp; active sensing</label>
-      <span class="spacer"></span>
-      <button type="button" id="btn-clear">Clear log</button>
-    </div>
-    <div id="log" class="log open"><div class="empty">No messages yet.</div></div>
     <div class="hint">No sound is played — this page only shows what the keyboard sends.<br>On-screen keys can be tapped to test without a MIDI keyboard.</div>
-    <button type="button" id="btn-troubleshoot" class="debug-link" aria-expanded="false" aria-controls="debug-panel">Troubleshoot</button>
   </div>
 
-  <aside id="debug-panel" class="debug-panel card" hidden>
-    <div class="label head">
-      <span>Troubleshoot</span>
-      <button type="button" id="btn-debug-close" class="debug-close">Close</button>
-    </div>
-    <p id="debug-summary" class="debug-summary"></p>
-    <div class="debug-actions">
-      <button type="button" id="btn-debug-scan">Scan now</button>
-      <button type="button" id="btn-debug-copy">Copy report</button>
-    </div>
-    <div id="debug-body" class="debug-body"></div>
-  </aside>
-  </div>
-
-  <script src="js/app.js?v=1795482863" defer></script>
+  <script src="js/app.js?v=1795483777" defer></script>
 </body>
 </html>

@@ -75,6 +75,7 @@ try {
     }
   });
 
+  await page.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
   const resp = await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
   await new Promise((r) => setTimeout(r, 200));
   check("page HTTP status", resp && resp.ok(), resp ? String(resp.status()) : "no response");
@@ -1454,6 +1455,7 @@ try {
     async function openPage(mode, hash) {
       const p = await browser.newPage();
       p.on("pageerror", (err) => jsErrors.push(String(err)));
+      await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
       await p.evaluateOnNewDocument(fakeMidiBootstrap, mode || "empty");
       await p.goto(URL + (hash || ""), { waitUntil: "domcontentloaded", timeout: 15000 });
       await new Promise((r) => setTimeout(r, 400));
@@ -1462,35 +1464,63 @@ try {
     function panelInfo(page) {
       return page.evaluate(() => {
         const panel = document.getElementById("debug-panel");
-        const link = document.getElementById("btn-troubleshoot");
+        const help = document.getElementById("panel-help");
+        const stats = document.getElementById("panel-stats");
+        const log = document.getElementById("panel-log");
+        const sw = document.getElementById("pane-switch");
         const st = document.getElementById("status");
         const kb = document.querySelector(".kb-wrap");
         const body = document.getElementById("debug-body");
         const summary = document.getElementById("debug-summary");
+        const lastNote = document.querySelector(".now-card");
+        const midiLog = document.getElementById("log");
         const text = ((summary && summary.innerText || "") + " " + (body && body.innerText || "")).replace(/\s+/g, " ").trim();
+        const selected = sw && [...sw.querySelectorAll('[role="tab"]')].find((t) => t.getAttribute("aria-selected") === "true");
+        const visible = (el) => !!(el && !el.hidden && el.getBoundingClientRect().height > 0);
         return {
-          linkVisible: !!(link && link.getBoundingClientRect().height > 0 && getComputedStyle(link).display !== "none"),
-          linkText: link ? link.textContent.trim() : "",
+          pane: window.__pfTest.debug.pane(),
+          selected: selected ? selected.textContent.trim() : "",
+          switchVisible: visible(sw),
+          switchRole: sw ? sw.getAttribute("role") : null,
+          tabCount: sw ? sw.querySelectorAll('[role="tab"]').length : 0,
+          linkVisible: !!document.getElementById("btn-troubleshoot"),
+          showLogVisible: !!document.getElementById("btn-log"),
           open: window.__pfTest.debug.isOpen(),
-          panelHidden: panel ? panel.hidden : null,
-          panelVisible: !!(panel && !panel.hidden && panel.getBoundingClientRect().height > 0),
+          statsVisible: visible(stats),
+          logVisible: visible(log),
+          helpVisible: visible(help),
+          lastNoteVisible: !!(lastNote && lastNote.getBoundingClientRect().height > 0 && !stats.hidden),
+          logControls: !!(log && !log.hidden && document.getElementById("filter-rt") && document.getElementById("btn-clear")),
+          midiLogVisible: !!(midiLog && midiLog.getBoundingClientRect().height > 0 && !log.hidden),
+          panelVisible: visible(help) && visible(panel),
           text,
           statusTop: Math.round(st.getBoundingClientRect().top),
           statusH: Math.round(st.getBoundingClientRect().height),
           kbTop: Math.round(kb.getBoundingClientRect().top),
           kbBottom: Math.round(kb.getBoundingClientRect().bottom),
-          panelTop: panel && !panel.hidden ? Math.round(panel.getBoundingClientRect().top) : null,
+          switchTop: sw ? Math.round(sw.getBoundingClientRect().top) : null,
+          panelTop: help && !help.hidden ? Math.round(help.getBoundingClientRect().top) : null,
+          stageH: Math.round(document.getElementById("pane-stage").getBoundingClientRect().height),
           report: window.__pfTest.debug.report()
         };
       });
     }
 
-    // Link is visible and the panel starts closed. Opening does not move status/keyboard.
+    // Default is Stats. Switching to Help, Log, then back must not move status, keyboard, or the switch.
     const pLink = await openPage("empty");
     const before = await panelInfo(pLink);
-    await pLink.evaluate(() => document.getElementById("btn-troubleshoot").click());
+    await pLink.evaluate(() => document.getElementById("tab-help").click());
     await new Promise((r) => setTimeout(r, 50));
     const opened = await panelInfo(pLink);
+    await pLink.evaluate(() => document.getElementById("tab-log").click());
+    await new Promise((r) => setTimeout(r, 50));
+    const onLog = await panelInfo(pLink);
+    await pLink.evaluate(() => {
+      const ev = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true });
+      document.getElementById("pane-switch").dispatchEvent(ev);
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const afterArrow = await panelInfo(pLink);
     await pLink.close();
 
     // #debug opens the panel with a connected device and lists inputs.
@@ -1521,7 +1551,7 @@ try {
     const afterChange = await panelInfo(pLive);
     await pLive.close();
 
-    return { before, opened, hashed, emptyOpen, copied, afterChange };
+    return { before, opened, onLog, afterArrow, hashed, emptyOpen, copied, afterChange };
   }
   const dbg = await loadDebug();
   console.log("DEBUG", JSON.stringify({
@@ -1532,14 +1562,18 @@ try {
     copiedHead: (dbg.copied || "").split("\\n").slice(0, 12).join(" | "),
     afterChange: { ...dbg.afterChange, report: undefined, text: (dbg.afterChange.text || "").slice(0, 200) }
   }));
-  check("Troubleshoot link is visible and opens the panel",
-    dbg.before.linkVisible === true && dbg.before.linkText === "Troubleshoot"
-      && dbg.before.open === false && dbg.before.panelVisible === false
-      && dbg.opened.open === true && dbg.opened.panelVisible === true
-      && /Devices/i.test(dbg.opened.text) && /Browser sees no MIDI keyboard/i.test(dbg.opened.text),
-    JSON.stringify({ before: { linkVisible: dbg.before.linkVisible, open: dbg.before.open }, opened: { open: dbg.opened.open, visible: dbg.opened.panelVisible, text: dbg.opened.text.slice(0, 180) } }));
+  check("Stats is the default section of the switch",
+    dbg.before.pane === "stats" && dbg.before.selected === "Stats"
+      && dbg.before.switchVisible === true && dbg.before.switchRole === "tablist"
+      && dbg.before.tabCount === 3
+      && dbg.before.statsVisible === true && dbg.before.lastNoteVisible === true
+      && dbg.before.helpVisible === false && dbg.before.logVisible === false
+      && dbg.before.open === false && dbg.before.linkVisible === false
+      && dbg.before.showLogVisible === false,
+    JSON.stringify({ before: { pane: dbg.before.pane, selected: dbg.before.selected, stats: dbg.before.statsVisible, help: dbg.before.helpVisible, link: dbg.before.linkVisible, showLog: dbg.before.showLogVisible } }));
   check("troubleshooting panel opens via #debug and lists fake MIDI inputs",
     dbg.hashed.open === true && dbg.hashed.panelVisible === true
+      && dbg.hashed.pane === "help" && dbg.hashed.selected === "Help"
       && /Devices/i.test(dbg.hashed.text) && /GarageKey Mini/.test(dbg.hashed.text)
       && /Keyboard connected: GarageKey Mini/i.test(dbg.hashed.text)
       && /Inputs \(1\)/.test(dbg.hashed.report)
@@ -1547,7 +1581,7 @@ try {
       && /Outputs \(1\)/.test(dbg.hashed.report)
       && /^Connection$/m.test(dbg.hashed.report)
       && /^Browser$/m.test(dbg.hashed.report),
-    JSON.stringify({ text: dbg.hashed.text.slice(0, 240), report: (dbg.hashed.report || "").split("\\n").slice(0, 16) }));
+    JSON.stringify({ pane: dbg.hashed.pane, text: dbg.hashed.text.slice(0, 240), report: (dbg.hashed.report || "").split("\\n").slice(0, 16) }));
   check("troubleshooting Copy report includes the inputs count",
     typeof dbg.copied === "string" && /Inputs \(0\)/.test(dbg.copied)
       && /Browser sees no MIDI keyboard/.test(dbg.copied)
@@ -1565,13 +1599,30 @@ try {
       && /Inputs \(1\)/.test(dbg.afterChange.report)
       && /State change:/.test(dbg.afterChange.text),
     JSON.stringify({ empty: (dbg.emptyOpen.report || "").split("\\n").slice(0, 14), after: dbg.afterChange.text.slice(0, 240) }));
-  check("opening the troubleshooting panel does not move the status box or keyboard",
+  check("the Log tab shows the MIDI log and its controls",
+    dbg.onLog.pane === "log" && dbg.onLog.selected === "Log"
+      && dbg.onLog.logVisible === true && dbg.onLog.midiLogVisible === true
+      && dbg.onLog.logControls === true
+      && dbg.onLog.statsVisible === false && dbg.onLog.helpVisible === false,
+    JSON.stringify({ onLog: { pane: dbg.onLog.pane, logVisible: dbg.onLog.logVisible, controls: dbg.onLog.logControls } }));
+  check("switching Stats, Log, and Help does not move the status box, keyboard, or switch",
     dbg.before.statusTop === dbg.opened.statusTop
+      && dbg.before.statusTop === dbg.onLog.statusTop
       && dbg.before.statusH === dbg.opened.statusH
+      && dbg.before.statusH === dbg.onLog.statusH
       && dbg.before.kbTop === dbg.opened.kbTop
+      && dbg.before.kbTop === dbg.onLog.kbTop
+      && dbg.before.switchTop === dbg.opened.switchTop
+      && dbg.before.switchTop === dbg.onLog.switchTop
+      && dbg.opened.stageH === dbg.before.stageH
+      && dbg.onLog.stageH === dbg.before.stageH
       && dbg.opened.panelTop != null && dbg.opened.panelTop >= dbg.opened.kbBottom
-      && dbg.before.statusTop > 0 && dbg.before.kbTop > 0,
-    JSON.stringify({ before: dbg.before, opened: { statusTop: dbg.opened.statusTop, statusH: dbg.opened.statusH, kbTop: dbg.opened.kbTop, kbBottom: dbg.opened.kbBottom, panelTop: dbg.opened.panelTop } }));
+      && dbg.before.switchTop >= dbg.before.kbBottom
+      && dbg.before.statusTop > 0 && dbg.before.kbTop > 0
+      && dbg.opened.open === true && dbg.opened.panelVisible === true
+      && /Devices/i.test(dbg.opened.text) && /Browser sees no MIDI keyboard/i.test(dbg.opened.text)
+      && dbg.afterArrow.pane === "help" && dbg.afterArrow.selected === "Help",
+    JSON.stringify({ before: { statusTop: dbg.before.statusTop, statusH: dbg.before.statusH, kbTop: dbg.before.kbTop, switchTop: dbg.before.switchTop, stageH: dbg.before.stageH }, opened: { statusTop: dbg.opened.statusTop, kbTop: dbg.opened.kbTop, switchTop: dbg.opened.switchTop, stageH: dbg.opened.stageH, panelTop: dbg.opened.panelTop }, onLog: { statusTop: dbg.onLog.statusTop, switchTop: dbg.onLog.switchTop, stageH: dbg.onLog.stageH }, afterArrow: { pane: dbg.afterArrow.pane } }));
 
   // The range card (everything below the status box) must not shift as states change.
   const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
@@ -1589,6 +1640,7 @@ try {
     const p = await browser.newPage();
     p.on("pageerror", (err) => jsErrors.push(String(err)));
     await p.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: !!mobile, hasTouch: !!mobile });
+    await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 200));
     const info = await p.evaluate((states) => {
@@ -1785,12 +1837,6 @@ try {
   check("sustain on", st.sustainOn === true);
   check("sustain indicator says on", await page.evaluate(() => document.getElementById("sustain").textContent) === "on");
   check("seen low C3 (48)", st.seenLow === 48, String(st.seenLow));
-
-  await page.evaluate(() => {
-    const btn = document.getElementById("btn-log");
-    if (!document.getElementById("log").classList.contains("open")) btn.click();
-  });
-  await new Promise((r) => setTimeout(r, 80));
 
   const portrait = await shot(page, "portrait-412x915.png", 412, 915);
   st = await page.evaluate(() => window.__pfTest.getState());

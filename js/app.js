@@ -27,6 +27,8 @@
   // slides as soon as notes are played.
   var ESTIMATE_BY_KEYS = { 25: 48, 32: 53, 37: 48, 49: 36, 61: 36, 88: 21 };
   var RANGE_STORE_KEY = "aplus.deviceRanges.v1";
+  var PANE_STORE_KEY = "aplus.pane.v1";
+  var PANE_IDS = ["stats", "log", "help"];
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
   var MIDI_CHECK_TIMEOUT = 3000;
@@ -49,7 +51,7 @@
     seenHigh: null,
     log: [],
     filterRealtime: true,
-    logOpen: true,
+    pane: "stats",
     runningStatus: 0,
     latency: [],
     wakeLock: null,
@@ -71,15 +73,17 @@
     btnResetRange: document.getElementById("btn-reset-range"),
     kbScroll: document.getElementById("kb-scroll"),
     keyboard: document.getElementById("keyboard"),
-    btnLog: document.getElementById("btn-log"),
     filterRt: document.getElementById("filter-rt"),
     btnClear: document.getElementById("btn-clear"),
     log: document.getElementById("log"),
-    btnTroubleshoot: document.getElementById("btn-troubleshoot"),
+    paneSwitch: document.getElementById("pane-switch"),
+    paneStage: document.getElementById("pane-stage"),
+    panelStats: document.getElementById("panel-stats"),
+    panelLog: document.getElementById("panel-log"),
+    panelHelp: document.getElementById("panel-help"),
     debugPanel: document.getElementById("debug-panel"),
     debugSummary: document.getElementById("debug-summary"),
     debugBody: document.getElementById("debug-body"),
-    btnDebugClose: document.getElementById("btn-debug-close"),
     btnDebugScan: document.getElementById("btn-debug-scan"),
     btnDebugCopy: document.getElementById("btn-debug-copy")
   };
@@ -1586,11 +1590,6 @@
     }
   });
   els.btnResetRange.addEventListener("click", resetRange);
-  els.btnLog.addEventListener("click", function () {
-    state.logOpen = !state.logOpen;
-    els.log.classList.toggle("open", state.logOpen);
-    els.btnLog.textContent = state.logOpen ? "Hide log" : "Show log";
-  });
   els.filterRt.addEventListener("change", function () {
     state.filterRealtime = els.filterRt.checked;
   });
@@ -1598,10 +1597,15 @@
     state.log = [];
     renderLog();
   });
-  if (els.btnTroubleshoot) {
-    els.btnTroubleshoot.addEventListener("click", toggleDebug);
+  if (els.paneSwitch) {
+    els.paneSwitch.addEventListener("click", function (e) {
+      var tab = e.target && e.target.closest && e.target.closest("[role='tab']");
+      if (!tab || !els.paneSwitch.contains(tab)) return;
+      var id = tab.id && tab.id.indexOf("tab-") === 0 ? tab.id.slice(4) : "";
+      if (id) showPane(id);
+    });
+    els.paneSwitch.addEventListener("keydown", onPaneSwitchKey);
   }
-  if (els.btnDebugClose) els.btnDebugClose.addEventListener("click", closeDebug);
   if (els.btnDebugScan) {
     els.btnDebugScan.addEventListener("click", function () {
       scanAgain();
@@ -1610,8 +1614,8 @@
   }
   if (els.btnDebugCopy) els.btnDebugCopy.addEventListener("click", copyDebugReport);
   window.addEventListener("hashchange", function () {
-    if (isDebugHash()) openDebug();
-    else if (debugState.open) closeDebug();
+    if (isDebugHash()) showPane("help", { remember: false });
+    else if (state.pane === "help") showPane(loadPanePref() === "help" ? "stats" : loadPanePref(), { remember: false });
   });
 
   var building = false;
@@ -1692,9 +1696,13 @@
     debug: {
       open: function () { openDebug(); },
       close: function () { closeDebug(); },
-      isOpen: function () { return !!debugState.open; },
+      isOpen: function () { return state.pane === "help"; },
       report: function () { return buildDebugReport(); },
-      snapshot: function () { return debugSnapshot(); }
+      snapshot: function () { return debugSnapshot(); },
+      pane: function (id) {
+        if (id) showPane(id);
+        return state.pane;
+      }
     }
   };
 
@@ -1704,6 +1712,11 @@
   function fitSlots() {
     var nameEl = document.getElementById("last-name");
     if (nameEl) nameEl.style.fontSize = "";
+    if (els.panelStats && els.panelStats.hidden) {
+      measureSlots();
+      sizePaneStage();
+      return;
+    }
     measureSlots();
     // On narrow screens, shrink the big note name until the Now card fits.
     var card = document.querySelector(".now-card");
@@ -1714,6 +1727,7 @@
       nameEl.style.fontSize = size + "px";
       measureSlots();
     }
+    sizePaneStage();
   }
 
   function measureSlots() {
@@ -2070,26 +2084,97 @@
     }
   }
 
-  function openDebug() {
-    debugState.open = true;
-    if (els.debugPanel) els.debugPanel.hidden = false;
-    if (els.btnTroubleshoot) els.btnTroubleshoot.setAttribute("aria-expanded", "true");
-    document.body.classList.add("debug-open");
-    setDebugHash(true);
-    renderDebug();
+  function loadPanePref() {
+    try {
+      var v = localStorage.getItem(PANE_STORE_KEY);
+      if (PANE_IDS.indexOf(v) !== -1) return v;
+    } catch (e) {}
+    return "stats";
   }
 
-  function closeDebug() {
-    debugState.open = false;
-    if (els.debugPanel) els.debugPanel.hidden = true;
-    if (els.btnTroubleshoot) els.btnTroubleshoot.setAttribute("aria-expanded", "false");
-    document.body.classList.remove("debug-open");
-    setDebugHash(false);
+  function savePanePref(id) {
+    try { localStorage.setItem(PANE_STORE_KEY, id); } catch (e) {}
   }
+
+  function sizePaneStage() {
+    var stage = els.paneStage, stats = els.panelStats;
+    if (!stage || !stats) return;
+    var hideAgain = false;
+    var prevVis = stats.style.visibility;
+    var prevPos = stats.style.position;
+    var prevWidth = stats.style.width;
+    var prevInset = stats.style.inset;
+    if (stats.hidden) {
+      hideAgain = true;
+      stats.hidden = false;
+      stats.style.visibility = "hidden";
+      stats.style.position = "absolute";
+      stats.style.inset = "0 auto auto 0";
+      stats.style.width = "100%";
+    }
+    var h = Math.ceil(stats.getBoundingClientRect().height);
+    if (hideAgain) {
+      stats.hidden = true;
+      stats.style.visibility = prevVis;
+      stats.style.position = prevPos;
+      stats.style.width = prevWidth;
+      stats.style.inset = prevInset;
+    }
+    if (h > 0) stage.style.setProperty("--pane-h", h + "px");
+  }
+
+  function showPane(id, opts) {
+    if (PANE_IDS.indexOf(id) === -1) id = "stats";
+    state.pane = id;
+    debugState.open = id === "help";
+    var i;
+    for (i = 0; i < PANE_IDS.length; i++) {
+      var name = PANE_IDS[i];
+      var tab = document.getElementById("tab-" + name);
+      var panel = document.getElementById("panel-" + name);
+      var on = name === id;
+      if (tab) {
+        tab.setAttribute("aria-selected", on ? "true" : "false");
+        tab.tabIndex = on ? 0 : -1;
+      }
+      if (panel) panel.hidden = !on;
+    }
+    if (id === "help") {
+      setDebugHash(true);
+      renderDebug();
+    } else {
+      setDebugHash(false);
+    }
+    if (id === "stats") fitSlots();
+    else sizePaneStage();
+    if (!opts || opts.remember !== false) savePanePref(id);
+  }
+
+  function onPaneSwitchKey(e) {
+    var dir = 0;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") dir = 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") dir = -1;
+    else if (e.key === "Home") dir = "start";
+    else if (e.key === "End") dir = "end";
+    else return;
+    e.preventDefault();
+    var idx = PANE_IDS.indexOf(state.pane);
+    if (idx < 0) idx = 0;
+    if (dir === "start") idx = 0;
+    else if (dir === "end") idx = PANE_IDS.length - 1;
+    else idx = (idx + dir + PANE_IDS.length) % PANE_IDS.length;
+    showPane(PANE_IDS[idx]);
+    var tab = document.getElementById("tab-" + PANE_IDS[idx]);
+    if (tab) tab.focus();
+  }
+
+  function openDebug() { showPane("help"); }
+
+  function closeDebug() { showPane("stats"); }
 
   function toggleDebug() {
-    if (debugState.open) closeDebug();
-    else openDebug();
+    if (state.pane === "help") showPane("stats");
+    else showPane("help");
   }
 
   function copyDebugReport() {
@@ -2145,5 +2230,7 @@
       if (!bootDecided) showFirstVisit();
     }, MIDI_CHECK_TIMEOUT);
   }
-  if (isDebugHash()) openDebug();
+  if (isDebugHash()) showPane("help", { remember: false });
+  else showPane(loadPanePref(), { remember: false });
+  sizePaneStage();
 })();
