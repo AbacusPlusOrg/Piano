@@ -28,6 +28,8 @@
   var ESTIMATE_BY_KEYS = { 25: 48, 32: 53, 37: 48, 49: 36, 61: 36, 88: 21 };
   var RANGE_STORE_KEY = "aplus.deviceRanges.v1";
   var PANE_STORE_KEY = "aplus.pane.v1";
+  var SOUND_STORE_KEY = "aplus.sound.v1";
+  var DEFAULT_SOUND_VOLUME = 0.7;
   var PANE_IDS = ["stats", "log", "help"];
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
@@ -85,7 +87,10 @@
     debugSummary: document.getElementById("debug-summary"),
     debugBody: document.getElementById("debug-body"),
     btnDebugScan: document.getElementById("btn-debug-scan"),
-    btnDebugCopy: document.getElementById("btn-debug-copy")
+    btnDebugCopy: document.getElementById("btn-debug-copy"),
+    soundControls: document.getElementById("sound-controls"),
+    btnSound: document.getElementById("btn-sound"),
+    soundVolume: document.getElementById("sound-volume")
   };
 
   function noteName(n) {
@@ -578,6 +583,7 @@
     setKeyVisual(note);
     scrollNoteIntoView(note);
     updateReadout();
+    soundNoteOn(note, vel);
   }
 
   function noteOff(note, vel, ch, source) {
@@ -597,11 +603,15 @@
     }
     setKeyVisual(note);
     updateReadout();
+    if (!state.held[note] && !state.sustained[note]) soundNoteOff(note);
   }
 
   function setSustain(on) {
     state.sustainOn = on;
     if (!on) {
+      Object.keys(state.sustained).forEach(function (n) {
+        if (!state.held[n]) soundNoteOff(parseInt(n, 10));
+      });
       state.sustained = {};
     }
     refreshKeyLights();
@@ -1113,6 +1123,7 @@
     state.sustainOn = false;
     Object.keys(notes).forEach(function (n) { setKeyVisual(parseInt(n, 10)); });
     if (Object.keys(notes).length) updateReadout();
+    silenceAll(true);
   }
 
   function onPageHidden() {
@@ -1566,6 +1577,254 @@
   window.addEventListener("resize", fitLandscapeKeys);
   if (landscapeMq.addEventListener) landscapeMq.addEventListener("change", fitLandscapeKeys);
 
+
+  /* ---------- sound output (Web Audio, local synth, no network) ---------- */
+
+  var audio = {
+    ctx: null,
+    master: null,
+    enabled: false,
+    volume: DEFAULT_SOUND_VOLUME,
+    voices: {},
+    supported: !!(window.AudioContext || window.webkitAudioContext)
+  };
+
+  function loadSoundPref() {
+    try {
+      var v = JSON.parse(localStorage.getItem(SOUND_STORE_KEY) || "null");
+      if (v && typeof v === "object") {
+        if (typeof v.on === "boolean") audio.enabled = v.on;
+        if (typeof v.volume === "number" && isFinite(v.volume)) {
+          audio.volume = Math.max(0, Math.min(1, v.volume));
+        }
+      }
+    } catch (e) {}
+  }
+
+  function saveSoundPref() {
+    try {
+      localStorage.setItem(SOUND_STORE_KEY, JSON.stringify({ on: audio.enabled, volume: audio.volume }));
+    } catch (e) {}
+  }
+
+  function midiToFreq(n) {
+    return 440 * Math.pow(2, (n - 69) / 12);
+  }
+
+  function ensureAudio() {
+    if (!audio.supported) return null;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!audio.ctx) {
+      try {
+        audio.ctx = new AC({ latencyHint: "interactive" });
+      } catch (e) {
+        try { audio.ctx = new AC(); } catch (e2) { return null; }
+      }
+      try {
+        audio.master = audio.ctx.createGain();
+        audio.master.gain.value = audio.volume;
+        audio.master.connect(audio.ctx.destination);
+      } catch (e) {
+        audio.ctx = null;
+        audio.master = null;
+        return null;
+      }
+    }
+    if (audio.ctx.state === "suspended") {
+      try {
+        var p = audio.ctx.resume();
+        if (p && typeof p.then === "function") {
+          p.then(function () {
+            if (audio.enabled && audio.ctx && audio.ctx.state === "running") startHeldVoices();
+          }, function () {});
+        }
+      } catch (e) {}
+    }
+    if (audio.master) {
+      try { audio.master.gain.setTargetAtTime(audio.volume, audio.ctx.currentTime, 0.02); } catch (e) {
+        audio.master.gain.value = audio.volume;
+      }
+    }
+    return audio.ctx;
+  }
+
+  function stopVoice(note, immediate) {
+    var voice = audio.voices[note];
+    if (!voice) return;
+    delete audio.voices[note];
+    var ctx = audio.ctx;
+    var oscs = voice.oscs || [];
+    var gain = voice.gain;
+    try {
+      if (!ctx || immediate) {
+        if (gain) gain.gain.value = 0;
+        oscs.forEach(function (o) { try { o.stop(); } catch (e) {} });
+        if (gain) try { gain.disconnect(); } catch (e) {}
+        if (voice.filter) try { voice.filter.disconnect(); } catch (e) {}
+        return;
+      }
+      var t = ctx.currentTime;
+      gain.gain.cancelScheduledValues(t);
+      var cur = gain.gain.value;
+      if (!(cur > 0.0001)) cur = 0.0001;
+      gain.gain.setValueAtTime(cur, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      var stopAt = t + 0.22;
+      oscs.forEach(function (o) { try { o.stop(stopAt); } catch (e) {} });
+      setTimeout(function () {
+        try { gain.disconnect(); } catch (e) {}
+        try { if (voice.filter) voice.filter.disconnect(); } catch (e) {}
+      }, 280);
+    } catch (e) {
+      oscs.forEach(function (o) { try { o.stop(); } catch (err) {} });
+    }
+  }
+
+  function silenceAll(suspend) {
+    Object.keys(audio.voices).forEach(function (n) { stopVoice(parseInt(n, 10), true); });
+    audio.voices = {};
+    if (suspend && audio.ctx && audio.ctx.state === "running") {
+      try { audio.ctx.suspend(); } catch (e) {}
+    }
+  }
+
+  function startVoice(note, vel) {
+    if (!audio.enabled) return;
+    var ctx = ensureAudio();
+    if (!ctx || ctx.state === "closed") return;
+    // A stored "on" preference still needs a user gesture to resume.
+    if (ctx.state !== "running") return;
+    stopVoice(note, true);
+    var t = ctx.currentTime;
+    var v = Math.max(0.06, Math.min(1, (vel || 0) / 127));
+    var freq = midiToFreq(note);
+    var filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    var cutoff = 700 + v * 4800;
+    filter.frequency.setValueAtTime(cutoff, t);
+    try { filter.frequency.exponentialRampToValueAtTime(Math.max(400, cutoff * 0.42), t + 0.4); } catch (e) {}
+    filter.Q.value = 0.85;
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.24 * v, t + 0.008);
+    try {
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.16 * v), t + 0.06);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.07 * v), t + 1.6);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 7.5);
+    } catch (e) {}
+    filter.connect(gain);
+    gain.connect(audio.master);
+    function makeOsc(type, detune, level, mul) {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = type;
+      o.frequency.value = freq * (mul || 1);
+      o.detune.value = detune;
+      g.gain.value = level;
+      o.connect(g);
+      g.connect(filter);
+      o.start(t);
+      return o;
+    }
+    var oscs = [
+      makeOsc("triangle", -7, 0.72, 1),
+      makeOsc("triangle", 6, 0.58, 1),
+      makeOsc("sine", 0, 0.16, 2)
+    ];
+    audio.voices[note] = { oscs: oscs, gain: gain, filter: filter };
+  }
+
+  function soundNoteOn(note, vel) {
+    startVoice(note, vel);
+  }
+
+  function soundNoteOff(note) {
+    stopVoice(note, false);
+  }
+
+  function startHeldVoices() {
+    if (!audio.enabled) return;
+    Object.keys(state.held).forEach(function (n) {
+      var e = state.held[n];
+      startVoice(parseInt(n, 10), e && e.vel != null ? e.vel : 100);
+    });
+    Object.keys(state.sustained).forEach(function (n) {
+      if (!state.held[n]) startVoice(parseInt(n, 10), 80);
+    });
+  }
+
+  function syncSoundUI() {
+    if (els.btnSound) {
+      els.btnSound.setAttribute("aria-pressed", audio.enabled ? "true" : "false");
+      els.btnSound.setAttribute("aria-label", audio.enabled ? "Sound on." : "Sound off.");
+    }
+    if (els.soundVolume) {
+      var pct = Math.round(audio.volume * 100);
+      els.soundVolume.value = String(pct);
+      els.soundVolume.setAttribute("aria-valuetext", pct + " percent.");
+    }
+    if (els.soundControls) {
+      els.soundControls.hidden = !audio.supported;
+    }
+  }
+
+  function setSoundEnabled(on) {
+    audio.enabled = !!on;
+    if (audio.enabled) {
+      ensureAudio();
+      startHeldVoices();
+    } else {
+      silenceAll(true);
+    }
+    syncSoundUI();
+    saveSoundPref();
+  }
+
+  function setSoundVolume(vol) {
+    audio.volume = Math.max(0, Math.min(1, vol));
+    if (audio.master && audio.ctx) {
+      try { audio.master.gain.setTargetAtTime(audio.volume, audio.ctx.currentTime, 0.02); }
+      catch (e) { audio.master.gain.value = audio.volume; }
+    }
+    syncSoundUI();
+    saveSoundPref();
+  }
+
+  function maybeResumeAudio() {
+    if (!audio.enabled) return;
+    ensureAudio();
+  }
+
+  function onSoundToggle(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setSoundEnabled(!audio.enabled);
+  }
+
+  loadSoundPref();
+  syncSoundUI();
+  if (els.btnSound) {
+    els.btnSound.addEventListener("click", onSoundToggle);
+    els.btnSound.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+  }
+  if (els.soundVolume) {
+    els.soundVolume.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+    els.soundVolume.addEventListener("click", function (e) { e.stopPropagation(); });
+    els.soundVolume.addEventListener("input", function (e) {
+      e.stopPropagation();
+      setSoundVolume((parseInt(els.soundVolume.value, 10) || 0) / 100);
+    });
+  }
+  if (els.soundControls) {
+    els.soundControls.addEventListener("click", function (e) { e.stopPropagation(); });
+    els.soundControls.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+    els.soundControls.addEventListener("keydown", function (e) { e.stopPropagation(); });
+  }
+  document.addEventListener("pointerdown", maybeResumeAudio, true);
+  document.addEventListener("keydown", maybeResumeAudio, true);
+
   /* ---------- UI events ---------- */
 
   els.status.addEventListener("click", function (e) {
@@ -1665,7 +1924,10 @@
         secureContext: isSecure(),
         keyProportions: keyProportions(activeKeyboard()),
         autoDetectScheduled: !!autoDetectTimer,
-        autoDetectCycles: autoDetectCycles
+        autoDetectCycles: autoDetectCycles,
+        soundOn: audio.enabled,
+        soundVolume: audio.volume,
+        soundVoices: Object.keys(audio.voices).length
       };
     },
     autoDetect: function (opts) {
@@ -1692,6 +1954,14 @@
     previewProfile: function (id) {
       previewProfile = id || null;
       buildKeyboard();
+    },
+    sound: {
+      enabled: function () { return audio.enabled; },
+      volume: function () { return audio.volume; },
+      voices: function () { return Object.keys(audio.voices).length; },
+      supported: function () { return audio.supported; },
+      setEnabled: function (on) { setSoundEnabled(!!on); },
+      setVolume: function (v) { setSoundVolume(v); }
     },
     debug: {
       open: function () { openDebug(); },

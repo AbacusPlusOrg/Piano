@@ -75,7 +75,7 @@ try {
     }
   });
 
-  await page.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
+  await page.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); localStorage.removeItem("aplus.sound.v1"); } catch (e) {} });
   const resp = await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
   await new Promise((r) => setTimeout(r, 200));
   check("page HTTP status", resp && resp.ok(), resp ? String(resp.status()) : "no response");
@@ -121,12 +121,92 @@ try {
     kbHeader.hint === "Tap keys to test." && kbHeader.hintVisible === true
       && kbHeader.sameRow === true && kbHeader.hintBetween === true && kbHeader.barH > 0,
     JSON.stringify(kbHeader));
-  check("bottom hint keeps the no-sound line and drops the on-screen keys line",
-    /No sound is played/.test(kbHeader.bottom)
-      && /this page only shows what the keyboard sends\.?$/.test(kbHeader.bottom)
-      && !/On-screen keys/.test(kbHeader.bottom)
-      && !/can be tapped to test/.test(kbHeader.bottom),
-    kbHeader.bottom);
+  const pageCopy = await page.evaluate(() => {
+    const bottom = document.querySelector(".hint");
+    const body = (document.body.innerText || "").replace(/\s+/g, " ");
+    return { hasHint: !!bottom, hintText: bottom ? bottom.innerText : "", bodyHasDisclaimer: /No sound is played/.test(body) };
+  });
+  check("the no-sound disclaimer is gone",
+    pageCopy.hasHint === false && pageCopy.bodyHasDisclaimer === false,
+    JSON.stringify(pageCopy));
+
+  const soundBefore = await page.evaluate(() => {
+    const st = document.getElementById("status");
+    const kb = document.querySelector(".kb-wrap");
+    const btn = document.getElementById("btn-sound");
+    const vol = document.getElementById("sound-volume");
+    const wrap = document.querySelector(".sound-controls");
+    const stR = st.getBoundingClientRect();
+    const kbR = kb.getBoundingClientRect();
+    const btnR = btn.getBoundingClientRect();
+    return {
+      statusTop: Math.round(stR.top),
+      statusH: Math.round(stR.height),
+      kbTop: Math.round(kbR.top),
+      hasToggle: !!(btn && btnR.height > 0 && getComputedStyle(btn).display !== "none"),
+      hasSlider: !!(vol && vol.getBoundingClientRect().height > 0 && getComputedStyle(vol).display !== "none"),
+      pressed: btn ? btn.getAttribute("aria-pressed") : null,
+      label: btn ? btn.getAttribute("aria-label") : null,
+      inWrap: !!(wrap && wrap.contains(btn)),
+      onRight: btnR.left > stR.left + stR.width * 0.5,
+      insideHeight: btnR.top >= stR.top - 1 && btnR.bottom <= stR.bottom + 1,
+      hookOff: window.__pfTest.sound.enabled() === false
+    };
+  });
+  check("sound toggle sits in the status box without changing its height",
+    soundBefore.hasToggle === true && soundBefore.hasSlider === true
+      && soundBefore.pressed === "false" && /Sound off\.?/.test(soundBefore.label || "")
+      && soundBefore.statusH === 61 && soundBefore.inWrap === true
+      && soundBefore.onRight === true && soundBefore.insideHeight === true
+      && soundBefore.hookOff === true && soundBefore.kbTop > soundBefore.statusTop,
+    JSON.stringify(soundBefore));
+
+  await page.evaluate(() => document.getElementById("btn-sound").click());
+  await new Promise((r) => setTimeout(r, 40));
+  const soundAfter = await page.evaluate(() => {
+    const st = document.getElementById("status");
+    const kb = document.querySelector(".kb-wrap");
+    const btn = document.getElementById("btn-sound");
+    return {
+      statusTop: Math.round(st.getBoundingClientRect().top),
+      statusH: Math.round(st.getBoundingClientRect().height),
+      kbTop: Math.round(kb.getBoundingClientRect().top),
+      pressed: btn.getAttribute("aria-pressed"),
+      label: btn.getAttribute("aria-label"),
+      enabled: window.__pfTest.sound.enabled(),
+      stored: (function () { try { return JSON.parse(localStorage.getItem("aplus.sound.v1")); } catch (e) { return null; } })()
+    };
+  });
+  check("sound toggle flips aria-pressed and does not move the status box or keyboard",
+    soundAfter.pressed === "true" && /Sound on\.?/.test(soundAfter.label || "")
+      && soundAfter.enabled === true
+      && soundAfter.statusTop === soundBefore.statusTop
+      && soundAfter.statusH === soundBefore.statusH
+      && soundAfter.kbTop === soundBefore.kbTop,
+    JSON.stringify({ before: soundBefore, after: soundAfter }));
+
+  const pSound = await browser.newPage();
+  pSound.on("pageerror", (err) => jsErrors.push(String(err)));
+  // Keep the stored "on" preference to verify it persists; still reset the pane.
+  await pSound.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
+  await pSound.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+  await new Promise((r) => setTimeout(r, 300));
+  const soundPersisted = await pSound.evaluate(() => {
+    const btn = document.getElementById("btn-sound");
+    return {
+      pressed: btn ? btn.getAttribute("aria-pressed") : null,
+      label: btn ? btn.getAttribute("aria-label") : null,
+      enabled: window.__pfTest.sound.enabled(),
+      stored: (function () { try { return JSON.parse(localStorage.getItem("aplus.sound.v1")); } catch (e) { return null; } })()
+    };
+  });
+  await pSound.close();
+  check("sound on/off preference persists",
+    soundPersisted.pressed === "true" && soundPersisted.enabled === true
+      && soundPersisted.stored && soundPersisted.stored.on === true,
+    JSON.stringify(soundPersisted));
+  // Leave the shared page and storage in the default off state for later tests.
+  await page.evaluate(() => window.__pfTest.sound.setEnabled(false));
 
   const statusText = await page.evaluate(() => document.querySelector("#status .msg").innerText);
   console.log("STATUS  " + statusText.replace(/\s+/g, " "));
@@ -1491,7 +1571,7 @@ try {
     async function openPage(mode, hash) {
       const p = await browser.newPage();
       p.on("pageerror", (err) => jsErrors.push(String(err)));
-      await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
+      await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); localStorage.removeItem("aplus.sound.v1"); } catch (e) {} });
       await p.evaluateOnNewDocument(fakeMidiBootstrap, mode || "empty");
       await p.goto(URL + (hash || ""), { waitUntil: "domcontentloaded", timeout: 15000 });
       await new Promise((r) => setTimeout(r, 400));
@@ -1676,7 +1756,7 @@ try {
     const p = await browser.newPage();
     p.on("pageerror", (err) => jsErrors.push(String(err)));
     await p.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: !!mobile, hasTouch: !!mobile });
-    await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); } catch (e) {} });
+    await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.pane.v1"); localStorage.removeItem("aplus.sound.v1"); } catch (e) {} });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 200));
     const info = await p.evaluate((states) => {
