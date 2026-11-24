@@ -92,6 +92,42 @@ try {
   const keyCount = await page.evaluate(() => document.querySelectorAll(".key").length);
   check("25 white+black keys in DOM (C3-C5)", keyCount === 25, String(keyCount));
 
+  const kbHeader = await page.evaluate(() => {
+    const label = document.getElementById("range-label");
+    const hint = document.querySelector(".kb-tap-hint");
+    const btn = document.getElementById("btn-reset-range");
+    const bar = document.querySelector(".kb-bar");
+    const bottom = document.querySelector(".hint");
+    const lr = label.getBoundingClientRect();
+    const hr = hint.getBoundingClientRect();
+    const btr = btn.getBoundingClientRect();
+    const barR = bar.getBoundingClientRect();
+    const mid = (r) => (r.top + r.bottom) / 2;
+    return {
+      label: label.textContent,
+      hint: hint ? hint.textContent.trim() : "",
+      hintVisible: !!(hint && hr.height > 0 && getComputedStyle(hint).display !== "none"),
+      bottom: ((bottom && bottom.innerText) || "").replace(/\s+/g, " ").trim(),
+      barH: Math.round(barR.height),
+      sameRow: Math.abs(mid(lr) - mid(btr)) < 3 && Math.abs(mid(hr) - mid(btr)) < 3
+        && lr.bottom <= barR.bottom + 1 && hr.bottom <= barR.bottom + 1,
+      hintBetween: hr.left >= lr.right - 0.5 && btr.left >= hr.right - 0.5
+    };
+  });
+  check("range label drops Visible and shows the fallback C3–C5 range",
+    kbHeader.label === "C3–C5 · 25 keys" && !/^Visible\b/.test(kbHeader.label),
+    kbHeader.label);
+  check("keyboard header has a muted tap hint between the range and Reset range",
+    kbHeader.hint === "Tap keys to test." && kbHeader.hintVisible === true
+      && kbHeader.sameRow === true && kbHeader.hintBetween === true && kbHeader.barH > 0,
+    JSON.stringify(kbHeader));
+  check("bottom hint keeps the no-sound line and drops the on-screen keys line",
+    /No sound is played/.test(kbHeader.bottom)
+      && /this page only shows what the keyboard sends\.?$/.test(kbHeader.bottom)
+      && !/On-screen keys/.test(kbHeader.bottom)
+      && !/can be tapped to test/.test(kbHeader.bottom),
+    kbHeader.bottom);
+
   const statusText = await page.evaluate(() => document.querySelector("#status .msg").innerText);
   console.log("STATUS  " + statusText.replace(/\s+/g, " "));
   check("status mentions connect or MIDI", /midi|connect|allow|device|permission/i.test(statusText), statusText.slice(0, 180));
@@ -1863,6 +1899,9 @@ try {
   await new Promise((r) => setTimeout(r, 40));
   st = await page.evaluate(() => window.__pfTest.getState());
   check("visible range extended down to C1", st.visibleLow === 24, String(st.visibleLow));
+  const labelC1 = await page.evaluate(() => document.getElementById("range-label").textContent);
+  check("range label updates to C1–C5 without Visible",
+    labelC1 === "C1–C5 · 49 keys" && !/^Visible\b/.test(labelC1), labelC1);
   const c1held = await page.evaluate(() => {
     const el = document.querySelector("[data-note='24']");
     return el && el.classList.contains("held");
@@ -1874,12 +1913,18 @@ try {
   await new Promise((r) => setTimeout(r, 40));
   st = await page.evaluate(() => window.__pfTest.getState());
   check("visible range extended up to C6", st.visibleHigh === 84, String(st.visibleHigh));
+  const labelC6 = await page.evaluate(() => document.getElementById("range-label").textContent);
+  check("range label updates to C1–C6 without Visible",
+    labelC6 === "C1–C6 · 61 keys" && !/^Visible\b/.test(labelC6), labelC6);
 
   await page.evaluate(() => document.getElementById("btn-reset-range").click());
   await new Promise((r) => setTimeout(r, 40));
   st = await page.evaluate(() => window.__pfTest.getState());
   check("reset returns visible range to 48-72", st.visibleLow === 48 && st.visibleHigh === 72,
     JSON.stringify({ low: st.visibleLow, high: st.visibleHigh }));
+  const labelReset = await page.evaluate(() => document.getElementById("range-label").textContent);
+  check("range label returns to C3–C5 · 25 keys after reset",
+    labelReset === "C3–C5 · 25 keys", labelReset);
 
   const beforeFilter = await page.evaluate(() => window.__pfTest.getState().logLength);
   await page.evaluate(() => {

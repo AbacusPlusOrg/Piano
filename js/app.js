@@ -393,7 +393,7 @@
 
   function updateRangeLabel() {
     var n = state.visibleHigh - state.visibleLow + 1;
-    els.rangeLabel.textContent = "Visible " + noteName(state.visibleLow) + "–" + noteName(state.visibleHigh) + " · " + n + " keys" +
+    els.rangeLabel.textContent = noteName(state.visibleLow) + "–" + noteName(state.visibleHigh) + " · " + n + " keys" +
       (state.rangeEstimated && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh ? " (estimated)" : "") +
       (state.octaveShift ? " · Octave " + (state.octaveShift > 0 ? "+" : "−") + Math.abs(state.octaveShift) : "");
     var learned = state.rangeDevice && loadRanges()[state.rangeDevice];
