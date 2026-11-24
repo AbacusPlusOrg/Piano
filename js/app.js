@@ -923,6 +923,7 @@
   var SCAN_MIN_MS = 400;
   var AUTO_ENUMERATE_MS = 2000;
   var AUTO_REFRESH_EVERY = 3;
+  var HIDDEN_RECONNECT_MIN_MS = 1000;
   var attachedInputs = [];
   var stateChangeTimer = null;
   var pendingStatePorts = [];
@@ -934,6 +935,8 @@
   var autoDetectWakeTimer = null;
   var autoDetectCycles = 0;
   var lastAccessAt = 0;
+  var hiddenAt = 0;
+  var pendingReconnect = false;
 
   function inputKey(input) {
     return (input && (input.id || input.name)) || input;
@@ -1057,6 +1060,51 @@
     }
   }
 
+  // Let go of an old MIDIAccess: unhook statechange, drop midimessage
+  // handlers, and close ports that are not the same object on `incoming`.
+  // When incoming is null (dropAccess), every port is closed.
+  function detachAccess(old, incoming) {
+    if (!old) return;
+    unhookStateChange(old);
+    var keep = {};
+    if (incoming && incoming.inputs) {
+      incoming.inputs.forEach(function (input) { keep[inputKey(input)] = input; });
+    }
+    if (old.inputs) {
+      old.inputs.forEach(function (input) {
+        var same = !!(incoming && keep[inputKey(input)] === input);
+        if (!same) {
+          if (input.onmidimessage) input.onmidimessage = null;
+          if (input.close) { try { input.close(); } catch (e) {} }
+        }
+      });
+    }
+    if (incoming !== old) {
+      attachedInputs = attachedInputs.filter(function (input) {
+        return !!(incoming && keep[inputKey(input)] === input);
+      });
+    }
+  }
+
+  // Clear on-screen held / sustained keys without logging. Notes released
+  // while the tab is frozen would otherwise stay lit.
+  function clearHeldVisuals() {
+    var notes = {};
+    Object.keys(state.held).forEach(function (n) { notes[n] = true; });
+    Object.keys(state.sustained).forEach(function (n) { notes[n] = true; });
+    state.held = {};
+    state.sustained = {};
+    state.sustainOn = false;
+    Object.keys(notes).forEach(function (n) { setKeyVisual(parseInt(n, 10)); });
+    if (Object.keys(notes).length) updateReadout();
+  }
+
+  function onPageHidden() {
+    if (!hiddenAt) hiddenAt = performance.now();
+    stopAutoDetect();
+    clearHeldVisuals();
+  }
+
   // A new MIDIAccess when the current one looks empty/stale (common on Android).
   // Goes through the same single-flight guard. Never used from the prompt state,
   // so it cannot reintroduce auto-connect before the user taps.
@@ -1079,15 +1127,12 @@
     }
     midiRequest = p.then(function (access) {
       midiRequest = null;
-      if (!access) return old;
-      if (old && old !== access) {
-        unhookStateChange(old);
-        if (old.inputs) {
-          old.inputs.forEach(function (input) {
-            if (input.onmidimessage) input.onmidimessage = null;
-          });
-        }
+      if (state.permState === "prompt" || state.permState === "denied") {
+        if (access && access !== old) detachAccess(access, null);
+        return state.access;
       }
+      if (!access) return old;
+      if (old && old !== access) detachAccess(old, access);
       state.access = access;
       lastAccessAt = performance.now();
       document.body.classList.add("has-access");
@@ -1125,15 +1170,23 @@
     refreshMIDIAccess().then(finish, finish);
   }
 
-  function stopAutoDetect() {
+  function clearAutoDetectTimer() {
     if (autoDetectTimer) {
       clearTimeout(autoDetectTimer);
       autoDetectTimer = null;
     }
+  }
+
+  function clearWakeTimer() {
     if (autoDetectWakeTimer) {
       clearTimeout(autoDetectWakeTimer);
       autoDetectWakeTimer = null;
     }
+  }
+
+  function stopAutoDetect() {
+    clearAutoDetectTimer();
+    clearWakeTimer();
   }
 
   // Eligible to run the silent auto-detect loop (permission already granted,
@@ -1155,7 +1208,7 @@
   }
 
   function scheduleAutoDetect() {
-    stopAutoDetect();
+    clearAutoDetectTimer();
     if (!canAutoDetect()) return;
     autoDetectTimer = setTimeout(runAutoDetect, AUTO_ENUMERATE_MS);
   }
@@ -1181,33 +1234,53 @@
     else after();
   }
 
-  // Tab became visible, the page was shown, or the window was focused:
-  // look again immediately, and refresh MIDIAccess if still empty.
-  // Coalesce the burst of visibility + focus + pageshow events.
-  // forceRefresh (visibilitychange to visible) always asks for a new
-  // access if none is connected. pageshow/focus skip a refresh that
-  // would pile on top of an access we just obtained (the first pageshow
-  // after load, for example).
-  function wakeAutoDetect(forceRefresh) {
+  // Tab became visible, the page was shown, the window was focused, or
+  // a frozen page resumed. Coalesce that burst into one refresh.
+  // After a real background (>= 1s hidden, bfcache, or Page Lifecycle
+  // resume), always request a fresh MIDIAccess even if the status still
+  // says Connected — Android often leaves the old access stale. A
+  // trivially short hide while already connected is left alone. An
+  // empty access still refreshes so auto-detect can recover. Silent:
+  // never shows Scanning….
+  function wakeFromBackground() {
     if (document.hidden) {
       stopAutoDetect();
       return;
     }
-    if (!autoDetectEnabled) return;
-    if (autoDetectWakeTimer) clearTimeout(autoDetectWakeTimer);
+    clearWakeTimer();
     autoDetectWakeTimer = setTimeout(function () {
       autoDetectWakeTimer = null;
-      if (document.hidden || !autoDetectEligible()) {
+      if (document.hidden) {
         stopAutoDetect();
         return;
       }
-      syncInputs(state.access);
-      if (listInputNames(state.access).length) {
-        updateConnectionStatus();
-        return;
+      if (state.permState === "prompt" || state.permState === "denied") return;
+      if (document.body.classList.contains("blocked")) return;
+      if (scanInFlight) return;
+      if (!state.access) return;
+
+      var hiddenFor = hiddenAt ? (performance.now() - hiddenAt) : 0;
+      var empty = listInputNames(state.access).length === 0;
+      var needRefresh;
+      if (pendingReconnect) {
+        needRefresh = true;
+      } else if (!hiddenAt) {
+        // Initial load / focus without a hide: don't tear down a live
+        // access, and don't stack a refresh on the first requestMIDI.
+        needRefresh = empty && (performance.now() - lastAccessAt >= 1000);
+      } else if (empty) {
+        needRefresh = true;
+      } else if (hiddenFor >= HIDDEN_RECONNECT_MIN_MS) {
+        needRefresh = true;
+      } else {
+        needRefresh = false;
       }
-      if (!forceRefresh && performance.now() - lastAccessAt < 1000) {
-        scheduleAutoDetect();
+      hiddenAt = 0;
+      pendingReconnect = false;
+
+      if (!needRefresh) {
+        syncInputs(state.access);
+        updateConnectionStatus();
         return;
       }
       autoDetectCycles = 0;
@@ -1306,14 +1379,7 @@
     autoDetectCycles = 0;
     var access = state.access;
     if (!access) return;
-    unhookStateChange(access);
-    access.inputs.forEach(function (input) {
-      input.onmidimessage = null;
-      if (input.close) { try { input.close(); } catch (e) {} }
-    });
-    attachedInputs.forEach(function (input) {
-      if (input.onmidimessage) input.onmidimessage = null;
-    });
+    detachAccess(access, null);
     attachedInputs = [];
     Object.keys(state.held).forEach(function (n) { noteOff(parseInt(n, 10), 0, 1, "midi"); });
     state.access = null;
@@ -1429,17 +1495,27 @@
 
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) {
-      stopAutoDetect();
+      onPageHidden();
     } else {
       checkPermission();
-      wakeAutoDetect(true);
+      wakeFromBackground();
     }
     if (document.visibilityState === "visible" && state.access && listInputNames(state.access).length) {
       requestWakeLock();
     }
   });
-  window.addEventListener("pageshow", function () { wakeAutoDetect(false); });
-  window.addEventListener("focus", function () { wakeAutoDetect(false); });
+  window.addEventListener("pageshow", function (e) {
+    if (e && e.persisted) pendingReconnect = true;
+    wakeFromBackground();
+  });
+  window.addEventListener("focus", function () { wakeFromBackground(); });
+  // Page Lifecycle API: Android often freezes the tab without a long
+  // visible hidden period; resume means the access may be stale.
+  document.addEventListener("freeze", function () { onPageHidden(); });
+  document.addEventListener("resume", function () {
+    pendingReconnect = true;
+    wakeFromBackground();
+  });
 
   /* ---------- landscape: keep the keys sized to the first screen, let the page scroll ---------- */
 

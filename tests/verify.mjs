@@ -1103,6 +1103,303 @@ try {
       && autoHeights.every((v) => v === autoHeights[0] && v > 0),
     JSON.stringify({ tops: autoTops, heights: autoHeights }));
 
+  async function loadResume() {
+    function fakeMidiBootstrap(mode) {
+      function makeInput(id, name, state) {
+        const input = {
+          id, name, type: "input",
+          state: state || "connected",
+          connection: "closed",
+          _handler: null,
+          _sets: 0,
+          _messages: 0,
+          get onmidimessage() { return this._handler; },
+          set onmidimessage(fn) {
+            this._sets++;
+            this._handler = fn;
+          },
+          open() {
+            this.connection = "open";
+            this._opened = (this._opened || 0) + 1;
+            return Promise.resolve(this);
+          },
+          close() { this.connection = "closed"; this._closed = (this._closed || 0) + 1; },
+          fire(bytes) {
+            if (typeof this._handler === "function") {
+              this._messages++;
+              this._handler({
+                data: bytes,
+                timeStamp: performance.now(),
+                target: this
+              });
+            }
+          }
+        };
+        return input;
+      }
+      function makeAccess() {
+        const inputs = new Map();
+        const access = {
+          inputs,
+          outputs: new Map(),
+          onstatechange: null,
+          sysexEnabled: false,
+          _listeners: [],
+          addEventListener(type, fn) {
+            if (type === "statechange") this._listeners.push(fn);
+          },
+          removeEventListener(type, fn) {
+            this._listeners = this._listeners.filter((f) => f !== fn);
+          },
+          dispatch(port) {
+            const ev = { port, type: "statechange" };
+            if (typeof this.onstatechange === "function") this.onstatechange(ev);
+            this._listeners.slice().forEach((fn) => fn(ev));
+          }
+        };
+        return access;
+      }
+      window.__fakeMidi = { requestCount: 0, makeInput, makeAccess, mode, accesses: [] };
+      const perm = mode === "prompt" ? "prompt" : mode === "denied" ? "denied" : "granted";
+      if (mode === "stale-on-resume") {
+        const first = makeAccess();
+        const input1 = makeInput("in1", "GarageKey Mini", "connected");
+        first.inputs.set("in1", input1);
+        window.__fakeMidi.access = first;
+        window.__fakeMidi.input1 = input1;
+        window.__fakeMidi.accesses.push(first);
+        navigator.requestMIDIAccess = () => {
+          window.__fakeMidi.requestCount++;
+          if (window.__fakeMidi.requestCount === 1) {
+            return Promise.resolve(window.__fakeMidi.access);
+          }
+          const next = makeAccess();
+          const input2 = makeInput("in1", "GarageKey Mini", "connected");
+          next.inputs.set("in1", input2);
+          window.__fakeMidi.newAccess = next;
+          window.__fakeMidi.input2 = input2;
+          window.__fakeMidi.access = next;
+          window.__fakeMidi.accesses.push(next);
+          return Promise.resolve(next);
+        };
+      } else {
+        window.__fakeMidi.access = makeAccess();
+        navigator.requestMIDIAccess = () => {
+          window.__fakeMidi.requestCount++;
+          return Promise.resolve(window.__fakeMidi.access);
+        };
+      }
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: perm, onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+    }
+
+    async function openPage(mode) {
+      const p = await browser.newPage();
+      p.on("pageerror", (err) => jsErrors.push(String(err)));
+      await p.evaluateOnNewDocument(fakeMidiBootstrap, mode);
+      await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await new Promise((r) => setTimeout(r, 400));
+      return p;
+    }
+
+    function hidePage(page, opts) {
+      const freeze = !!(opts && opts.freeze);
+      return page.evaluate((freeze) => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+        document.dispatchEvent(new Event("visibilitychange"));
+        if (freeze) document.dispatchEvent(new Event("freeze"));
+      }, freeze);
+    }
+    function showBurst(page, opts) {
+      const resume = !!(opts && opts.resume);
+      const persisted = !!(opts && opts.persisted);
+      return page.evaluate((resume, persisted) => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+        document.dispatchEvent(new Event("visibilitychange"));
+        window.dispatchEvent(new Event("focus"));
+        window.dispatchEvent(new Event("pageshow"));
+        if (persisted) {
+          try { window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })); }
+          catch (e) { window.dispatchEvent(new Event("pageshow")); }
+        }
+        if (resume) document.dispatchEvent(new Event("resume"));
+      }, resume, persisted);
+    }
+
+    // 1) Connected, hide long enough, old access goes stale, new access works.
+    const pStale = await openPage("stale-on-resume");
+    const before = await pStale.evaluate(() => {
+      const input = window.__fakeMidi.input1;
+      const beforeLog = window.__pfTest.getState().logLength;
+      input.fire(new Uint8Array([0x90, 60, 100]));
+      window.__statusTexts = [];
+      const msg = document.querySelector("#status .msg");
+      const rec = () => window.__statusTexts.push(msg.innerText.replace(/\s+/g, " ").trim());
+      rec();
+      new MutationObserver(rec).observe(msg, { childList: true, subtree: true, characterData: true });
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected"),
+        requests: window.__fakeMidi.requestCount,
+        opened: input._opened || 0,
+        sets: input._sets,
+        messages: input._messages,
+        logAfter: window.__pfTest.getState().logLength,
+        logBefore: beforeLog,
+        held: !!window.__pfTest.getState().held["60"],
+        listeners: window.__fakeMidi.accesses[0]._listeners.length
+      };
+    });
+    await hidePage(pStale, { freeze: true });
+    const hiddenHeld = await pStale.evaluate(() => {
+      const el = document.querySelector("[data-note='60']");
+      const st = window.__pfTest.getState();
+      return {
+        heldClass: el ? el.classList.contains("held") : null,
+        heldCount: st.heldCount,
+        sustainOn: st.sustainOn,
+        sustained: st.sustained.slice(),
+        requests: window.__fakeMidi.requestCount,
+        oldHandler: typeof window.__fakeMidi.input1.onmidimessage === "function"
+      };
+    });
+    await new Promise((r) => setTimeout(r, 1100));
+    await showBurst(pStale, { resume: true });
+    await new Promise((r) => setTimeout(r, 200));
+    const after = await pStale.evaluate(() => {
+      const oldInput = window.__fakeMidi.input1;
+      const newInput = window.__fakeMidi.input2;
+      const logBeforeFire = window.__pfTest.getState().logLength;
+      const oldLogBefore = logBeforeFire;
+      oldInput.fire(new Uint8Array([0x90, 64, 100]));
+      const afterOldFire = window.__pfTest.getState().logLength;
+      const beforeNew = window.__pfTest.getState().logLength;
+      if (newInput) newInput.fire(new Uint8Array([0x90, 67, 100]));
+      const afterNew = window.__pfTest.getState().logLength;
+      const msg = document.querySelector("#status .msg");
+      return {
+        text: msg.innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected"),
+        scanning: /Scanning/.test(msg.innerText),
+        texts: window.__statusTexts.slice(),
+        requests: window.__fakeMidi.requestCount,
+        accessCount: window.__fakeMidi.accesses.length,
+        oldHandler: typeof oldInput.onmidimessage === "function",
+        oldClosed: oldInput._closed || 0,
+        oldConnection: oldInput.connection,
+        oldListeners: window.__fakeMidi.accesses[0]._listeners.length,
+        oldMessagesAfter: oldInput._messages,
+        newBound: !!(newInput && typeof newInput.onmidimessage === "function"),
+        newSets: newInput && newInput._sets,
+        newOpened: newInput && (newInput._opened || 0),
+        newMessages: newInput && newInput._messages,
+        logBeforeNew: beforeNew,
+        logAfterOldFire: afterOldFire,
+        logAfterNew: afterNew,
+        held67: !!window.__pfTest.getState().held["67"],
+        held64: !!window.__pfTest.getState().held["64"]
+      };
+    });
+    await pStale.close();
+
+    // 2) Short hide while connected must not refresh (clearly safe).
+    const pShort = await openPage("stale-on-resume");
+    const shortBefore = await pShort.evaluate(() => window.__fakeMidi.requestCount);
+    await hidePage(pShort);
+    await new Promise((r) => setTimeout(r, 200));
+    await showBurst(pShort);
+    await new Promise((r) => setTimeout(r, 200));
+    const shortAfter = await pShort.evaluate(() => ({
+      requests: window.__fakeMidi.requestCount,
+      isConnected: document.body.classList.contains("is-connected"),
+      sameInput: !!window.__fakeMidi.input1 && !window.__fakeMidi.input2,
+      handler: typeof window.__fakeMidi.input1.onmidimessage === "function"
+    }));
+    await pShort.close();
+
+    // 3) prompt and denied must not request MIDI on a hide/show burst.
+    const pPrompt = await openPage("prompt");
+    const promptStart = await pPrompt.evaluate(() => window.__fakeMidi.requestCount);
+    await hidePage(pPrompt, { freeze: true });
+    await new Promise((r) => setTimeout(r, 1100));
+    await showBurst(pPrompt, { resume: true });
+    await new Promise((r) => setTimeout(r, 200));
+    const promptAfter = await pPrompt.evaluate(() => ({
+      requests: window.__fakeMidi.requestCount,
+      isConnect: document.getElementById("status").classList.contains("is-connect"),
+      hasAccess: document.body.classList.contains("has-access")
+    }));
+    await pPrompt.close();
+
+    const pDenied = await openPage("denied");
+    const deniedStart = await pDenied.evaluate(() => window.__fakeMidi.requestCount);
+    await hidePage(pDenied, { freeze: true });
+    await new Promise((r) => setTimeout(r, 1100));
+    await showBurst(pDenied, { resume: true });
+    await new Promise((r) => setTimeout(r, 200));
+    const deniedAfter = await pDenied.evaluate(() => ({
+      requests: window.__fakeMidi.requestCount,
+      blocked: document.body.classList.contains("blocked")
+    }));
+    await pDenied.close();
+
+    return {
+      before, hiddenHeld, after,
+      shortBefore, shortAfter,
+      promptStart, promptAfter,
+      deniedStart, deniedAfter
+    };
+  }
+  const resume = await loadResume();
+  console.log("RESUME", JSON.stringify(resume));
+  const resumeFlicker = (resume.after.texts || []).some((t) => /Scanning/.test(t));
+  check("returning to the tab replaces a stale MIDIAccess and receives notes on the new input",
+    resume.before.isConnected === true && /Connected: GarageKey Mini/.test(resume.before.text)
+      && resume.before.messages === 1 && resume.before.held === true
+      && resume.after.isConnected === true && /Connected: GarageKey Mini/.test(resume.after.text)
+      && resume.after.scanning !== true && resumeFlicker === false
+      && resume.after.newBound === true && (resume.after.newOpened || 0) >= 1
+      && resume.after.newMessages === 1
+      && resume.after.logAfterNew === resume.after.logBeforeNew + 1
+      && resume.after.held67 === true && resume.after.held64 !== true,
+    JSON.stringify({ before: resume.before, after: resume.after }));
+  check("returning to the tab requests MIDIAccess once per visibility burst",
+    resume.after.requests === resume.before.requests + 1
+      && resume.after.accessCount === 2,
+    JSON.stringify({ before: resume.before.requests, after: resume.after.requests, accesses: resume.after.accessCount }));
+  check("returning to the tab detaches the old MIDIAccess handlers",
+    resume.after.oldHandler === false
+      && resume.after.oldListeners === 0
+      && (resume.after.oldClosed || 0) >= 1
+      && resume.after.oldConnection === "closed"
+      && resume.after.logAfterOldFire === resume.after.logBeforeNew
+      && resume.after.newSets === 1,
+    JSON.stringify(resume.after));
+  check("held keys and sustain are cleared when the tab is hidden",
+    resume.before.held === true
+      && resume.hiddenHeld.heldClass === false
+      && resume.hiddenHeld.heldCount === 0
+      && resume.hiddenHeld.sustainOn === false
+      && resume.hiddenHeld.sustained.length === 0,
+    JSON.stringify({ before: resume.before, hidden: resume.hiddenHeld }));
+  check("a trivially short hide while connected does not refresh MIDIAccess",
+    resume.shortAfter.requests === resume.shortBefore
+      && resume.shortAfter.isConnected === true
+      && resume.shortAfter.sameInput === true
+      && resume.shortAfter.handler === true,
+    JSON.stringify({ before: resume.shortBefore, after: resume.shortAfter }));
+  check("returning to the tab never calls requestMIDIAccess while permission is prompt or denied",
+    resume.promptStart === 0 && resume.promptAfter.requests === 0
+      && resume.promptAfter.isConnect === true && resume.promptAfter.hasAccess === false
+      && resume.deniedStart === 0 && resume.deniedAfter.requests === 0
+      && resume.deniedAfter.blocked === true,
+    JSON.stringify({ promptStart: resume.promptStart, promptAfter: resume.promptAfter, deniedStart: resume.deniedStart, deniedAfter: resume.deniedAfter }));
+
   // The range card (everything below the status box) must not shift as states change.
   const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
   const layoutStates = [
