@@ -121,10 +121,19 @@
   function setStatus(kind, html, retry) {
     // Any real news uses this same box (not a second button).
     statusRetry = !!retry;
+    var className = "status" + (kind ? " is-" + kind : "") + (statusRetry ? " is-retry" : "");
+    var msg = els.status.querySelector(".msg");
+    var cursor = statusRetry ? "pointer" : "";
+    // Re-setting the same HTML would rebuild the node and can flicker the
+    // message (or restart the scan-link) during silent auto-detect polls.
+    if (els.status.className === className && msg && msg.innerHTML === html) {
+      els.status.style.cursor = cursor;
+      return;
+    }
     clearConnectAction();
-    els.status.className = "status" + (kind ? " is-" + kind : "") + (statusRetry ? " is-retry" : "");
-    els.status.querySelector(".msg").innerHTML = html;
-    els.status.style.cursor = statusRetry ? "pointer" : "";
+    els.status.className = className;
+    msg.innerHTML = html;
+    els.status.style.cursor = cursor;
   }
 
   function midiSupported() {
@@ -912,12 +921,19 @@
   var NO_KEYBOARD_HTML = "No MIDI keyboard detected.<br>Plug one in, or <button type=\"button\" class=\"scan-link\" aria-label=\"scan again\">scan again</button>.";
   var STATE_CHANGE_DEBOUNCE = 200;
   var SCAN_MIN_MS = 400;
+  var AUTO_ENUMERATE_MS = 2000;
+  var AUTO_REFRESH_EVERY = 3;
   var attachedInputs = [];
   var stateChangeTimer = null;
   var pendingStatePorts = [];
   var stateChangeHandler = null;
   var hookedAccess = null;
   var scanInFlight = false;
+  var autoDetectEnabled = true;
+  var autoDetectTimer = null;
+  var autoDetectWakeTimer = null;
+  var autoDetectCycles = 0;
+  var lastAccessAt = 0;
 
   function inputKey(input) {
     return (input && (input.id || input.name)) || input;
@@ -931,6 +947,7 @@
     if (access && access.inputs) {
       access.inputs.forEach(function (input) {
         seen[inputKey(input)] = true;
+        notePortState(input);
         if (input.state === "disconnected") {
           if (input.onmidimessage) input.onmidimessage = null;
           return;
@@ -974,10 +991,13 @@
       setStatus("ok", "Connected: " + list);
       document.body.classList.add("is-connected");
       requestWakeLock();
+      autoDetectCycles = 0;
+      stopAutoDetect();
     } else {
       setStatus("warn", NO_KEYBOARD_HTML);
       document.body.classList.remove("is-connected");
       releaseWakeLock();
+      scheduleAutoDetect();
     }
   }
 
@@ -1045,6 +1065,11 @@
     if (!state.access || !midiSupported() || !isSecure()) {
       return Promise.resolve(state.access);
     }
+    // Never re-ask from the prompt or denied states (would skip the tap,
+    // or fight a block). Auto-detect and Scan again both go through here.
+    if (state.permState === "prompt" || state.permState === "denied") {
+      return Promise.resolve(state.access);
+    }
     var old = state.access;
     var p;
     try {
@@ -1064,6 +1089,7 @@
         }
       }
       state.access = access;
+      lastAccessAt = performance.now();
       document.body.classList.add("has-access");
       access.inputs.forEach(function (input) { notePortState(input); });
       hookStateChange(access);
@@ -1097,6 +1123,102 @@
     }
     // Still none: the current MIDIAccess may be stale; ask for a fresh one.
     refreshMIDIAccess().then(finish, finish);
+  }
+
+  function stopAutoDetect() {
+    if (autoDetectTimer) {
+      clearTimeout(autoDetectTimer);
+      autoDetectTimer = null;
+    }
+    if (autoDetectWakeTimer) {
+      clearTimeout(autoDetectWakeTimer);
+      autoDetectWakeTimer = null;
+    }
+  }
+
+  // Eligible to run the silent auto-detect loop (permission already granted,
+  // we hold a MIDIAccess, the tab is visible). Does not look at inputs:
+  // a device can appear on the current access without a statechange, and
+  // the poll still has to attach it and move to Connected.
+  function autoDetectEligible() {
+    if (!autoDetectEnabled) return false;
+    if (document.hidden) return false;
+    if (!state.access) return false;
+    if (document.body.classList.contains("blocked")) return false;
+    if (state.permState === "prompt" || state.permState === "denied") return false;
+    if (scanInFlight) return false;
+    return true;
+  }
+
+  function canAutoDetect() {
+    return autoDetectEligible() && listInputNames(state.access).length === 0;
+  }
+
+  function scheduleAutoDetect() {
+    stopAutoDetect();
+    if (!canAutoDetect()) return;
+    autoDetectTimer = setTimeout(runAutoDetect, AUTO_ENUMERATE_MS);
+  }
+
+  // Cheap re-enumerate of the current MIDIAccess. Every few cycles, ask
+  // for a fresh MIDIAccess in case the current one is stale (common on
+  // Android). Never shows Scanning… — only a tap on scan again does that.
+  function runAutoDetect() {
+    autoDetectTimer = null;
+    if (!autoDetectEligible()) return;
+    if (listInputNames(state.access).length) {
+      syncInputs(state.access);
+      updateConnectionStatus();
+      return;
+    }
+    autoDetectCycles++;
+    var refresh = (autoDetectCycles % AUTO_REFRESH_EVERY === 0);
+    function after() {
+      if (state.access) syncInputs(state.access);
+      updateConnectionStatus();
+    }
+    if (refresh) refreshMIDIAccess().then(after, after);
+    else after();
+  }
+
+  // Tab became visible, the page was shown, or the window was focused:
+  // look again immediately, and refresh MIDIAccess if still empty.
+  // Coalesce the burst of visibility + focus + pageshow events.
+  // forceRefresh (visibilitychange to visible) always asks for a new
+  // access if none is connected. pageshow/focus skip a refresh that
+  // would pile on top of an access we just obtained (the first pageshow
+  // after load, for example).
+  function wakeAutoDetect(forceRefresh) {
+    if (document.hidden) {
+      stopAutoDetect();
+      return;
+    }
+    if (!autoDetectEnabled) return;
+    if (autoDetectWakeTimer) clearTimeout(autoDetectWakeTimer);
+    autoDetectWakeTimer = setTimeout(function () {
+      autoDetectWakeTimer = null;
+      if (document.hidden || !autoDetectEligible()) {
+        stopAutoDetect();
+        return;
+      }
+      syncInputs(state.access);
+      if (listInputNames(state.access).length) {
+        updateConnectionStatus();
+        return;
+      }
+      if (!forceRefresh && performance.now() - lastAccessAt < 1000) {
+        scheduleAutoDetect();
+        return;
+      }
+      autoDetectCycles = 0;
+      refreshMIDIAccess().then(function () {
+        if (state.access) syncInputs(state.access);
+        updateConnectionStatus();
+      }, function () {
+        if (state.access) updateConnectionStatus();
+        else scheduleAutoDetect();
+      });
+    }, 50);
   }
 
   // Only one requestMIDIAccess may be in flight. A tap and an automatic
@@ -1137,6 +1259,7 @@
       midiRequestHadGesture = false;
       state.connecting = false;
       state.access = access;
+      lastAccessAt = performance.now();
       notePermission("granted");
       // Plugging and unplugging are picked up automatically from here on,
       // so the Connect button has nothing left to do.
@@ -1175,10 +1298,12 @@
   // explain when it is blocked, and offer the button again if it is reset.
   // Driven by the permission's change event, plus a re-check when the page
   // becomes visible again (coming back from settings), for browsers that
-  // don't fire the change event. No polling.
+  // don't fire the change event. Permission itself is not polled.
   // Let go of MIDI completely, e.g. after the site's MIDI setting was removed
   // or blocked. The page then behaves as on a first visit.
   function dropAccess(reason) {
+    stopAutoDetect();
+    autoDetectCycles = 0;
     var access = state.access;
     if (!access) return;
     unhookStateChange(access);
@@ -1303,11 +1428,18 @@
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible") checkPermission();
+    if (document.hidden) {
+      stopAutoDetect();
+    } else {
+      checkPermission();
+      wakeAutoDetect(true);
+    }
     if (document.visibilityState === "visible" && state.access && listInputNames(state.access).length) {
       requestWakeLock();
     }
   });
+  window.addEventListener("pageshow", function () { wakeAutoDetect(false); });
+  window.addEventListener("focus", function () { wakeAutoDetect(false); });
 
   /* ---------- landscape: keep the keys sized to the first screen, let the page scroll ---------- */
 
@@ -1407,8 +1539,31 @@
         latencySamples: state.latency.length,
         midiSupported: midiSupported(),
         secureContext: isSecure(),
-        keyProportions: keyProportions(activeKeyboard())
+        keyProportions: keyProportions(activeKeyboard()),
+        autoDetectScheduled: !!autoDetectTimer,
+        autoDetectCycles: autoDetectCycles
       };
+    },
+    autoDetect: function (opts) {
+      if (!opts) {
+        return {
+          enabled: autoDetectEnabled,
+          enumerateMs: AUTO_ENUMERATE_MS,
+          refreshEvery: AUTO_REFRESH_EVERY,
+          cycles: autoDetectCycles,
+          scheduled: !!autoDetectTimer
+        };
+      }
+      if (typeof opts.enabled === "boolean") autoDetectEnabled = opts.enabled;
+      if (typeof opts.enumerateMs === "number" && opts.enumerateMs > 0) {
+        AUTO_ENUMERATE_MS = opts.enumerateMs;
+      }
+      if (typeof opts.refreshEvery === "number" && opts.refreshEvery > 0) {
+        AUTO_REFRESH_EVERY = opts.refreshEvery;
+      }
+      if (autoDetectEnabled) scheduleAutoDetect();
+      else stopAutoDetect();
+      return window.__pfTest.autoDetect();
     },
     previewProfile: function (id) {
       previewProfile = id || null;

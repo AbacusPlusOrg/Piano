@@ -576,6 +576,13 @@ try {
           : q(d);
     });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    // Existing hotplug steps (statechange, Scan again) must not race the
+    // silent auto-detect poll. Coverage for that poll is in loadAutoDetect.
+    await p.evaluate(() => {
+      if (window.__pfTest && window.__pfTest.autoDetect) {
+        window.__pfTest.autoDetect({ enabled: false });
+      }
+    });
     await new Promise((r) => setTimeout(r, 400));
 
     const empty = await p.evaluate(() => {
@@ -754,6 +761,347 @@ try {
     hotplugTops.every((v) => v === hotplugTops[0] && v > 0)
       && hotplugHeights.every((v) => v === hotplugHeights[0] && v > 0),
     JSON.stringify({ tops: hotplugTops, heights: hotplugHeights }));
+
+  async function loadAutoDetect() {
+    function fakeMidiBootstrap(mode) {
+      function makeInput(id, name, state) {
+        const input = {
+          id, name, type: "input",
+          state: state || "connected",
+          connection: "closed",
+          _handler: null,
+          _sets: 0,
+          _messages: 0,
+          get onmidimessage() { return this._handler; },
+          set onmidimessage(fn) {
+            this._sets++;
+            this._handler = fn;
+          },
+          open() {
+            this.connection = "open";
+            this._opened = (this._opened || 0) + 1;
+            return Promise.resolve(this);
+          },
+          close() { this.connection = "closed"; },
+          fire(bytes) {
+            if (typeof this._handler === "function") {
+              this._messages++;
+              this._handler({
+                data: bytes,
+                timeStamp: performance.now(),
+                target: this
+              });
+            }
+          }
+        };
+        return input;
+      }
+      function makeAccess() {
+        const inputs = new Map();
+        const access = {
+          inputs,
+          outputs: new Map(),
+          onstatechange: null,
+          sysexEnabled: false,
+          _listeners: [],
+          addEventListener(type, fn) {
+            if (type === "statechange") this._listeners.push(fn);
+          },
+          removeEventListener(type, fn) {
+            this._listeners = this._listeners.filter((f) => f !== fn);
+          },
+          dispatch(port) {
+            const ev = { port, type: "statechange" };
+            if (typeof this.onstatechange === "function") this.onstatechange(ev);
+            this._listeners.slice().forEach((fn) => fn(ev));
+          }
+        };
+        return access;
+      }
+      window.__fakeMidi = {
+        requestCount: 0,
+        accesses: [],
+        handlers: [],
+        makeInput,
+        makeAccess,
+        access: null,
+        mode
+      };
+      if (mode === "fresh-on-refresh") {
+        navigator.requestMIDIAccess = () => {
+          window.__fakeMidi.requestCount++;
+          const a = makeAccess();
+          if (window.__fakeMidi.requestCount >= 2 && window.__fakeMidi.pendingInput) {
+            a.inputs.set(window.__fakeMidi.pendingInput.id, window.__fakeMidi.pendingInput);
+          }
+          window.__fakeMidi.access = a;
+          window.__fakeMidi.accesses.push(a);
+          return Promise.resolve(a);
+        };
+      } else if (mode === "count-all") {
+        window.__fakeMidi.access = makeAccess();
+        navigator.requestMIDIAccess = () => {
+          window.__fakeMidi.requestCount++;
+          return Promise.resolve(window.__fakeMidi.access);
+        };
+      } else if (mode === "prompt") {
+        navigator.requestMIDIAccess = () => {
+          window.__fakeMidi.requestCount++;
+          const a = makeAccess();
+          window.__fakeMidi.access = a;
+          return Promise.resolve(a);
+        };
+      } else {
+        window.__fakeMidi.access = makeAccess();
+        navigator.requestMIDIAccess = () => {
+          window.__fakeMidi.requestCount++;
+          return Promise.resolve(window.__fakeMidi.access);
+        };
+      }
+      const perm = mode === "prompt" ? "prompt" : "granted";
+      const q = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) =>
+        d && d.name === "midi"
+          ? Promise.resolve({ state: perm, onchange: null, addEventListener() {}, removeEventListener() {} })
+          : q(d);
+    }
+
+    async function openPage(mode) {
+      const p = await browser.newPage();
+      p.on("pageerror", (err) => jsErrors.push(String(err)));
+      await p.evaluateOnNewDocument(fakeMidiBootstrap, mode || "same-access");
+      await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await new Promise((r) => setTimeout(r, 400));
+      return p;
+    }
+
+    function snap(page) {
+      return page.evaluate(() => {
+        const st = document.getElementById("status");
+        const msg = st.querySelector(".msg");
+        const input = window.__fakeMidi && (window.__fakeMidi.input || window.__fakeMidi.pendingInput);
+        return {
+          text: msg.innerText.replace(/\s+/g, " ").trim(),
+          hasScan: !!msg.querySelector(".scan-link"),
+          scanning: /Scanning/.test(msg.innerText),
+          hasDots: !!msg.querySelector(".dots"),
+          isConnected: document.body.classList.contains("is-connected"),
+          hasAccess: document.body.classList.contains("has-access"),
+          isConnect: st.classList.contains("is-connect"),
+          role: st.getAttribute("role"),
+          requests: window.__fakeMidi.requestCount,
+          opened: input && (input._opened || 0),
+          sets: input && input._sets,
+          messages: input && input._messages,
+          handlerBound: !!(input && typeof input.onmidimessage === "function"),
+          statusH: Math.round(st.getBoundingClientRect().height),
+          kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top),
+          auto: window.__pfTest.autoDetect(),
+          logLength: window.__pfTest.getState().logLength
+        };
+      });
+    }
+
+    // 1) Device appears on the current MIDIAccess with no statechange.
+    const pSilent = await openPage("same-access");
+    const silentEmpty = await snap(pSilent);
+    await pSilent.evaluate(() => {
+      window.__statusTexts = [];
+      const msg = document.querySelector("#status .msg");
+      const rec = () => window.__statusTexts.push(msg.innerText.replace(/\s+/g, " ").trim());
+      rec();
+      new MutationObserver(rec).observe(msg, { childList: true, subtree: true, characterData: true });
+      const input = window.__fakeMidi.makeInput("in1", "GarageKey Mini", "connected");
+      window.__fakeMidi.input = input;
+      window.__fakeMidi.access.inputs.set("in1", input);
+    });
+    await new Promise((r) => setTimeout(r, 2500));
+    const silentFound = await snap(pSilent);
+    const silentTexts = await pSilent.evaluate(() => window.__statusTexts);
+    await pSilent.close();
+
+    // 2) Device only appears on a fresh MIDIAccess (refresh every ~6s).
+    const pFresh = await openPage("fresh-on-refresh");
+    await pFresh.evaluate(() => {
+      window.__statusTexts = [];
+      const msg = document.querySelector("#status .msg");
+      const rec = () => window.__statusTexts.push(msg.innerText.replace(/\s+/g, " ").trim());
+      rec();
+      new MutationObserver(rec).observe(msg, { childList: true, subtree: true, characterData: true });
+      window.__fakeMidi.pendingInput = window.__fakeMidi.makeInput("in1", "GarageKey Mini", "connected");
+    });
+    const freshEmpty = await snap(pFresh);
+    await new Promise((r) => setTimeout(r, 6500));
+    const freshFound = await snap(pFresh);
+    const freshTexts = await pFresh.evaluate(() => window.__statusTexts);
+    await pFresh.close();
+
+    // 3–4) Pause while hidden, refresh on visible, stop once connected.
+    // Shorter intervals so the pause/stop checks don't take many seconds.
+    const pPause = await openPage("same-access");
+    await pPause.evaluate(() => {
+      window.__pfTest.autoDetect({ enumerateMs: 150, refreshEvery: 3 });
+    });
+    await new Promise((r) => setTimeout(r, 550));
+    const pauseBeforeHide = await snap(pPause);
+    await pPause.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    const hiddenSnap = await snap(pPause);
+    await new Promise((r) => setTimeout(r, 700));
+    const stillHidden = await snap(pPause);
+    await pPause.evaluate(() => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    const afterShow = await snap(pPause);
+    await pPause.evaluate(() => {
+      const input = window.__fakeMidi.makeInput("in1", "GarageKey Mini", "connected");
+      window.__fakeMidi.input = input;
+      window.__fakeMidi.access.inputs.set("in1", input);
+    });
+    await new Promise((r) => setTimeout(r, 250));
+    const pauseConnected = await snap(pPause);
+    const reqAfterConnect = pauseConnected.requests;
+    await new Promise((r) => setTimeout(r, 700));
+    const stillConnected = await snap(pPause);
+    await pPause.close();
+
+    // 5) Many poll/refresh cycles must not stack onmidimessage handlers.
+    const pDup = await openPage("same-access");
+    await pDup.evaluate(() => {
+      window.__fakeMidi.input = window.__fakeMidi.makeInput("in1", "GarageKey Mini", "connected");
+      window.__pfTest.autoDetect({ enumerateMs: 50, refreshEvery: 2 });
+    });
+    await new Promise((r) => setTimeout(r, 550));
+    const dupBefore = await snap(pDup);
+    await pDup.evaluate(() => {
+      window.__fakeMidi.access.inputs.set("in1", window.__fakeMidi.input);
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    const dupAfter = await pDup.evaluate(() => {
+      const input = window.__fakeMidi.input;
+      const before = window.__pfTest.getState().logLength;
+      input.fire(new Uint8Array([0x90, 60, 100]));
+      const after = window.__pfTest.getState().logLength;
+      return {
+        text: document.querySelector("#status .msg").innerText.replace(/\s+/g, " ").trim(),
+        isConnected: document.body.classList.contains("is-connected"),
+        sets: input._sets,
+        messages: input._messages,
+        logBefore: before,
+        logAfter: after,
+        held: !!window.__pfTest.getState().held["60"],
+        handlerBound: typeof input.onmidimessage === "function",
+        opened: input._opened || 0,
+        requests: window.__fakeMidi.requestCount,
+        cycles: window.__pfTest.autoDetect().cycles,
+        kbTop: Math.round(document.querySelector(".kb-wrap").getBoundingClientRect().top)
+      };
+    });
+    await pDup.close();
+
+    // 6) Auto-rescan must never call requestMIDIAccess in the prompt state.
+    const pPrompt = await openPage("prompt");
+    const promptStart = await snap(pPrompt);
+    await pPrompt.evaluate(() => {
+      if (window.__pfTest && window.__pfTest.autoDetect) {
+        window.__pfTest.autoDetect({ enabled: true, enumerateMs: 50, refreshEvery: 2 });
+      }
+    });
+    await new Promise((r) => setTimeout(r, 800));
+    const promptLater = await snap(pPrompt);
+    await pPrompt.close();
+
+    return {
+      silentEmpty, silentFound, silentTexts,
+      freshEmpty, freshFound, freshTexts,
+      pauseBeforeHide, hiddenSnap, stillHidden, afterShow, pauseConnected, stillConnected, reqAfterConnect,
+      dupBefore, dupAfter,
+      promptStart, promptLater
+    };
+  }
+  const auto = await loadAutoDetect();
+  console.log("AUTODETECT", JSON.stringify({
+    silentEmpty: auto.silentEmpty,
+    silentFound: auto.silentFound,
+    silentTexts: auto.silentTexts,
+    freshEmpty: auto.freshEmpty,
+    freshFound: auto.freshFound,
+    freshTexts: auto.freshTexts,
+    pauseBeforeHide: auto.pauseBeforeHide,
+    hiddenSnap: auto.hiddenSnap,
+    stillHidden: auto.stillHidden,
+    afterShow: auto.afterShow,
+    pauseConnected: auto.pauseConnected,
+    stillConnected: auto.stillConnected,
+    dupBefore: auto.dupBefore,
+    dupAfter: auto.dupAfter,
+    promptStart: auto.promptStart,
+    promptLater: auto.promptLater
+  }));
+  const silentFlicker = (auto.silentTexts || []).some((t) => /Scanning/.test(t));
+  const freshFlicker = (auto.freshTexts || []).some((t) => /Scanning/.test(t));
+  check("auto-detect finds a device that appears without a statechange, with no Scanning flicker",
+    auto.silentEmpty.hasAccess === true && auto.silentEmpty.isConnected === false
+      && auto.silentEmpty.hasScan === true && /No MIDI keyboard detected/.test(auto.silentEmpty.text)
+      && auto.silentFound.isConnected === true && /Connected: GarageKey Mini/.test(auto.silentFound.text)
+      && auto.silentFound.scanning !== true && silentFlicker === false
+      && (auto.silentFound.opened || 0) >= 1 && auto.silentFound.handlerBound === true,
+    JSON.stringify({ empty: auto.silentEmpty, found: auto.silentFound, texts: auto.silentTexts }));
+  check("auto-detect finds a device that only appears on a fresh MIDIAccess, with no Scanning flicker",
+    auto.freshEmpty.isConnected === false && /No MIDI keyboard detected/.test(auto.freshEmpty.text)
+      && auto.freshFound.isConnected === true && /Connected: GarageKey Mini/.test(auto.freshFound.text)
+      && auto.freshFound.requests >= 2 && freshFlicker === false
+      && (auto.freshFound.opened || 0) >= 1,
+    JSON.stringify({ empty: auto.freshEmpty, found: auto.freshFound, texts: auto.freshTexts }));
+  check("auto-detect polling pauses while the document is hidden and refreshes when visible",
+    auto.stillHidden.requests === auto.hiddenSnap.requests
+      && auto.afterShow.requests > auto.stillHidden.requests
+      && auto.hiddenSnap.auto.scheduled === false
+      && auto.stillHidden.isConnected === false,
+    JSON.stringify({
+      beforeHide: auto.pauseBeforeHide,
+      hidden: auto.hiddenSnap,
+      stillHidden: auto.stillHidden,
+      afterShow: auto.afterShow
+    }));
+  check("auto-detect polling stops once a keyboard is connected",
+    auto.pauseConnected.isConnected === true && /Connected: GarageKey Mini/.test(auto.pauseConnected.text)
+      && auto.stillConnected.isConnected === true
+      && auto.stillConnected.requests === auto.reqAfterConnect
+      && auto.stillConnected.auto.scheduled === false,
+    JSON.stringify({ connected: auto.pauseConnected, later: auto.stillConnected }));
+  check("auto-detect does not stack midimessage handlers after many poll cycles",
+    auto.dupAfter.isConnected === true && auto.dupAfter.handlerBound === true
+      && auto.dupAfter.sets === 1 && auto.dupAfter.messages === 1
+      && auto.dupAfter.logAfter === auto.dupAfter.logBefore + 1
+      && auto.dupAfter.held === true
+      && (auto.dupBefore.auto.cycles || 0) >= 4,
+    JSON.stringify({ before: auto.dupBefore, after: auto.dupAfter }));
+  check("auto-detect never calls requestMIDIAccess while permission is prompt",
+    auto.promptStart.requests === 0 && auto.promptLater.requests === 0
+      && auto.promptLater.isConnect === true && auto.promptLater.role === "button"
+      && auto.promptLater.hasAccess === false,
+    JSON.stringify({ start: auto.promptStart, later: auto.promptLater }));
+  const autoTops = [
+    auto.silentEmpty.kbTop, auto.silentFound.kbTop,
+    auto.freshEmpty.kbTop, auto.freshFound.kbTop,
+    auto.pauseConnected.kbTop, auto.stillConnected.kbTop
+  ];
+  const autoHeights = [
+    auto.silentEmpty.statusH, auto.silentFound.statusH,
+    auto.freshEmpty.statusH, auto.freshFound.statusH,
+    auto.pauseConnected.statusH, auto.stillConnected.statusH
+  ];
+  check("auto-detect keeps status height and range-card top constant",
+    autoTops.every((v) => v === autoTops[0] && v > 0)
+      && autoHeights.every((v) => v === autoHeights[0] && v > 0),
+    JSON.stringify({ tops: autoTops, heights: autoHeights }));
 
   // The range card (everything below the status box) must not shift as states change.
   const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
