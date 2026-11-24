@@ -1199,6 +1199,83 @@ try {
     return el ? el.classList.contains("held") : false;
   });
   check("key 60 has .held", held60);
+  const pressColors = await page.evaluate(() => {
+    function rgbList(text) {
+      const out = [];
+      let m;
+      const re = /rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/g;
+      while ((m = re.exec(text))) {
+        if (!(+m[1] === 0 && +m[2] === 0 && +m[3] === 0)) {
+          out.push({ r: +m[1], g: +m[2], b: +m[3] });
+        }
+      }
+      // Chrome serializes color-mix() stops as color(srgb …) in 0–1 units.
+      const re2 = /color\(srgb\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)/g;
+      while ((m = re2.exec(text))) {
+        out.push({
+          r: Math.round(+m[1] * 255),
+          g: Math.round(+m[2] * 255),
+          b: Math.round(+m[3] * 255)
+        });
+      }
+      return out;
+    }
+    function hue(c) {
+      const r = c.r / 255, g = c.g / 255, b = c.b / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+      if (d < 1e-6) return { h: 0, s: 0 };
+      const s = d / max;
+      let h;
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h = h * 60;
+      if (h < 0) h += 360;
+      return { h, s };
+    }
+    function isAccent(c) {
+      const { h, s } = hue(c);
+      return s >= 0.25 && h >= 15 && h <= 55 && c.r >= 140;
+    }
+    function pack(el) {
+      const cs = getComputedStyle(el);
+      const after = getComputedStyle(el, "::after");
+      const bg = (cs.backgroundImage + " " + cs.backgroundColor).trim();
+      const afterBg = (after.backgroundImage + " " + after.backgroundColor).trim();
+      const visible = parseFloat(after.opacity) > 0.5 ? afterBg : bg;
+      return {
+        bg,
+        afterBg,
+        afterOpacity: parseFloat(after.opacity),
+        colors: rgbList(visible)
+      };
+    }
+    const held = document.querySelector("[data-note='60']");
+    const idle = document.querySelector("[data-note='62']");
+    return {
+      held: pack(held),
+      idle: pack(idle),
+      heldClass: held && held.className
+    };
+  });
+  const heldFill = pressColors.held.bg + " @ " + pressColors.held.afterBg + " op=" + pressColors.held.afterOpacity;
+  const idleFill = pressColors.idle.bg + " @ " + pressColors.idle.afterBg + " op=" + pressColors.idle.afterOpacity;
+  check("pressed white key background differs from unpressed and has the accent hue",
+    heldFill !== idleFill
+      && pressColors.held.afterOpacity >= 0.9
+      && pressColors.held.colors.some((c) => {
+        const r = c.r / 255, g = c.g / 255, b = c.b / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+        if (d < 1e-6 || d / max < 0.25 || c.r < 140) return false;
+        let h;
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h = h * 60;
+        if (h < 0) h += 360;
+        return h >= 15 && h <= 55;
+      }),
+    JSON.stringify(pressColors));
   check("readout shows C4", await page.evaluate(() => document.getElementById("last-name").textContent) === "C4");
   check("held count is 1", st.heldCount === 1, String(st.heldCount));
   check("log has at least 1 row", st.logLength >= 1, String(st.logLength));

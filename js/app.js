@@ -510,7 +510,7 @@
     if (h) {
       el.classList.add("held");
       el.classList.toggle("sustained", sus);
-      el.style.setProperty("--vel", String(Math.max(0.15, h.vel / 127)));
+      el.style.setProperty("--vel", String(Math.max(0.55, h.vel / 127)));
     } else {
       el.classList.remove("held");
       el.style.removeProperty("--vel");
