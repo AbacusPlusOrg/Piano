@@ -1,6 +1,7 @@
 import puppeteer from "puppeteer-core";
 import fs from "fs";
 import path from "path";
+import { runSongsChecks } from "./songs-catalog.mjs";
 
 const URL = "http://127.0.0.1:8766/";
 const SCREEN_DIR = "/workspace/pianoflow/app/screens";
@@ -2072,6 +2073,10 @@ try {
   await page.evaluate(() => document.getElementById("btn-clear").click());
   st = await page.evaluate(() => window.__pfTest.getState());
   check("clear log empties it", st.logLength === 0);
+
+
+  // Songs catalog (files only; no song menu in the app yet).
+  runSongsChecks(check, import.meta.url);
 
   check("no page JS errors", jsErrors.length === 0, jsErrors.join(" | "));
 

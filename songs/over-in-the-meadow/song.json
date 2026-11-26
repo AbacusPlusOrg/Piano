@@ -1,0 +1,324 @@
+{
+  "id": "over-in-the-meadow",
+  "title": "Over in the Meadow",
+  "composer": "Traditional (South Appalachian folk song)",
+  "lyricist": "Olive A. Wadsworth",
+  "lyric_year": 1870,
+  "public_domain": true,
+  "key": "C major",
+  "time": "2/4",
+  "tempo": "Andante, quarter = 96",
+  "tempo_note": "PianoFlow teaching suggestion; the cited melody sources do not mark a tempo.",
+  "bars": 16,
+  "form": "A B C B' (4-bar phrases)",
+  "range": {
+    "low": "C3",
+    "high": "A4",
+    "midi_low": 48,
+    "midi_high": 69
+  },
+  "keyboard": "Fits the GarageKey Mini range C3–C6 (MIDI 48–84). Melody is C4–A4; left hand stays on or above C3.",
+  "setting": "PianoFlow teaching setting: verified folk melody in the right hand, in C major; the left-hand bass-plus-broken-chord accompaniment is written for this catalog, not taken from a source arrangement.",
+  "lyric_snippet": "Over in the meadow, in the sand, in the sun, Lived an old mother toadie and her little toadie one. \"Wink!\" said the mother. \"I wink!\" said the one. So they winked and they blinked in the sand, in the sun.",
+  "files": {
+    "score": "score.musicxml",
+    "full_midi": "full.mid",
+    "rh_midi": "rh.mid"
+  },
+  "sources": [
+    {
+      "id": "feierabend-analysis-meadow",
+      "title": "Feierabend, The Book of Children's Songtales (GIA, 2021), pp. 40–41, via Epstein/Rappaport analysis",
+      "url": "https://tuning-fork.neocities.org/song-sheets/Over%20in%20the%20Meadow.pdf",
+      "used_for": "Note-level confirmation of the commonly taught hexachord tune: 2/4, do hexachord, form A B C B′, starting on so, solfege and stick-notation rhythm. Duplication of the analysis form is permitted; Feierabend's book itself is copyrighted and was not copied as an arrangement."
+    },
+    {
+      "id": "pl4c-meadow-c",
+      "title": "PianoLessons4Children, Over in the Meadow, C major melody sheet",
+      "url": "https://www.pianolessons4children.com/sheetmusic/Over_in_the_Meadow_C_Major.pdf",
+      "used_for": "Independent classroom transcription of the same tune in C major, 2/4. Used to cross-check pitches and rhythm only. The sheet's accompaniment and any original arrangement details were not used."
+    },
+    {
+      "id": "sharp-1917-117",
+      "title": "Campbell & Sharp, English Folk Songs from the Southern Appalachians (1917), No. 117, “Sing, Said the Mother,” p. 315",
+      "url": "https://imslp.org/wiki/English_Folk_Songs_from_the_Southern_Appalachians_(Campbell,_Olive_Dame)",
+      "used_for": "Public-domain field transcription (Mrs. Jane Gentry, Hot Springs, N.C., 15 September 1916). Cited as a documented related variant, not as the source of the pitches in this setting. Kodály Center song 749 catalogs this source under the title Over in the Meadow (hexachord, form ABCB′, original starting pitch C, rhythms halved from the original 2/2 to 2/4)."
+    },
+    {
+      "id": "musicyoucanread-meadow",
+      "title": "MusicYouCanRead, Over in the Meadow (Grade K analysis)",
+      "url": "https://www.musicyoucanread.com/?p=20310",
+      "used_for": "Tune-family confirmation only (South Appalachian folk song; form ABCB; range Do–La; characteristic intervals So\\Do and Do/La). The notation page itself was not retrieved, so it is not a note-level source."
+    }
+  ],
+  "variants": "The commonly taught classroom tune (chosen here) starts on so (G in C major): G G G A | G F E F | G F E | D, form A B C B′, hexachord Do–La, with so–do and do–la leaps in phrase C. Feierabend 2021 (solfege and stick notation, starting pitch C5, 2/4) and the PianoLessons4Children C-major sheet agree on these pitches; the sheet writes the 'Lived an' / 'So they' pickups as the last beat of the previous bar, which this score follows. Meter is written 2/4 in those sources; some classroom analyses (e.g. MusicYouCanRead) print the same tune in 4/4 with doubled bar lengths, or in other keys (D, E-flat). Campbell & Sharp 1917 No. 117 is the same song family from an earlier Appalachian singer, but it is a real variant: 2/2, two flats (B-flat major), starting on the tonic rather than so, under the title “Sing, Said the Mother.” Mabel Wood Hill’s early-20th-century notation is widely reported not to be this popular tune, and was not used. The 1882 Louis Meyer / Oliver Ditson piano piece of the same title (Library of Congress) appears to be a different composition and was not used as a melody source. Some picture-book settings (for example Barefoot Books / Susan Reed, 2011) use a different, simplified contour and are copyrighted; they were not used.",
+  "sections": [
+    {
+      "id": "A",
+      "name": "Opening",
+      "bars": "1-4",
+      "phrase": "meadow-a"
+    },
+    {
+      "id": "B",
+      "name": "Lived an old mother toadie",
+      "bars": "5-8",
+      "phrase": "meadow-b"
+    },
+    {
+      "id": "C",
+      "name": "Wink, said the mother",
+      "bars": "9-12",
+      "phrase": "meadow-c"
+    },
+    {
+      "id": "B'",
+      "name": "So they winked and they blinked",
+      "bars": "13-16",
+      "phrase": "meadow-bv"
+    }
+  ],
+  "phrases": [
+    {
+      "id": "meadow-a",
+      "name": "Opening",
+      "section": "A",
+      "bars": "1-4",
+      "occurrences": [
+        "1-4"
+      ],
+      "max_score": 1.6,
+      "top_instance": 1.3,
+      "notes": {
+        "five-finger-position": "Stays in a close C-position five (finger 5 reaches A); quarters and eighths, mostly steps.",
+        "one-hand-melody": "A flowing eighth-note line at a moderate children's tempo, with a third down to D at the cadence.",
+        "hands-together": "LH plays a bass note on beat 1 and two broken-chord eighths on beat 2, in close position under a mostly stepwise melody.",
+        "broken-chords": "A slow, close-position broken triad (root, then third and fifth as eighths) in 2/4."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH in C position, finger 5 reaching A: G G G A | G F E F | G(quarter) F E | D(quarter) C D. Fingers 5-5-5-5 | 5-4-3-4 | 5-4-3 | 2-1-2. About 96 quarter notes a minute.",
+          "is_full_version": false,
+          "score": 1.0,
+          "instances": {
+            "one-hand-melody": 0.8,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH plays one bass note per bar: C3 (bars 1-3), G3 (bar 4).",
+          "is_full_version": false,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "one-hand-melody": 0.8,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH plays a bass note on beat 1 and the third and fifth as eighths on beat 2: C3, then E3 G3 (bars 1-3); G3, then B3 D4 (bar 4). The last beat of bar 4 is the 'Lived an' pickup into the next phrase.",
+          "is_full_version": true,
+          "score": 1.6,
+          "instances": {
+            "hands-together": 1.3,
+            "broken-chords": 1.2,
+            "five-finger-position": 0.8,
+            "one-hand-melody": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "meadow-b",
+      "name": "Lived an old mother toadie",
+      "section": "B",
+      "bars": "5-8",
+      "occurrences": [
+        "5-8"
+      ],
+      "max_score": 1.6,
+      "top_instance": 1.3,
+      "notes": {
+        "five-finger-position": "C position, thumb on C; the line stays on C-F.",
+        "one-hand-melody": "Even eighths and a few quarters, mostly stepwise.",
+        "hands-together": "Same bass-plus-broken-chord pattern under a busier eighth-note right hand; LH holds in bar 8.",
+        "broken-chords": "Same slow close-position broken triad as the opening."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH in C position: E(quarter) E F | E D C D | E E D D | C(half). The 'Lived an' C-D pickup is at the end of the previous phrase.",
+          "is_full_version": false,
+          "score": 1.0,
+          "instances": {
+            "one-hand-melody": 0.8,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH bass: C3 (bars 5-6), G3 (bar 7), C3 held for bar 8.",
+          "is_full_version": false,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "one-hand-melody": 0.8,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH broken C chords in bars 5-6, G in bar 7, and a held C3 in bar 8 under the half-note 'one.'",
+          "is_full_version": true,
+          "score": 1.6,
+          "instances": {
+            "hands-together": 1.3,
+            "broken-chords": 1.2,
+            "five-finger-position": 0.8,
+            "one-hand-melody": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "meadow-c",
+      "name": "Wink, said the mother",
+      "section": "C",
+      "bars": "9-12",
+      "occurrences": [
+        "9-12"
+      ],
+      "max_score": 1.8,
+      "top_instance": 1.5,
+      "notes": {
+        "five-finger-position": "Still a C-position five, with finger 5 reaching up to A.",
+        "one-hand-melody": "The characteristic so-do fifth and do-la sixth, plus repeated C's, at a moderate tempo.",
+        "hands-together": "LH moves I-IV-I under the leap in the melody (bar 10 subdominant).",
+        "broken-chords": "Broken triads on C and F, still slow and close."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH: G(quarter) C C | C C A(quarter) | G(quarter) C C | C(quarter) C D. The so-do fifth and do-la sixth; last beat of bar 12 is the 'So they' pickup into B'.",
+          "is_full_version": false,
+          "score": 1.2,
+          "instances": {
+            "one-hand-melody": 1.1,
+            "five-finger-position": 0.9
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH bass: C3 (bar 9), F3 (bar 10), C3 (bars 11-12).",
+          "is_full_version": false,
+          "score": 1.5,
+          "instances": {
+            "hands-together": 1.2,
+            "one-hand-melody": 1.1,
+            "five-finger-position": 0.9
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH broken C in bars 9 and 11-12, and a broken F (F3, then A3 C4) in bar 10 under the rise to A.",
+          "is_full_version": true,
+          "score": 1.8,
+          "instances": {
+            "hands-together": 1.5,
+            "broken-chords": 1.3,
+            "one-hand-melody": 1.1,
+            "five-finger-position": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "meadow-bv",
+      "name": "So they winked and they blinked",
+      "section": "B'",
+      "bars": "13-16",
+      "occurrences": [
+        "13-16"
+      ],
+      "max_score": 1.7,
+      "top_instance": 1.4,
+      "notes": {
+        "five-finger-position": "C position, with a third down from E to C.",
+        "one-hand-melody": "Quarters mixed with eighths, mostly steps, ending on a held C.",
+        "hands-together": "LH walks vi-IV-V-I under the last line.",
+        "broken-chords": "Broken triads on A minor, F and G, still slow and close."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH: E(quarter) E F | E(quarter) C D | E(quarter) D D | C(half). A close variant of phrase B (the 'm r d r' run is simplified).",
+          "is_full_version": false,
+          "score": 1.1,
+          "instances": {
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH bass: A3 (bar 13), F3 (bar 14), G3 (bar 15), C3 held for bar 16.",
+          "is_full_version": false,
+          "score": 1.5,
+          "instances": {
+            "hands-together": 1.2,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH walks a vi-IV-V-I cadence as broken triads (A minor, F, G) and a held C3 under the final 'sun.'",
+          "is_full_version": true,
+          "score": 1.7,
+          "instances": {
+            "hands-together": 1.4,
+            "broken-chords": 1.3,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8
+          }
+        }
+      ]
+    }
+  ],
+  "techniques_tagged": [
+    "five-finger-position",
+    "one-hand-melody",
+    "hands-together"
+  ],
+  "score": 0.3,
+  "score_raw": 2.45,
+  "score_display": "0.3: Hands Together, One-Hand Melody, Five-Finger Position",
+  "score_note": "Catalog-relative whole-piece 0–10 score from pianoflow/tools/score_pieces.py after this piece was added. Raw = w1 + 0.35·w2 + 0.2·w3 + min(0.1·sum(rest), 2.0) on tagged technique weights; score = 0.3 + (raw − min_raw)/(max_raw − min_raw)·9.6. Broken-chords appear in the full-rung instance scores (peak 1.3) but are below the tag threshold (0.5 × weight 3.0 = 1.5), so they are not tagged on the whole piece. Adding this piece shifts other catalog scores slightly (the formula is catalog-relative)."
+}

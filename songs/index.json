@@ -1,0 +1,10 @@
+{
+  "_readme": "Public-domain teaching pieces for A+Piano. Each entry has a folder under songs/<id>/ with song.json, score.musicxml and full.mid. Scores are catalog-relative 0–10 values from PianoFlow.",
+  "songs": [
+    {
+      "id": "over-in-the-meadow",
+      "title": "Over in the Meadow",
+      "score": 0.3
+    }
+  ]
+}
