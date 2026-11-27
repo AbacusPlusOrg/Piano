@@ -649,9 +649,9 @@
       bindKey(b, n);
       blacksEl.appendChild(b);
     }
-    // Play, Tight and Plus one: a black key just outside either end shows as a half silhouette (not a key).
+    // Play, C octave, Tight and Plus one: a black key just outside either end shows as a half silhouette (not a key).
     var keysM = playMode ? playKeysMode() : "";
-    if (keysM === "tight" || keysM === "plus") {
+    if (keysM === "coctave" || keysM === "tight" || keysM === "plus") {
       [[range.low - 1, 0, "left"], [range.high + 1, width - blackW / 2, "right"]].forEach(function (e) {
         if (e[0] < 0 || e[0] > 127 || !isBlack(e[0])) return;
         var sil = document.createElement("div");
@@ -2319,10 +2319,14 @@
   //   plus:   one more white key on each side (past the adjacent black key, if any);
   //   groups: whole C-D-E and F-G-A-B groups holding any note (black keys count toward their group).
   // "octave" (the default, songKeyboardRange) pads to at least an octave.
-  // Tight and Plus one draw a black key just outside either end as a half silhouette (see buildKeyboard).
+  // C octave, Tight and Plus one draw a black key just outside either end as a half silhouette (see buildKeyboard).
   function playKeyRange(lo, hi, mode) {
     var low = snapLow(lo), high = snapHigh(hi);
-    if (mode === "plus") {
+    if (mode === "coctave") {
+      // The C at or below the lowest note to the C at or above the highest, at least one octave.
+      low = lo - lo % 12;
+      high = Math.max(low + 12, hi + (12 - hi % 12) % 12);
+    } else if (mode === "plus") {
       low = snapLow(low - 1);
       high = snapHigh(high + 1);
     } else if (mode === "groups") {
@@ -2333,7 +2337,7 @@
     return { low: Math.max(0, low), high: Math.min(127, high) };
   }
   var PLAY_KEYS_STORE_KEY = "aplus.playkeys.v1";
-  var PLAY_KEYS_MODES = ["octave", "tight", "plus", "groups"];
+  var PLAY_KEYS_MODES = ["octave", "coctave", "tight", "plus", "groups"];
   function playKeysMode() {
     try { var m = localStorage.getItem(PLAY_KEYS_STORE_KEY); return PLAY_KEYS_MODES.indexOf(m) >= 0 ? m : "octave"; }
     catch (e) { return "octave"; }

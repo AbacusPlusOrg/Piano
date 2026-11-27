@@ -2485,33 +2485,36 @@ try {
       const mid = (r) => (r.top + r.bottom) / 2;
       return { legend: lg.textContent.trim(), names: labels.map((l) => l.textContent.trim()), values: radios.map((r) => r.value),
         checked: radios.filter((r) => r.checked).map((r) => r.value), sameName: radios.every((r) => r.name === "play-keys"),
-        leftAligned: Math.abs(lr.left - tl.left) <= 1, rightAligned: Math.abs(last.right - sr.right) <= 1,
-        oneRow: labels.every((l) => Math.abs(mid(l.getBoundingClientRect()) - mid(last)) <= 1) && Math.abs(mid(lr) - mid(last)) <= 3 };
+        leftAligned: Math.abs(lr.left - tl.left) <= 1 && Math.abs(labels[0].getBoundingClientRect().left - tl.left) <= 1,
+        rightAligned: Math.abs(last.right - sr.right) <= 1,
+        oneRow: labels.every((l) => Math.abs(mid(l.getBoundingClientRect()) - mid(last)) <= 1) && lr.bottom <= last.top };
     });
-    check("play: Keys choice is a labelled group of four options in one row, aligned with the sheet, Octave by default",
-      keysRow.legend === "Keys" && keysRow.values.join(",") === "octave,tight,plus,groups"
-        && keysRow.names.join(",") === "Octave,Tight,Plus one,Groups" && keysRow.checked.join(",") === "octave"
+    check("play: Keys choice is a labelled group of five options in one row under the label, aligned with the sheet, Octave by default",
+      keysRow.legend === "Keys" && keysRow.values.join(",") === "octave,coctave,tight,plus,groups"
+        && keysRow.names.join(",") === "Octave,C octave,Tight,Plus one,Groups" && keysRow.checked.join(",") === "octave"
         && keysRow.sameName && keysRow.leftAligned && keysRow.rightAligned && keysRow.oneRow,
       JSON.stringify(keysRow));
     const keysUnit = await p.evaluate(() => {
       const f = (lo, hi, m) => { const r = window.__pfTest.play.keysRange(lo, hi, m); return r.low + "-" + r.high; };
-      const all = (lo, hi) => ["octave", "tight", "plus", "groups"].map((m) => f(lo, hi, m)).join(" ");
+      const all = (lo, hi) => ["octave", "coctave", "tight", "plus", "groups"].map((m) => f(lo, hi, m)).join(" ");
       return {
         maryRh: all(60, 67),        // C4-G4
         blackEnds: all(61, 66),     // C#4-F#4
         blackEnds2: all(63, 70),    // D#4-A#4
         twoKeys: all(64, 65),       // E4-F4
         wide: all(59, 72),          // B3-C5
-        bassFull: all(48, 69)       // C3-A4
+        bassFull: all(48, 69),      // C3-A4
+        cOct: f(60, 60, "coctave") + " " + f(60, 72, "coctave") + " " + f(59, 73, "coctave") // single C, exact C-C, past both Cs
       };
     });
-    check("play: Keys ranges: tight covers the notes, plus one adds a white key past each end, groups take whole C-E / F-B groups",
-      keysUnit.maryRh === "57-71 60-67 59-69 60-71"
-        && keysUnit.blackEnds === "57-71 60-67 59-69 60-71"
-        && keysUnit.blackEnds2 === "60-74 62-71 60-72 60-71"
-        && keysUnit.twoKeys === "59-71 64-65 62-67 60-71"
-        && keysUnit.wide === "59-72 59-72 57-74 53-76"
-        && keysUnit.bassFull === "48-69 48-69 47-71 48-71",
+    check("play: Keys ranges: C octave runs C to C (both included, at least an octave), tight covers the notes, plus one adds a white key past each end, groups take whole C-E / F-B groups",
+      keysUnit.maryRh === "57-71 60-72 60-67 59-69 60-71"
+        && keysUnit.blackEnds === "57-71 60-72 60-67 59-69 60-71"
+        && keysUnit.blackEnds2 === "60-74 60-72 62-71 60-72 60-71"
+        && keysUnit.twoKeys === "59-71 60-72 64-65 62-67 60-71"
+        && keysUnit.wide === "59-72 48-72 59-72 57-74 53-76"
+        && keysUnit.bassFull === "48-69 48-72 48-69 47-71 48-71"
+        && keysUnit.cOct === "60-72 60-72 48-84",
       JSON.stringify(keysUnit));
     check("play: tempo slider has a visible Tempo label on its row, aligned with the sheet, and keeps the % readout",
       tempoLabel.text === "Tempo" && tempoLabel.forId === "play-tempo" && tempoLabel.visible && tempoLabel.sameRow
@@ -2938,7 +2941,7 @@ try {
     await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
 
     // Keys choice on Mary RH (C4-G4): each mode's range, edge silhouettes, full width, key height and saving.
-    for (const [mode, lo, hi, silL, silR] of [["tight", 60, 67, null, 68], ["plus", 59, 69, 58, 70], ["groups", 60, 71, null, null], ["octave", 57, 71, null, null]]) {
+    for (const [mode, lo, hi, silL, silR] of [["tight", 60, 67, null, 68], ["plus", 59, 69, 58, 70], ["groups", 60, 71, null, null], ["octave", 57, 71, null, null], ["coctave", 60, 72, null, 73]]) {
       await pauseToSheet();
       await p.click('#play-keys input[value="' + mode + '"]');
       await p.waitForFunction((lo, hi) => {
