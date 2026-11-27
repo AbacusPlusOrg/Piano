@@ -464,9 +464,16 @@
     els.btnResetRange.disabled = !learned && state.visibleLow === state.homeLow && state.visibleHigh === state.homeHigh;
   }
 
+  function displayedRange() {
+    if (play && document.body.classList.contains("mode-play") && play.rangeLow != null && play.rangeHigh != null) {
+      return { low: play.rangeLow, high: play.rangeHigh };
+    }
+    return { low: state.visibleLow, high: state.visibleHigh };
+  }
+
   function whiteNotesInRange() {
-    var out = [];
-    for (var n = state.visibleLow; n <= state.visibleHigh; n++) {
+    var out = [], r = displayedRange();
+    for (var n = r.low; n <= r.high; n++) {
       if (!isBlack(n)) out.push(n);
     }
     return out;
@@ -532,7 +539,8 @@
     var blackW = Math.max(8, whiteW * prop.blackWidthRatio);
     blacksEl.style.width = width + "px";
     var whiteIndex = 0;
-    for (var n = state.visibleLow; n <= state.visibleHigh; n++) {
+    var range = displayedRange();
+    for (var n = range.low; n <= range.high; n++) {
       if (!isBlack(n)) {
         whiteIndex++;
         continue;
@@ -554,6 +562,11 @@
     kb.appendChild(blacksEl);
     updateRangeLabel();
     refreshKeyLights();
+    // Re-apply Wait-mode lights and falling-note columns after any rebuild.
+    if (play) {
+      play.lit = "";
+      if (document.body.classList.contains("mode-play")) drawHighway();
+    }
   }
 
   function bindKey(el, note) {
@@ -2130,7 +2143,8 @@
   var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
   var play = {
     index: null, song: null, rung: null, midi: null, steps: [], step: 0, hit: {},
-    beat: 0, endBeat: 0, playing: false, wait: true, rate: 1, last: 0, raf: 0, drawn: 0, sounding: {}, lit: ""
+    beat: 0, endBeat: 0, playing: false, wait: true, rate: 1, last: 0, raf: 0, drawn: 0, sounding: {}, lit: "",
+    rangeLow: null, rangeHigh: null
   };
   var pe = {
     modeKeyboard: document.getElementById("mode-keyboard"),
@@ -2177,6 +2191,31 @@
   }
 
   // Notes that start together form one step; wait mode holds at each step until all its keys are pressed.
+  // Lowest–highest notes of the current rung, snapped to white keys and
+  // padded to at least an octave so a short phrase doesn't make giant keys.
+  function songKeyboardRange(notes) {
+    if (!notes || !notes.length) return null;
+    var lo = Infinity, hi = -Infinity, i, n;
+    for (i = 0; i < notes.length; i++) {
+      n = notes[i].note;
+      if (n < lo) lo = n;
+      if (n > hi) hi = n;
+    }
+    lo = snapLow(Math.max(0, lo));
+    hi = snapHigh(Math.min(127, hi));
+    if (hi - lo < 12) {
+      var need = 12 - (hi - lo);
+      var down = Math.floor(need / 2);
+      lo = snapLow(Math.max(0, lo - down));
+      hi = snapHigh(Math.min(127, hi + (need - down)));
+      while (hi - lo < 12 && (lo > 0 || hi < 127)) {
+        if (lo > 0) lo = snapLow(lo - 1);
+        if (hi - lo < 12 && hi < 127) hi = snapHigh(hi + 1);
+      }
+    }
+    return { low: lo, high: hi };
+  }
+
   function buildSteps(notes) {
     var steps = [];
     notes.forEach(function (n) {
@@ -2232,10 +2271,10 @@
       play.midi = parseMidi(buf);
       play.steps = buildSteps(play.midi.notes);
       play.endBeat = play.midi.notes.reduce(function (m, n) { return Math.max(m, n.end); }, 0);
-      var lo = Math.min.apply(null, play.midi.notes.map(function (n) { return n.note; }));
-      var hi = Math.max.apply(null, play.midi.notes.map(function (n) { return n.note; }));
-      extendRangeTo(lo);
-      extendRangeTo(hi);
+      var r = songKeyboardRange(play.midi.notes);
+      play.rangeLow = r ? r.low : null;
+      play.rangeHigh = r ? r.high : null;
+      if (document.body.classList.contains("mode-play")) rebuildKeyboard();
       restartPlay();
     });
   }
@@ -2312,7 +2351,8 @@
 
   function lightNextKeys() {
     var want = nextNotes();
-    var key = want.join(",") + "|" + els.keyboard.childElementCount + state.visibleLow + "-" + state.visibleHigh;
+    var r = displayedRange();
+    var key = want.join(",") + "|" + els.keyboard.childElementCount + r.low + "-" + r.high;
     if (key === play.lit) return;
     play.lit = key;
     var keys = els.keyboard.querySelectorAll(".key");
@@ -2494,7 +2534,8 @@
         return { song: play.song && play.song.id, rung: play.rung, steps: play.steps.length, step: play.step,
           beat: play.beat, playing: play.playing, wait: play.wait, drawn: play.drawn, next: nextNotes(),
           stepNotes: play.steps.map(function (s) { return s.notes; }),
-          lit: Array.prototype.map.call(els.keyboard.querySelectorAll(".key.next"), function (k) { return +k.dataset.note; }) };
+          lit: Array.prototype.map.call(els.keyboard.querySelectorAll(".key.next"), function (k) { return +k.dataset.note; }),
+          rangeLow: play.rangeLow, rangeHigh: play.rangeHigh };
       },
       parse: function (buf) { return parseMidi(buf); }
     },

@@ -2289,6 +2289,50 @@ try {
     check("play: Mary right-hand MIDI parses to the verified melody", st.song === "mary-had-a-little-lamb" &&
       JSON.stringify(st.stepNotes.flat()) === JSON.stringify(melody), JSON.stringify(st.stepNotes.flat()));
     check("play: notes render before Play", st.drawn > 0 && !st.playing, "drawn=" + st.drawn);
+
+    async function playKeyboardFit() {
+      return p.evaluate(() => {
+        const keys = [...document.querySelectorAll("#keyboard .key")];
+        const notes = keys.map((k) => +k.dataset.note);
+        const lo = Math.min(...notes), hi = Math.max(...notes);
+        const hw = document.getElementById("highway").getBoundingClientRect();
+        const scroll = document.getElementById("kb-scroll").getBoundingClientRect();
+        const songNotes = [...new Set(window.__pfTest.play.state().stepNotes.flat())];
+        const missing = songNotes.filter((n) => !notes.includes(n));
+        const black = { 1: true, 3: true, 6: true, 8: true, 10: true };
+        const cols = {};
+        keys.forEach((k) => {
+          const r = k.getBoundingClientRect();
+          cols[+k.dataset.note] = { x: r.left - hw.left, w: r.width };
+        });
+        const lanesOnKeys = songNotes.every((n) => {
+          const c = cols[n];
+          return c && c.w > 0 && c.x >= -1 && c.x + c.w <= hw.width + 1;
+        });
+        return {
+          song: window.__pfTest.play.state().song,
+          rung: window.__pfTest.play.state().rung,
+          lo, hi, count: keys.length, missing, lanesOnKeys,
+          startWhite: !black[lo % 12], endWhite: !black[hi % 12],
+          sameSlot: Math.abs(hw.left - scroll.left) < 1 && Math.abs(hw.width - scroll.width) < 1,
+          rangeLow: window.__pfTest.play.state().rangeLow,
+          rangeHigh: window.__pfTest.play.state().rangeHigh
+        };
+      });
+    }
+    function checkPlayRange(label, expectLo, expectHi, expectCount, info) {
+      check(label,
+        info.lo === expectLo && info.hi === expectHi && info.count === expectCount
+          && info.rangeLow === expectLo && info.rangeHigh === expectHi
+          && info.startWhite === true && info.endWhite === true
+          && info.missing.length === 0 && info.lanesOnKeys === true && info.sameSlot === true
+          && info.hi - info.lo >= 12,
+        JSON.stringify(info));
+    }
+    // Mary RH is C4–G4 (span 7); pad to an octave and snap to white keys → A3–B4.
+    checkPlayRange("play: Mary right-hand keyboard matches the padded song range and lanes align",
+      57, 71, 15, await playKeyboardFit());
+
     await p.evaluate(() => { const t = document.getElementById("play-tempo"); t.value = 150; t.dispatchEvent(new Event("input")); });
     await p.click("#play-toggle");
     await p.waitForFunction(() => window.__pfTest.play.state().beat >= 0, { timeout: 8000 });
@@ -2315,6 +2359,31 @@ try {
     st = await ps();
     check("play: both-hands rung waits for the whole chord", JSON.stringify(st.stepNotes[0]) === "[48,52,55,64]" && !st.playing,
       JSON.stringify(st.stepNotes[0]));
+    // Mary full/roots are already C3–G4, more than an octave, snapped to white keys.
+    checkPlayRange("play: Mary full keyboard matches the song range and lanes align",
+      48, 67, 20, await playKeyboardFit());
+
+    await p.select("#play-song", "over-in-the-meadow");
+    await p.waitForFunction(() => window.__pfTest.play.state().song === "over-in-the-meadow" &&
+      window.__pfTest.play.state().rung === "rh" && window.__pfTest.play.state().steps > 0, { timeout: 8000 });
+    await p.waitForFunction(() => {
+      const notes = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+      return notes.length > 0 && Math.min(...notes) === 59 && Math.max(...notes) === 71;
+    }, { timeout: 8000 });
+    // Meadow RH is C4–A4 (span 9); pad to an octave and snap to white keys → B3–B4.
+    checkPlayRange("play: Meadow right-hand keyboard matches the padded song range and lanes align",
+      59, 71, 13, await playKeyboardFit());
+    await p.select("#play-rung", "full");
+    await p.waitForFunction(() => window.__pfTest.play.state().rung === "full" &&
+      window.__pfTest.play.state().song === "over-in-the-meadow", { timeout: 8000 });
+    await p.waitForFunction(() => {
+      const notes = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+      return notes.length > 0 && Math.min(...notes) === 48 && Math.max(...notes) === 69;
+    }, { timeout: 8000 });
+    // Meadow full/roots are already C3–A4.
+    checkPlayRange("play: Meadow full keyboard matches the song range and lanes align",
+      48, 69, 22, await playKeyboardFit());
+
     for (const [w, h] of [[915, 412], [412, 915]]) {
       await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
       await new Promise((r) => setTimeout(r, 300));
@@ -2327,9 +2396,24 @@ try {
       check("play: highway above the keys and fits at " + w + "x" + h, lay.hwH >= 50 && lay.kbH >= 60 && lay.above && lay.fits, JSON.stringify(lay));
     }
     await p.click("#mode-keyboard");
-    const back = await p.evaluate(() => getComputedStyle(document.querySelector(".lower")).display !== "none" &&
-      getComputedStyle(document.getElementById("highway")).display === "none");
-    check("play: Keyboard switch restores the checker", back);
+    const back = await p.evaluate(() => {
+      const keys = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+      const st = window.__pfTest.getState();
+      return {
+        lowerVisible: getComputedStyle(document.querySelector(".lower")).display !== "none",
+        highwayOff: getComputedStyle(document.getElementById("highway")).display === "none",
+        count: keys.length,
+        lo: Math.min(...keys),
+        hi: Math.max(...keys),
+        visibleLow: st.visibleLow,
+        visibleHigh: st.visibleHigh
+      };
+    });
+    check("play: Keyboard switch restores the checker",
+      back.lowerVisible === true && back.highwayOff === true
+        && back.count === 25 && back.lo === 48 && back.hi === 72
+        && back.visibleLow === 48 && back.visibleHigh === 72,
+      JSON.stringify(back));
     await p.close();
   }
 
