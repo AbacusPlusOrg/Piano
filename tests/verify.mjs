@@ -2805,11 +2805,11 @@ try {
         });
         const capped = g.keyShare >= g.cap - 0.003;
         check("play: " + song + " " + rung + " at " + name + ": real key proportions, capped height, highway majority, note on its key",
-          g.ratio >= 4.3 && g.ratio <= 4.7 && (g.blackLen == null || (g.blackLen >= 0.6 && g.blackLen <= 0.65))
+          g.ratio <= 4.7 && (g.ratio >= 4.3 || g.tilt === 60) && (g.blackLen == null || (g.blackLen >= 0.6 && g.blackLen <= 0.65))
             && g.keyShare <= g.cap + 0.003 && g.hwShare >= 0.5 && !g.scrolls && g.centered
             && (capped || g.kbW >= g.fillW - 1)
             && g.tilt >= 0 && g.tilt <= 60 && g.tiltClass === (g.tilt > 0)
-            && (g.tilt >= 60 || g.kbW >= g.fillW - 1)
+            && g.kbW >= g.fillW - 1
             && g.noteBottom != null && Math.abs(g.keysTop - g.noteBottom) <= 3
             && g.next.length > 0 && g.offsets.every((o) => o <= 3)
             && g.drawMs < 4,
@@ -2830,22 +2830,30 @@ try {
       fixedStyle.far === 1 && fixedStyle.tilt >= 0 && fixedStyle.tilt <= 60 && fixedStyle.tiltClass === (fixedStyle.tilt > 0)
         && fixedStyle.toggle === false, JSON.stringify(fixedStyle));
     const tiltUnit = await p.evaluate(() => {
-      const f = window.__pfTest.play.tiltFor;
-      const onScreen = (w, n, d) => 4.5 * w / n * Math.cos(d * Math.PI / 180);
-      const fit = f(720, 13, 144);
+      const f = (w, n, h) => window.__pfTest.play.keyFit(w, n, h);
+      const onScreen = (w, n, r) => +(r.ratio * w / n * Math.cos(r.tilt * Math.PI / 180)).toFixed(2);
+      const fit = f(720, 13, 144), clamp = f(720, 9, 144), tiny = f(720, 9, 40);
+      const range = window.__pfTest.play.keyRange;
       return {
-        flatWhenFits: f(374, 9, 278), fit, fitH: +onScreen(720, 13, fit).toFixed(2),
-        fewer: f(720, 9, 200), more: f(720, 13, 200),
-        portrait: f(374, 13, 278), landscape: f(720, 13, 144),
-        clamp: f(720, 9, 144), clampTiny: f(720, 9, 1)
+        flatWhenFits: f(374, 9, 278), fit: fit.tilt, fitH: onScreen(720, 13, fit),
+        fewer: f(720, 9, 200).tilt, more: f(720, 13, 200).tilt,
+        portrait: f(374, 13, 278).tilt, landscape: f(720, 13, 144).tilt,
+        clamp, clampH: onScreen(720, 9, clamp), tiny, tinyH: onScreen(720, 9, tiny),
+        rangePort: range(374, 9, 844), rangeLand: range(720, 9, 360), rangeFew: range(100, 30, 844)
       };
     });
-    check("play: key tilt fits the height budget, grows with fewer keys and in landscape, and clamps at 60°",
-      tiltUnit.flatWhenFits === 0 && tiltUnit.fit > 0 && tiltUnit.fit < 60
+    check("play: key fit fills the height, tilts more with fewer keys and in landscape, then shortens the keys past 60°",
+      tiltUnit.flatWhenFits.tilt === 0 && tiltUnit.flatWhenFits.ratio === 4.5 && tiltUnit.fit > 0 && tiltUnit.fit < 60
         && tiltUnit.fitH <= 144 && tiltUnit.fitH >= 143
         && tiltUnit.fewer > tiltUnit.more && tiltUnit.landscape > tiltUnit.portrait
-        && tiltUnit.clamp === 60 && tiltUnit.clampTiny === 60,
+        && tiltUnit.clamp.tilt === 60 && tiltUnit.clamp.ratio < 4.5 && Math.abs(tiltUnit.clampH - 144) < 0.01
+        && tiltUnit.tiny.tilt === 60 && Math.abs(tiltUnit.tinyH - 40) < 0.01,
       JSON.stringify(tiltUnit));
+    check("play: key height range runs from a small strip to flat full-width keys, at most 60% of the screen",
+      Math.abs(tiltUnit.rangePort.max - 4.5 * 374 / 9) < 0.01 && Math.abs(tiltUnit.rangePort.min - 84.4) < 0.01
+        && Math.abs(tiltUnit.rangeLand.max - 216) < 0.01 && tiltUnit.rangeLand.min === 48
+        && tiltUnit.rangeFew.min === tiltUnit.rangeFew.max,
+      JSON.stringify({ port: tiltUnit.rangePort, land: tiltUnit.rangeLand, few: tiltUnit.rangeFew }));
     for (const [name, w, h] of [["390x844", 390, 844], ["740x360", 740, 360]]) {
       await pauseToSheet();
       await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -2884,8 +2892,121 @@ try {
           && tg.frontWider === (tg.tilt > 0) && tg.keysInside && !tg.scrolls,
         JSON.stringify(tg));
     }
+
+    // Key height handle: sets the keys' top edge; the bottom stays on the screen's bottom.
+    for (const [name, w, h] of [["390x844", 390, 844], ["740x360", 740, 360]]) {
+      await pauseToSheet();
+      await p.evaluate(() => localStorage.removeItem("aplus.keyheight.v1"));
+      await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      await new Promise((r) => setTimeout(r, 300));
+      await p.click("#play-restart");
+      await p.click("#play-toggle");
+      await p.waitForFunction(() => { const s = window.__pfTest.play.state(); return s.playing && s.wait && s.step === 0 && s.beat >= 0; }, { timeout: 8000 });
+      await new Promise((r) => setTimeout(r, 80));
+      const kh = () => p.evaluate(() => {
+        const hd = document.getElementById("key-height"), hr = hd.getBoundingClientRect();
+        const kb = document.getElementById("keyboard"), kbr = kb.getBoundingClientRect();
+        const sc = document.getElementById("kb-scroll"), scr = sc.getBoundingClientRect();
+        const wrap = document.querySelector(".kb-wrap").getBoundingClientRect();
+        const pause = document.getElementById("play-pause");
+        const pr = pause.hidden ? null : pause.getBoundingClientRect();
+        const whites = [...kb.querySelectorAll(".key.white")].map((e) => e.getBoundingClientRect());
+        const notes = [...kb.querySelectorAll(".key")].map((k) => +k.dataset.note);
+        const st = window.__pfTest.play.state(), k = window.__pfTest.play.keyHeight();
+        const cv = document.getElementById("highway"), cr = cv.getBoundingClientRect(), dpr = devicePixelRatio;
+        const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+        const amber = (i) => d[i + 3] > 150 && d[i] > 170 && d[i + 1] > 110 && d[i + 2] < 125;
+        let row = -1;
+        for (let y = cv.height - 1; y >= 0 && row < 0; y--) for (let x = 0; x < cv.width; x++) if (amber((y * cv.width + x) * 4)) { row = y; break; }
+        const se = document.scrollingElement || document.documentElement;
+        const overlap = (a, b) => !!b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        return {
+          role: hd.getAttribute("role"), label: hd.getAttribute("aria-label"), tab: hd.tabIndex,
+          now: +hd.getAttribute("aria-valuenow"), vmin: +hd.getAttribute("aria-valuemin"), vmax: +hd.getAttribute("aria-valuemax"),
+          visible: hr.width > 0 && hr.height > 0, rightEdge: Math.abs(hr.right - wrap.right) <= 2,
+          handleBottom: +hr.bottom.toFixed(1), keysTop: +kbr.top.toFixed(1),
+          onKeys: hr.bottom > kbr.top + 0.5, onPause: overlap(hr, pr),
+          keyH: +k.now.toFixed(1), kmin: +k.min.toFixed(1), kmax: +k.max.toFixed(1),
+          shownH: +(innerHeight - kbr.top).toFixed(1),
+          wrapBottom: +wrap.bottom.toFixed(1), keysBottom: +Math.max(...whites.map((r) => r.bottom)).toFixed(1),
+          innerH: innerHeight,
+          count: notes.length, lo: Math.min(...notes), hi: Math.max(...notes), rangeLow: st.rangeLow, rangeHigh: st.rangeHigh,
+          kbW: Math.round(kbr.width), fillW: Math.round(scr.width - 8), tilt: st.tilt,
+          noteBottom: row < 0 ? null : +(cr.top + (row + 1) / dpr).toFixed(1), playing: st.playing,
+          scrolls: se.scrollHeight > innerHeight || window.scrollY !== 0
+        };
+      });
+      const okLayout = (g) => g.visible && !g.onKeys && !g.onPause && g.rightEdge && g.handleBottom >= g.keysTop - 6
+        && Math.abs(g.shownH - 7 - g.keyH) <= 2
+        && Math.abs(g.wrapBottom - g.innerH) <= 1 && g.keysBottom <= g.innerH && g.keysBottom >= g.innerH - 9
+        && g.lo === g.rangeLow && g.hi === g.rangeHigh && g.count === g.rangeHigh - g.rangeLow + 1
+        && g.kbW >= g.fillW - 1 && g.noteBottom != null && Math.abs(g.noteBottom - g.keysTop) <= 3 && !g.scrolls;
+      const g0 = await kh();
+      check("play: Key height handle at " + name + " is a labelled slider at the right, just above the keys, clear of Pause",
+        g0.role === "slider" && g0.label === "Key height" && g0.tab === 0 && g0.vmin <= g0.now && g0.now <= g0.vmax && okLayout(g0),
+        JSON.stringify(g0));
+      // Drag while playing.
+      const hb = await p.$eval("#key-height", (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      await p.mouse.move(hb.x, hb.y);
+      await p.mouse.down();
+      await p.mouse.move(hb.x, hb.y + 30, { steps: 4 });
+      await p.mouse.up();
+      await new Promise((r) => setTimeout(r, 150));
+      const g1 = await kh();
+      check("play: dragging the Key height handle down at " + name + " lowers the keys' top edge while playing; bottom stays flush, same keys",
+        g1.playing === true && g1.keysTop > g0.keysTop + 20 && (Math.abs(g1.keyH - (g0.keyH - 30)) <= 2 || g1.keyH === g1.kmin) && okLayout(g1),
+        JSON.stringify({ before: g0.keysTop, after: g1, }));
+      // Keyboard control, with a visible focus ring.
+      await p.keyboard.press("Shift");
+      await p.focus("#key-height");
+      const ring = await p.$eval("#key-height", (e) => ({ fv: e.matches(":focus-visible"), outline: getComputedStyle(e).outlineStyle, ow: parseFloat(getComputedStyle(e).outlineWidth) }));
+      await p.keyboard.press("ArrowUp");
+      await p.keyboard.press("ArrowUp");
+      await new Promise((r) => setTimeout(r, 120));
+      const g2 = await kh();
+      await p.keyboard.press("End");
+      await new Promise((r) => setTimeout(r, 120));
+      const gMax = await kh();
+      await p.keyboard.press("Home");
+      await new Promise((r) => setTimeout(r, 120));
+      const gMin = await kh();
+      check("play: Key height handle at " + name + " works with arrow, Home and End keys and shows a focus ring",
+        ring.fv && ring.outline !== "none" && ring.ow >= 2
+          && Math.abs(g2.keyH - Math.min(g2.kmax, g1.keyH + 0.04 * h)) <= 1.5 && g2.keysTop < g1.keysTop
+          && gMax.keyH === gMax.kmax && gMin.keyH === gMin.kmin && gMin.keysTop > gMax.keysTop
+          && okLayout(g2) && okLayout(gMax) && okLayout(gMin),
+        JSON.stringify({ ring, up: g2.keyH, max: [gMax.keyH, gMax.kmax, gMax.tilt], min: [gMin.keyH, gMin.kmin, gMin.tilt] }));
+      // Paused, the handle still works over the sheet.
+      await pauseToSheet();
+      await p.focus("#key-height");
+      await p.keyboard.press("PageUp");
+      await new Promise((r) => setTimeout(r, 120));
+      const gP = await kh();
+      check("play: Key height handle at " + name + " also works while paused",
+        gP.playing === false && gP.keyH > gMin.keyH && gP.keysTop < gMin.keysTop, JSON.stringify({ min: gMin.keyH, paused: gP.keyH }));
+      // Saved per orientation.
+      const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("aplus.keyheight.v1") || "{}"));
+      const p2 = await browser.newPage();
+      p2.on("pageerror", (err) => jsErrors.push(String(err)));
+      await p2.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      await p2.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await p2.waitForFunction(() => window.__pfTest && window.__pfTest.play, { timeout: 8000 });
+      if (!(await p2.evaluate(() => document.body.classList.contains("mode-play")))) await p2.click("#mode-play");
+      await p2.waitForFunction(() => window.__pfTest.play.state().song === "mary-had-a-little-lamb" && window.__pfTest.play.state().rung === "rh"
+        && window.__pfTest.play.keyHeight().now > 0, { timeout: 8000 });
+      await new Promise((r) => setTimeout(r, 200));
+      const k2 = await p2.evaluate(() => window.__pfTest.play.keyHeight());
+      await p2.close();
+      const side = h > w ? "port" : "land", other = h > w ? "land" : "port";
+      check("play: Key height at " + name + " is saved for this orientation and restored on reload",
+        typeof saved[side] === "number" && Math.abs(saved[side] * h - gP.keyH) <= 1 && saved[other] === undefined
+          && Math.abs(k2.now - gP.keyH) <= 1.5 && k2.land === (side === "land"),
+        JSON.stringify({ saved, paused: gP.keyH, reloaded: k2 }));
+    }
+    await p.evaluate(() => localStorage.removeItem("aplus.keyheight.v1"));
     await pauseToSheet();
     await p.setViewport({ width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await new Promise((r) => setTimeout(r, 300));
 
     await p.click("#play-to-test");
     const back = await p.evaluate(() => {

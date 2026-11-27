@@ -497,16 +497,46 @@
     return out;
   }
 
-  // Play key tilt (degrees) that fits keys filling availW into budgetH on screen.
-  // Keys sized to fill the width at the front edge show ratio * availW / count * cos(tilt)
-  // tall (the perspective widening cancels out), so solve for the tilt, up to the max.
-  function playKeyTilt(availW, whiteCount, budgetH) {
-    var full = PLAY_KEY_RATIO * availW / Math.max(1, whiteCount);
-    if (!(full > budgetH)) return 0;
-    var deg = Math.ceil(Math.acos(Math.max(0, budgetH) / full) * 1800 / Math.PI) / 10;
-    return Math.min(PLAY_TILT_MAX_DEG, deg);
+  // Play keys that fill availW and show keyH tall on screen. Keys filling the width
+  // at the front edge show ratio * availW / count * cos(tilt) tall (the perspective
+  // widening cancels out), so solve for the tilt, up to the max; past that, shorten
+  // the keys. Never fewer or more keys, never narrower.
+  function playKeyFit(availW, whiteCount, keyH) {
+    var unit = availW / Math.max(1, whiteCount);
+    var flat = PLAY_KEY_RATIO * unit;
+    if (!(flat > keyH + 0.5)) return { tilt: 0, ratio: PLAY_KEY_RATIO }; // within half a pixel: flat
+    var deg = Math.ceil(Math.acos(Math.max(0, keyH) / flat) * 1800 / Math.PI) / 10;
+    if (deg <= PLAY_TILT_MAX_DEG) return { tilt: deg, ratio: PLAY_KEY_RATIO };
+    return { tilt: PLAY_TILT_MAX_DEG, ratio: keyH / (unit * Math.cos(PLAY_TILT_MAX_DEG * Math.PI / 180)) };
+  }
+  // Key height choices on screen: from a small strip up to flat full-width keys,
+  // never more than PLAY_KEY_MAX of the screen.
+  function playKeyHeightRange(availW, whiteCount, viewH) {
+    var flat = PLAY_KEY_RATIO * availW / Math.max(1, whiteCount);
+    var max = Math.min(flat, viewH * PLAY_KEY_MAX);
+    var min = Math.min(max, Math.max(PLAY_KEY_MIN_PX, viewH * PLAY_KEY_MIN));
+    return { min: min, max: max };
   }
   var playTiltDeg = 0;
+  var playKeyH = { now: 0, min: 0, max: 0, view: 0, land: false };
+  function placeKeyHeightHandle() {
+    var h = document.getElementById("key-height");
+    if (!h) return;
+    var k = playKeyH, pct = function (v) { return Math.round(v / k.view * 100); };
+    var wrap = h.parentElement.getBoundingClientRect();
+    var top = els.keyboard.getBoundingClientRect().top - wrap.top;
+    h.style.top = Math.round(top - h.offsetHeight - 2) + "px";
+    h.setAttribute("aria-valuemin", String(pct(k.min)));
+    h.setAttribute("aria-valuemax", String(pct(k.max)));
+    h.setAttribute("aria-valuenow", String(pct(k.now)));
+    h.setAttribute("aria-valuetext", pct(k.now) + "% of the screen");
+  }
+  function playKeyPref(land) {
+    try {
+      var v = JSON.parse(localStorage.getItem(KEY_HEIGHT_STORE_KEY) || "{}")[land ? "land" : "port"];
+      return typeof v === "number" && v > 0 && v < 1 ? v : null;
+    } catch (e) { return null; }
+  }
 
   function buildKeyboard() {
     var kb = els.keyboard;
@@ -534,25 +564,30 @@
       // Play: fill the width for the song's range with real-looking keys
       // (white key length 4.5x its width, black keys 62% as long), capped so
       // the falling notes always get most of the height.
-      KEY_RATIO = PLAY_KEY_RATIO;
+      // The keys' top edge is where the Key height handle puts it (default:
+      // the height cap); the bottom sits on the screen's bottom edge.
       blackLen = PLAY_BLACK_LEN;
-      maxH = Math.round(window.innerHeight * (landscape ? PLAY_KEY_CAP_LAND : PLAY_KEY_CAP_PORT));
+      var viewH = window.innerHeight;
+      var kr = playKeyHeightRange(scrollW - inset * 2, whiteCount, viewH);
+      var pref = playKeyPref(landscape);
+      var keyH = (pref == null ? (landscape ? PLAY_KEY_CAP_LAND : PLAY_KEY_CAP_PORT) : pref) * viewH;
+      keyH = Math.max(kr.min, Math.min(kr.max, keyH));
+      playKeyH = { now: keyH, min: kr.min, max: kr.max, view: viewH, land: landscape };
+      var fit = playKeyFit(scrollW - inset * 2, whiteCount, keyH);
+      KEY_RATIO = fit.ratio;
+      maxH = Infinity;
     } else if (landscape) {
       maxH = Math.max(90, els.kbScroll.clientHeight || 140);
     } else {
       maxH = Math.max(110, Math.round(window.innerHeight * 0.45));
     }
-    // Play: tilt the keys just enough to fill the width within the height cap.
-    // The top edge (at the hit line) stays put and the front edge comes toward
-    // the player, about tiltK wider, so size the top to fit.
-    var tiltDeg = playMode ? playKeyTilt(scrollW - inset * 2, whiteCount, maxH) : 0;
+    // Play: the top edge (at the hit line) stays put and the front edge comes
+    // toward the player, about tiltK wider, so size the top to fit.
+    var tiltDeg = playMode ? fit.tilt : 0;
     playTiltDeg = tiltDeg;
     var tilt = tiltDeg > 0;
     var tiltK = tilt ? 4 / (4 - Math.sin(tiltDeg * Math.PI / 180)) : 1;
     var whiteW = Math.max(minWhite, (scrollW - inset * 2) / tiltK / whiteCount);
-    // The cap applies to the height on screen; past the max tilt the keyboard
-    // shrinks and centers.
-    if (tilt) maxH = maxH / (Math.cos(tiltDeg * Math.PI / 180) * tiltK);
     var height = whiteW * KEY_RATIO;
     if (height > maxH) {
       // Too tall for the space: shrink the whole keyboard, keeping proportion.
@@ -617,6 +652,7 @@
 
     kb.appendChild(whitesEl);
     kb.appendChild(blacksEl);
+    if (playMode) placeKeyHeightHandle();
     updateRangeLabel();
     refreshKeyLights();
     // Re-apply Wait-mode lights and falling-note columns after any rebuild.
@@ -2201,6 +2237,10 @@
   var PLAY_KEY_CAP_LAND = 0.40;
   var FAR_SCALE = 1;         // highway far end width / near end width (1 = straight lanes)
   var PLAY_TILT_MAX_DEG = 60; // most the Play keys tilt away to fit more on screen
+  var PLAY_KEY_MAX = 0.6;    // Key height handle: highest key top, share of screen height
+  var PLAY_KEY_MIN = 0.1;    // lowest, share of screen height (at least PLAY_KEY_MIN_PX)
+  var PLAY_KEY_MIN_PX = 48;
+  var KEY_HEIGHT_STORE_KEY = "aplus.keyheight.v1";
   var LEAD_IN_BEATS = 3;     // notes fall this long before the first one reaches the keys
   var EARLY_BEATS = 0.25;    // a key pressed this close before its note still counts
   var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
@@ -2222,6 +2262,7 @@
     canvas: document.getElementById("highway"),
     sheet: document.getElementById("play-sheet"),
     pause: document.getElementById("play-pause"),
+    keyHeight: document.getElementById("key-height"),
     midiMsg: document.getElementById("play-midi-msg"),
     midiConnect: document.getElementById("play-midi-connect"),
     toTest: document.getElementById("play-to-test")
@@ -2663,6 +2704,51 @@
   pe.rung.addEventListener("change", function () { selectRung(pe.rung.value); });
   pe.toggle.addEventListener("click", startPlay);
   pe.restart.addEventListener("click", restartPlay);
+  // Key height handle: drag or arrow keys set where the keys' top edge sits.
+  function setKeyHeight(px) {
+    var k = playKeyH;
+    if (!k.view) return;
+    var v = Math.max(k.min, Math.min(k.max, px));
+    try {
+      var all = JSON.parse(localStorage.getItem(KEY_HEIGHT_STORE_KEY) || "{}");
+      all[k.land ? "land" : "port"] = +(v / k.view).toFixed(4);
+      localStorage.setItem(KEY_HEIGHT_STORE_KEY, JSON.stringify(all));
+    } catch (e) {}
+    rebuildKeyboard();
+  }
+  if (pe.keyHeight) {
+    var khDrag = null, khRaf = 0;
+    pe.keyHeight.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      try { pe.keyHeight.setPointerCapture(e.pointerId); } catch (err) {}
+      khDrag = { y: e.clientY, h: playKeyH.now };
+      pe.keyHeight.classList.add("dragging");
+    });
+    pe.keyHeight.addEventListener("pointermove", function (e) {
+      if (!khDrag) return;
+      var want = khDrag.h + (khDrag.y - e.clientY);
+      if (khRaf) cancelAnimationFrame(khRaf);
+      khRaf = requestAnimationFrame(function () { khRaf = 0; setKeyHeight(want); });
+    });
+    var khEnd = function () { khDrag = null; pe.keyHeight.classList.remove("dragging"); };
+    pe.keyHeight.addEventListener("pointerup", khEnd);
+    pe.keyHeight.addEventListener("pointercancel", khEnd);
+    pe.keyHeight.addEventListener("keydown", function (e) {
+      var step = playKeyH.view * 0.02, k = playKeyH, to = null;
+      if (e.key === "ArrowUp" || e.key === "ArrowRight") to = k.now + step;
+      else if (e.key === "ArrowDown" || e.key === "ArrowLeft") to = k.now - step;
+      else if (e.key === "PageUp") to = k.now + step * 5;
+      else if (e.key === "PageDown") to = k.now - step * 5;
+      else if (e.key === "Home") to = k.min;
+      else if (e.key === "End") to = k.max;
+      if (to == null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setKeyHeight(to);
+    });
+  }
+
   pe.pause.addEventListener("click", function () {
     if (play.playing) pausePlay();
     else setPlaySheet(true);
@@ -2707,6 +2793,7 @@
       el = nodes[i];
       if (!el.disabled && el.offsetParent !== null) list.push(el);
     }
+    if (pe.keyHeight && pe.keyHeight.offsetParent !== null) list.push(pe.keyHeight);
     if (!list.length) return;
     var idx = list.indexOf(document.activeElement);
     if (e.shiftKey && (idx <= 0)) { e.preventDefault(); focusEl(list[list.length - 1]); }
@@ -2801,7 +2888,9 @@
           sheetOpen: !!(pe.sheet && !pe.sheet.hidden) };
       },
       parse: function (buf) { return parseMidi(buf); },
-      tiltFor: function (w, n, h) { return playKeyTilt(w, n, h); },
+      keyFit: function (w, n, h) { return playKeyFit(w, n, h); },
+      keyRange: function (w, n, v) { return playKeyHeightRange(w, n, v); },
+      keyHeight: function () { return { now: playKeyH.now, min: playKeyH.min, max: playKeyH.max, land: playKeyH.land }; },
       drawMs: function (n) {
         n = n || 60;
         var t = performance.now();
