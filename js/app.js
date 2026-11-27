@@ -531,7 +531,11 @@
     } else {
       maxH = Math.max(110, Math.round(window.innerHeight * 0.45));
     }
-    var whiteW = Math.max(minWhite, (scrollW - inset * 2) / whiteCount);
+    // Tilted keys: the top edge (at the hit line) stays put and the front edge
+    // comes toward the player, about tiltK wider, so size the top to fit.
+    var tilt = playMode && KEY_TILT_DEG > 0;
+    var tiltK = tilt ? 4 / (4 - Math.sin(KEY_TILT_DEG * Math.PI / 180)) : 1;
+    var whiteW = Math.max(minWhite, (scrollW - inset * 2) / tiltK / whiteCount);
     var height = whiteW * KEY_RATIO;
     if (height > maxH) {
       // Too tall for the space: shrink the whole keyboard, keeping proportion.
@@ -544,6 +548,9 @@
     kb.style.width = width + "px";
     kb.style.height = Math.round(height) + "px";
     kb.style.margin = "0 auto";
+    kb.classList.toggle("kb-tilt", tilt);
+    kb.style.transformOrigin = tilt ? "50% 0" : "";
+    kb.style.transform = tilt ? "perspective(" + Math.round(height * 4) + "px) rotateX(" + KEY_TILT_DEG + "deg)" : "";
     kb.style.setProperty("--black-len", (blackLen * 100).toFixed(2) + "%");
     // Corner rounding scales with key width (a real key is only slightly rounded).
     kb.style.setProperty("--wr", Math.min(4, Math.max(1, whiteW * 0.08)).toFixed(1) + "px");
@@ -2172,7 +2179,8 @@
   var PLAY_BLACK_LEN = 0.62; // black key length / white key length
   var PLAY_KEY_CAP_PORT = 0.33; // key height cap, share of viewport height
   var PLAY_KEY_CAP_LAND = 0.40;
-  var FAR_SCALE = 0.45;      // highway far end width / near end width
+  var FAR_SCALE = 0.45;      // highway far end width / near end width (1 = flat lanes)
+  var KEY_TILT_DEG = 0;      // Play keys tilted away from the player (0 = flat, shading only)
   var LEAD_IN_BEATS = 3;     // notes fall this long before the first one reaches the keys
   var EARLY_BEATS = 0.25;    // a key pressed this close before its note still counts
   var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
@@ -2488,6 +2496,12 @@
     return 1 / (1 + z);
   }
 
+  // Height above the hit line for a note d beats ahead (straight down when flat).
+  function depthY(d, H) {
+    if (FAR_SCALE >= 1) return H * (1 - Math.max(0, Math.min(LOOKAHEAD_BEATS, d)) / LOOKAHEAD_BEATS);
+    return H * (depthScale(d) - FAR_SCALE) / (1 - FAR_SCALE);
+  }
+
   function quadPath(g, xl0, xr0, yb, xl1, xr1, yt, rad) {
     g.beginPath();
     g.moveTo((xl0 + xr0) / 2, yb);
@@ -2514,17 +2528,17 @@
     // Key columns from the live keyboard, so notes land on the keys after any scroll or resize.
     var cols = {}, edges = [];
     var keys = els.keyboard.querySelectorAll(".key");
+    // Layout offsets give the keys' top edge even when the keys are tilted.
+    var sr = els.kbScroll.getBoundingClientRect();
+    var kbX = sr.left - r.left + els.keyboard.offsetLeft - els.kbScroll.scrollLeft;
     for (var i = 0; i < keys.length; i++) {
-      var kr = keys[i].getBoundingClientRect();
       var black = keys[i].classList.contains("black");
-      cols[keys[i].dataset.note] = { x: kr.left - r.left, w: kr.width, black: black };
-      if (!black) edges.push(kr.left - r.left);
+      var kx = kbX + keys[i].offsetLeft;
+      cols[keys[i].dataset.note] = { x: kx, w: keys[i].offsetWidth, black: black };
+      if (!black) edges.push(kx);
     }
-    var kbr = els.keyboard.getBoundingClientRect();
-    var nearL = Math.max(0, kbr.left - r.left), nearR = Math.min(r.width, kbr.right - r.left);
+    var nearL = Math.max(0, kbX), nearR = Math.min(r.width, kbX + els.keyboard.offsetWidth);
     var cx = (nearL + nearR) / 2;
-    var horizon = -FAR_SCALE * H / (1 - FAR_SCALE);
-    function yAt(s) { return horizon + (H - horizon) * s; }
     function xAt(x, s) { return cx + (x - cx) * s; }
 
     if (nearR > nearL) {
@@ -2535,19 +2549,19 @@
       g.fillStyle = board;
       g.beginPath();
       g.moveTo(nearL, H); g.lineTo(nearR, H);
-      g.lineTo(xAt(nearR, FAR_SCALE), 0); g.lineTo(xAt(nearL, FAR_SCALE), 0);
+      g.lineTo(xAt(nearR, Math.min(1, FAR_SCALE)), 0); g.lineTo(xAt(nearL, Math.min(1, FAR_SCALE)), 0);
       g.closePath(); g.fill();
       g.lineWidth = 1;
       g.strokeStyle = "rgba(244, 238, 228, 0.06)";
       g.beginPath();
       for (var e = 1; e < edges.length; e++) {
-        g.moveTo(edges[e], H); g.lineTo(xAt(edges[e], FAR_SCALE), 0);
+        g.moveTo(edges[e], H); g.lineTo(xAt(edges[e], Math.min(1, FAR_SCALE)), 0);
       }
       g.stroke();
       g.strokeStyle = "rgba(244, 238, 228, 0.16)";
       g.beginPath();
-      g.moveTo(nearL, H); g.lineTo(xAt(nearL, FAR_SCALE), 0);
-      g.moveTo(nearR, H); g.lineTo(xAt(nearR, FAR_SCALE), 0);
+      g.moveTo(nearL, H); g.lineTo(xAt(nearL, Math.min(1, FAR_SCALE)), 0);
+      g.moveTo(nearR, H); g.lineTo(xAt(nearR, Math.min(1, FAR_SCALE)), 0);
       g.stroke();
     }
     if (play.midi) {
@@ -2555,7 +2569,7 @@
       g.lineWidth = 1;
       g.beginPath();
       for (var bar = Math.ceil(play.beat / play.midi.beatsPerBar) * play.midi.beatsPerBar; bar <= play.beat + LOOKAHEAD_BEATS; bar += play.midi.beatsPerBar) {
-        var bs = depthScale(bar - play.beat), by = Math.round(yAt(bs)) + 0.5;
+        var bs = depthScale(bar - play.beat), by = Math.round(depthY(bar - play.beat, H)) + 0.5;
         g.moveTo(xAt(nearL, bs), by); g.lineTo(xAt(nearR, bs), by);
       }
       g.stroke();
@@ -2566,7 +2580,7 @@
         var d0 = n.start - play.beat, d1 = n.end - play.beat;
         if (!c || d1 < 0 || d0 > LOOKAHEAD_BEATS) return;
         var s0 = depthScale(d0), s1 = depthScale(d1);
-        var yb = yAt(s0) - 0.5, yt = yAt(s1) + 1;
+        var yb = depthY(d0, H) - 0.5, yt = depthY(d1, H) + 1;
         if (yb - yt <= 1) return;
         var done = n.end <= play.beat;
         var isNext = cur && Math.abs(n.start - cur.beat) < 1e-6 && !play.hit[n.note];
