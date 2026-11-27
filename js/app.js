@@ -536,6 +536,8 @@
     var tilt = playMode && KEY_TILT_DEG > 0;
     var tiltK = tilt ? 4 / (4 - Math.sin(KEY_TILT_DEG * Math.PI / 180)) : 1;
     var whiteW = Math.max(minWhite, (scrollW - inset * 2) / tiltK / whiteCount);
+    // The cap applies to the height on screen, which the tilt stretches slightly.
+    if (tilt) maxH = maxH / (Math.cos(KEY_TILT_DEG * Math.PI / 180) * tiltK);
     var height = whiteW * KEY_RATIO;
     if (height > maxH) {
       // Too tall for the space: shrink the whole keyboard, keeping proportion.
@@ -2179,12 +2181,8 @@
   var PLAY_BLACK_LEN = 0.62; // black key length / white key length
   var PLAY_KEY_CAP_PORT = 0.33; // key height cap, share of viewport height
   var PLAY_KEY_CAP_LAND = 0.40;
-  var FAR_SCALE = 0.45;      // highway far end width / near end width (1 = flat lanes)
-  var KEY_TILT_DEG = 0;      // Play keys tilted away from the player (0 = flat, shading only)
-  // 3D styles in the Play menu: [FAR_SCALE, KEY_TILT_DEG].
-  var PLAY_STYLES = { classic: [0.45, 0], a: [0.75, 24], b: [1, 24] };
-  var STYLE_STORE_KEY = "aplus.play3d.v1";
-  var playStyle = "classic";
+  var FAR_SCALE = 1;         // highway far end width / near end width (1 = straight lanes)
+  var KEY_TILT_DEG = 24;     // Play keys tilted away from the player
   var LEAD_IN_BEATS = 3;     // notes fall this long before the first one reaches the keys
   var EARLY_BEATS = 0.25;    // a key pressed this close before its note still counts
   var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
@@ -2669,20 +2667,6 @@
   syncPlayMidi();
   pe.wait.addEventListener("change", function () { play.wait = pe.wait.checked; play.hit = {}; stopPlayback(); });
 
-  function setPlayStyle(id, remember) {
-    if (!PLAY_STYLES[id]) id = "classic";
-    playStyle = id;
-    FAR_SCALE = PLAY_STYLES[id][0];
-    KEY_TILT_DEG = PLAY_STYLES[id][1];
-    var radios = document.querySelectorAll('input[name="play-style"]');
-    for (var i = 0; i < radios.length; i++) radios[i].checked = radios[i].value === id;
-    if (remember) { try { localStorage.setItem(STYLE_STORE_KEY, id); } catch (e) {} }
-    if (document.body.classList.contains("mode-play")) rebuildKeyboard();
-  }
-  document.getElementById("play-style").addEventListener("change", function (e) {
-    if (e.target && e.target.name === "play-style") setPlayStyle(e.target.value, true);
-  });
-  try { setPlayStyle(localStorage.getItem(STYLE_STORE_KEY), false); } catch (e) { setPlayStyle("classic", false); }
   pe.tempo.addEventListener("input", function () {
     play.rate = parseInt(pe.tempo.value, 10) / 100;
     pe.tempoOut.textContent = pe.tempo.value + "%";
@@ -2795,7 +2779,7 @@
           stepNotes: play.steps.map(function (s) { return s.notes; }),
           lit: Array.prototype.map.call(els.keyboard.querySelectorAll(".key.next"), function (k) { return +k.dataset.note; }),
           rangeLow: play.rangeLow, rangeHigh: play.rangeHigh,
-          style: playStyle, farScale: FAR_SCALE, tilt: KEY_TILT_DEG,
+          farScale: FAR_SCALE, tilt: KEY_TILT_DEG,
           sheetOpen: !!(pe.sheet && !pe.sheet.hidden) };
       },
       parse: function (buf) { return parseMidi(buf); },
