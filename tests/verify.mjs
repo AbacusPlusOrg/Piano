@@ -250,6 +250,28 @@ try {
       && landSound.kbTop > landSound.statusTop,
     JSON.stringify(landSound));
 
+  const soundLevels = await page.evaluate(async () => {
+    const out = {};
+    for (const id of ["small-speaker", "full-range"]) {
+      out[id] = await window.__pfTest.sound.analyze(id);
+    }
+    return out;
+  });
+  console.log("SOUND LEVELS " + JSON.stringify(soundLevels));
+  function profileEven(id) {
+    const r = soundLevels[id];
+    return r && r.even === true && r.spreadDb <= 3.1
+      && r.notes.C3 && r.notes.C4 && r.notes.C5
+      && r.notes.C3.clipped !== true && r.notes.C4.clipped !== true && r.notes.C5.clipped !== true
+      && r.chord && r.chord.clipped !== true;
+  }
+  check("small-speaker profile keeps C3–C5 within 3 dB and a 6-note chord does not clip",
+    profileEven("small-speaker"),
+    JSON.stringify(soundLevels["small-speaker"]));
+  check("full-range profile keeps C3–C5 within 3 dB and a 6-note chord does not clip",
+    profileEven("full-range"),
+    JSON.stringify(soundLevels["full-range"]));
+
   const statusText = await page.evaluate(() => document.querySelector("#status .msg").innerText);
   console.log("STATUS  " + statusText.replace(/\s+/g, " "));
   check("status mentions connect or MIDI", /midi|connect|allow|device|permission/i.test(statusText), statusText.slice(0, 180));
@@ -1738,7 +1760,10 @@ try {
       && /Miditech/.test(dbg.hashed.text)
       && /Outputs \(1\)/.test(dbg.hashed.report)
       && /^Connection$/m.test(dbg.hashed.report)
-      && /^Browser$/m.test(dbg.hashed.report),
+      && /^Browser$/m.test(dbg.hashed.report)
+      && /Sound profile:/.test(dbg.hashed.report)
+      && /Sound profile/i.test(dbg.hashed.text)
+      && /Small speaker|Full range/.test(dbg.hashed.report),
     JSON.stringify({ pane: dbg.hashed.pane, text: dbg.hashed.text.slice(0, 240), report: (dbg.hashed.report || "").split("\\n").slice(0, 16) }));
   check("troubleshooting Copy report includes the inputs count",
     typeof dbg.copied === "string" && /Inputs \(0\)/.test(dbg.copied)
@@ -1747,7 +1772,8 @@ try {
       && /^Connection$/m.test(dbg.copied)
       && /^Browser$/m.test(dbg.copied)
       && /Web MIDI support:/.test(dbg.copied)
-      && /Permission:/.test(dbg.copied),
+      && /Permission:/.test(dbg.copied)
+      && /Sound profile: (Small speaker|Full range)\./.test(dbg.copied),
     (dbg.copied || "").slice(0, 400));
   check("troubleshooting panel updates when a statechange adds an input",
     /Inputs \(0\)/.test(dbg.emptyOpen.report)

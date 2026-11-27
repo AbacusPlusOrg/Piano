@@ -30,6 +30,24 @@
   var PANE_STORE_KEY = "aplus.pane.v1";
   var SOUND_STORE_KEY = "aplus.sound.v1";
   var DEFAULT_SOUND_VOLUME = 0.7;
+  var SOUND_PROFILES = {
+    "small-speaker": {
+      label: "Small speaker",
+      boostDb: 6, boostEnd: 72, shelfHz: 200,
+      harmonics: [0.3, 0.18, 0.1],
+      highpassHz: 120,
+      compressor: { threshold: -18, knee: 12, ratio: 2.4, attack: 0.004, release: 0.16 },
+      peak: 0.12
+    },
+    "full-range": {
+      label: "Full range",
+      boostDb: 2, boostEnd: 84, shelfHz: 180,
+      harmonics: [0.16, 0, 0],
+      highpassHz: 0,
+      compressor: { threshold: -24, knee: 16, ratio: 1.8, attack: 0.008, release: 0.2 },
+      peak: 0.15
+    }
+  };
   var PANE_IDS = ["stats", "log", "help"];
   var MAX_LOG = 50;
   var LATENCY_SAMPLES = 40;
@@ -1583,6 +1601,8 @@
   var audio = {
     ctx: null,
     master: null,
+    chain: null,
+    profile: "full-range",
     enabled: false,
     volume: DEFAULT_SOUND_VOLUME,
     voices: {},
@@ -1611,8 +1631,87 @@
     return 440 * Math.pow(2, (n - 69) / 12);
   }
 
+  function soundProfile(id) {
+    return SOUND_PROFILES[id || audio.profile] || SOUND_PROFILES["full-range"];
+  }
+
+  function detectSoundProfileId() {
+    var coarse = false;
+    try {
+      coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    } catch (e) {}
+    var w = (window.screen && screen.width) || window.innerWidth || 0;
+    var h = (window.screen && screen.height) || window.innerHeight || 0;
+    var shortEdge = Math.min(w, h);
+    var longEdge = Math.max(w, h);
+    var small = shortEdge <= 600 || (shortEdge <= 1024 && longEdge <= 1366 && longEdge / shortEdge <= 1.45);
+    return (coarse || small) ? "small-speaker" : "full-range";
+  }
+
+  // Taper low-note colour to 0 between C3 and boostEnd so mid/high notes stay even.
+  function fadeLow(note, end) {
+    if (note >= end) return 0;
+    if (note <= 48) return 1;
+    var t = (note - 48) / (end - 48);
+    return 1 - t * t * (3 - 2 * t);
+  }
+
+  function mixNorm(note, profile) {
+    var ref = 0.72 * 0.72 + 0.58 * 0.58;
+    var power = ref;
+    var fade = fadeLow(note, profile.boostEnd);
+    var i;
+    for (i = 0; i < 3; i++) {
+      var a = (profile.harmonics[i] || 0) * fade;
+      power += a * a;
+    }
+    return Math.sqrt(ref / Math.max(power, 1e-6));
+  }
+
+  function setChainParams(chain, profile, volume) {
+    if (!chain) return;
+    chain.highpass.frequency.value = profile.highpassHz || 20;
+    var c = profile.compressor;
+    chain.compressor.threshold.value = c.threshold;
+    chain.compressor.knee.value = c.knee;
+    chain.compressor.ratio.value = c.ratio;
+    chain.compressor.attack.value = c.attack;
+    chain.compressor.release.value = c.release;
+    chain.master.gain.value = volume;
+  }
+
+  function buildMasterChain(ctx, profile, dest, volume) {
+    var input = ctx.createGain();
+    var highpass = ctx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.Q.value = 0.7;
+    var compressor = ctx.createDynamicsCompressor();
+    var master = ctx.createGain();
+    input.connect(highpass);
+    highpass.connect(compressor);
+    compressor.connect(master);
+    master.connect(dest);
+    var chain = { input: input, highpass: highpass, compressor: compressor, master: master };
+    setChainParams(chain, profile, volume);
+    return chain;
+  }
+
+  function applySoundProfile(id) {
+    audio.profile = SOUND_PROFILES[id] ? id : detectSoundProfileId();
+    setChainParams(audio.chain, soundProfile(), audio.volume);
+    return audio.profile;
+  }
+
+  function refreshSoundProfile() {
+    var prev = audio.profile;
+    applySoundProfile(detectSoundProfileId());
+    if (audio.profile !== prev && debugState.open) renderDebug();
+    return audio.profile;
+  }
+
   function ensureAudio() {
     if (!audio.supported) return null;
+    applySoundProfile();
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!audio.ctx) {
       try {
@@ -1621,13 +1720,20 @@
         try { audio.ctx = new AC(); } catch (e2) { return null; }
       }
       try {
-        audio.master = audio.ctx.createGain();
-        audio.master.gain.value = audio.volume;
-        audio.master.connect(audio.ctx.destination);
+        audio.chain = buildMasterChain(audio.ctx, soundProfile(), audio.ctx.destination, audio.volume);
+        audio.master = audio.chain.master;
       } catch (e) {
         audio.ctx = null;
         audio.master = null;
+        audio.chain = null;
         return null;
+      }
+    } else if (!audio.chain) {
+      try {
+        audio.chain = buildMasterChain(audio.ctx, soundProfile(), audio.ctx.destination, audio.volume);
+        audio.master = audio.chain.master;
+      } catch (e) {
+        return audio.ctx;
       }
     }
     if (audio.ctx.state === "suspended") {
@@ -1661,6 +1767,7 @@
         oscs.forEach(function (o) { try { o.stop(); } catch (e) {} });
         if (gain) try { gain.disconnect(); } catch (e) {}
         if (voice.filter) try { voice.filter.disconnect(); } catch (e) {}
+        if (voice.shelf) try { voice.shelf.disconnect(); } catch (e) {}
         return;
       }
       var t = ctx.currentTime;
@@ -1674,6 +1781,7 @@
       setTimeout(function () {
         try { gain.disconnect(); } catch (e) {}
         try { if (voice.filter) voice.filter.disconnect(); } catch (e) {}
+        try { if (voice.shelf) voice.shelf.disconnect(); } catch (e) {}
       }, 280);
     } catch (e) {
       oscs.forEach(function (o) { try { o.stop(); } catch (err) {} });
@@ -1688,14 +1796,7 @@
     }
   }
 
-  function startVoice(note, vel) {
-    if (!audio.enabled) return;
-    var ctx = ensureAudio();
-    if (!ctx || ctx.state === "closed") return;
-    // A stored "on" preference still needs a user gesture to resume.
-    if (ctx.state !== "running") return;
-    stopVoice(note, true);
-    var t = ctx.currentTime;
+  function startVoiceOn(ctx, dest, note, vel, t, profile, track) {
     var v = Math.max(0.06, Math.min(1, (vel || 0) / 127));
     var freq = midiToFreq(note);
     var filter = ctx.createBiquadFilter();
@@ -1704,17 +1805,30 @@
     filter.frequency.setValueAtTime(cutoff, t);
     try { filter.frequency.exponentialRampToValueAtTime(Math.max(400, cutoff * 0.42), t + 0.4); } catch (e) {}
     filter.Q.value = 0.85;
+    var boostDb = profile.boostDb * fadeLow(note, profile.boostEnd);
+    var shelf = null;
+    var tail = filter;
+    if (boostDb) {
+      shelf = ctx.createBiquadFilter();
+      shelf.type = "lowshelf";
+      shelf.frequency.value = profile.shelfHz;
+      shelf.gain.value = boostDb;
+      filter.connect(shelf);
+      tail = shelf;
+    }
+    var peak = profile.peak * v * mixNorm(note, profile) * Math.pow(10, -boostDb / 20);
     var gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.24 * v, t + 0.008);
+    gain.gain.linearRampToValueAtTime(peak, t + 0.008);
     try {
-      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.16 * v), t + 0.06);
-      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.07 * v), t + 1.6);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, peak * 0.67), t + 0.06);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, peak * 0.3), t + 1.6);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 7.5);
     } catch (e) {}
-    filter.connect(gain);
-    gain.connect(audio.master);
+    tail.connect(gain);
+    gain.connect(dest);
     function makeOsc(type, detune, level, mul) {
+      if (!level) return null;
       var o = ctx.createOscillator();
       var g = ctx.createGain();
       o.type = type;
@@ -1726,12 +1840,31 @@
       o.start(t);
       return o;
     }
-    var oscs = [
-      makeOsc("triangle", -7, 0.72, 1),
-      makeOsc("triangle", 6, 0.58, 1),
-      makeOsc("sine", 0, 0.16, 2)
-    ];
-    audio.voices[note] = { oscs: oscs, gain: gain, filter: filter };
+    var oscs = [];
+    var o = makeOsc("triangle", -7, 0.72, 1);
+    if (o) oscs.push(o);
+    o = makeOsc("triangle", 6, 0.58, 1);
+    if (o) oscs.push(o);
+    var fade = fadeLow(note, profile.boostEnd);
+    var h;
+    for (h = 0; h < 3; h++) {
+      o = makeOsc("sine", 0, (profile.harmonics[h] || 0) * fade, h + 2);
+      if (o) oscs.push(o);
+    }
+    var voice = { oscs: oscs, gain: gain, filter: filter, shelf: shelf };
+    if (track) audio.voices[note] = voice;
+    return voice;
+  }
+
+  function startVoice(note, vel) {
+    if (!audio.enabled) return;
+    var ctx = ensureAudio();
+    if (!ctx || ctx.state === "closed") return;
+    // A stored "on" preference still needs a user gesture to resume.
+    if (ctx.state !== "running") return;
+    if (!audio.chain) return;
+    stopVoice(note, true);
+    startVoiceOn(ctx, audio.chain.input, note, vel, ctx.currentTime, soundProfile(), true);
   }
 
   function soundNoteOn(note, vel) {
@@ -1795,6 +1928,52 @@
     ensureAudio();
   }
 
+  function analyzeSoundProfile(profileId) {
+    var id = SOUND_PROFILES[profileId] ? profileId : detectSoundProfileId();
+    var profile = soundProfile(id);
+    var Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!Offline) return Promise.reject(new Error("OfflineAudioContext is not available."));
+    var sr = 44100, dur = 1, notes = [48, 60, 72], names = ["C3", "C4", "C5"];
+    function stats(buffer, t0, t1) {
+      var data = buffer.getChannelData(0);
+      var start = Math.max(0, Math.floor(t0 * sr));
+      var end = Math.min(data.length, Math.floor(t1 * sr));
+      var sum = 0, peak = 0, i;
+      for (i = start; i < end; i++) {
+        var a = data[i] < 0 ? -data[i] : data[i];
+        if (a > peak) peak = a;
+        sum += data[i] * data[i];
+      }
+      var n = end - start;
+      return { rms: n > 0 ? Math.sqrt(sum / n) : 0, peak: peak, clipped: peak >= 0.999 };
+    }
+    function render(noteList, velocity) {
+      var ctx = new Offline(1, Math.ceil(sr * dur), sr);
+      var chain = buildMasterChain(ctx, profile, ctx.destination, 1);
+      var i;
+      for (i = 0; i < noteList.length; i++) {
+        startVoiceOn(ctx, chain.input, noteList[i], velocity, 0, profile, false);
+      }
+      return ctx.startRendering().then(function (buffer) {
+        var mid = stats(buffer, 0.08, 0.88);
+        var all = stats(buffer, 0, dur);
+        return { rms: mid.rms, peak: all.peak, clipped: all.clipped };
+      });
+    }
+    return Promise.all(notes.map(function (n) { return render([n], 100); })).then(function (parts) {
+      return render([48, 52, 55, 60, 64, 67], 127).then(function (chord) {
+        var levels = {}, min = Infinity, max = 0, i;
+        for (i = 0; i < notes.length; i++) {
+          levels[names[i]] = { midi: notes[i], rms: parts[i].rms, peak: parts[i].peak, clipped: parts[i].clipped };
+          if (parts[i].rms > 0 && parts[i].rms < min) min = parts[i].rms;
+          if (parts[i].rms > max) max = parts[i].rms;
+        }
+        var spread = (min > 0 && max > 0) ? 20 * Math.log10(max / min) : Infinity;
+        return { profile: id, label: profile.label, notes: levels, spreadDb: spread, even: spread <= 3.1, chord: chord };
+      });
+    });
+  }
+
   function onSoundToggle(e) {
     if (e) {
       e.preventDefault();
@@ -1804,7 +1983,9 @@
   }
 
   loadSoundPref();
+  audio.profile = detectSoundProfileId();
   syncSoundUI();
+  window.addEventListener("resize", refreshSoundProfile);
   if (els.btnSound) {
     els.btnSound.addEventListener("click", onSoundToggle);
     els.btnSound.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
@@ -1961,7 +2142,8 @@
       voices: function () { return Object.keys(audio.voices).length; },
       supported: function () { return audio.supported; },
       setEnabled: function (on) { setSoundEnabled(!!on); },
-      setVolume: function (v) { setSoundVolume(v); }
+      setVolume: function (v) { setSoundVolume(v); },
+      analyze: function (id) { return analyzeSoundProfile(id); }
     },
     debug: {
       open: function () { openDebug(); },
@@ -2145,6 +2327,7 @@
       lastPollResult: debugState.lastPollResult,
       pageHidden: !!document.hidden,
       lastReturnAt: debugState.lastReturnAt,
+      soundProfile: audio.profile,
       events: debugState.events.slice()
     };
   }
@@ -2286,6 +2469,7 @@
     lines.push("  Secure context: " + (snap.secure ? "yes" : "no"));
     lines.push("  Page: " + describePage(snap));
     lines.push("  Browser: " + snap.browser);
+    lines.push("  Sound profile: " + soundProfile(snap.soundProfile).label + ".");
     lines.push("  User agent: " + (snap.userAgent || "—"));
     lines.push("");
     lines.push("Event log");
@@ -2323,6 +2507,7 @@
       gridRow("Secure context", snap.secure ? "Yes." : "No.") +
       gridRow("Page", describePage(snap)) +
       gridRow("Browser", snap.browser + ".") +
+      gridRow("Sound profile", soundProfile(snap.soundProfile).label + ".") +
       gridRow("User agent", snap.userAgent || "—", "debug-ua") +
       "</div>";
     var events = ev
