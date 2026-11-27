@@ -1734,6 +1734,15 @@ try {
     await pLink.evaluate(() => document.getElementById("tab-help").click());
     await new Promise((r) => setTimeout(r, 50));
     const opened = await panelInfo(pLink);
+    // Phone portrait (the browser's default viewport is 412×915, touch): the report must scroll inside the pane.
+    const helpScroll = await pLink.evaluate(() => {
+      const el = document.getElementById("debug-body");
+      const start = el.scrollTop;
+      el.scrollTop = start + Math.min(80, Math.max(1, el.scrollHeight - el.clientHeight));
+      const after = el.scrollTop;
+      el.scrollTop = start;
+      return { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, start, after };
+    });
     await pLink.evaluate(() => document.getElementById("tab-log").click());
     await new Promise((r) => setTimeout(r, 50));
     const onLog = await panelInfo(pLink);
@@ -1773,7 +1782,7 @@ try {
     const afterChange = await panelInfo(pLive);
     await pLive.close();
 
-    return { before, opened, onLog, afterArrow, hashed, emptyOpen, copied, afterChange };
+    return { before, opened, onLog, afterArrow, hashed, emptyOpen, copied, afterChange, helpScroll };
   }
   const dbg = await loadDebug();
   console.log("DEBUG", JSON.stringify({
@@ -1849,6 +1858,10 @@ try {
       && /Devices/i.test(dbg.opened.text) && /Browser sees no MIDI keyboard/i.test(dbg.opened.text)
       && dbg.afterArrow.pane === "help" && dbg.afterArrow.selected === "Help",
     JSON.stringify({ before: { statusTop: dbg.before.statusTop, statusH: dbg.before.statusH, kbTop: dbg.before.kbTop, switchTop: dbg.before.switchTop, stageH: dbg.before.stageH }, opened: { statusTop: dbg.opened.statusTop, kbTop: dbg.opened.kbTop, switchTop: dbg.opened.switchTop, stageH: dbg.opened.stageH, panelTop: dbg.opened.panelTop }, onLog: { statusTop: dbg.onLog.statusTop, switchTop: dbg.onLog.switchTop, stageH: dbg.onLog.stageH }, afterArrow: { pane: dbg.afterArrow.pane } }));
+
+  check("Help report scrolls on a phone",
+    dbg.helpScroll.scrollHeight > dbg.helpScroll.clientHeight && dbg.helpScroll.after > dbg.helpScroll.start,
+    JSON.stringify(dbg.helpScroll));
 
   // The range card (everything below the status box) must not shift as states change.
   const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
