@@ -2489,8 +2489,8 @@ try {
         rightAligned: Math.abs(last.right - sr.right) <= 1,
         oneRow: labels.every((l) => Math.abs(mid(l.getBoundingClientRect()) - mid(last)) <= 1) && lr.bottom <= last.top };
     });
-    check("play: Keys choice is a labelled group of five options in one row under the label, aligned with the sheet, Octave by default",
-      keysRow.legend === "Keys" && keysRow.values.join(",") === "octave,coctave,tight,plus,groups"
+    check("play: Display choice is a labelled group of five options in one row under the label, aligned with the sheet, Octave by default",
+      keysRow.legend === "Display" && keysRow.values.join(",") === "octave,coctave,tight,plus,groups"
         && keysRow.names.join(",") === "Octave,C octave,Tight,Plus one,Groups" && keysRow.checked.join(",") === "octave"
         && keysRow.sameName && keysRow.leftAligned && keysRow.rightAligned && keysRow.oneRow,
       JSON.stringify(keysRow));
