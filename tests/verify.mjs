@@ -2504,17 +2504,19 @@ try {
         twoKeys: all(64, 65),       // E4-F4
         wide: all(59, 72),          // B3-C5
         bassFull: all(48, 69),      // C3-A4
+        edges: ["octave", "coctave", "tight", "plus", "groups"].map((m) => window.__pfTest.play.keysRange(60, 67, m).edges).join(","),
         cOct: f(60, 60, "coctave") + " " + f(60, 72, "coctave") + " " + f(59, 73, "coctave") // single C, exact C-C, past both Cs
       };
     });
-    check("play: Keys ranges: C octave runs C to C (both included, at least an octave), tight covers the notes, plus one adds a white key past each end, groups take whole C-E / F-B groups",
+    check("play: Keys ranges: C octave runs C to C (both included, at least an octave) with no half key past the top C, tight covers the notes, plus one adds a white key past each end, groups take whole C-E / F-B groups",
       keysUnit.maryRh === "57-71 60-72 60-67 59-69 60-71"
         && keysUnit.blackEnds === "57-71 60-72 60-67 59-69 60-71"
         && keysUnit.blackEnds2 === "60-74 60-72 62-71 60-72 60-71"
         && keysUnit.twoKeys === "59-71 60-72 64-65 62-67 60-71"
         && keysUnit.wide === "59-72 48-72 59-72 57-74 53-76"
         && keysUnit.bassFull === "48-69 48-72 48-69 47-71 48-71"
-        && keysUnit.cOct === "60-72 60-72 48-84",
+        && keysUnit.cOct === "60-72 60-72 48-84"
+        && keysUnit.edges === "false,false,true,true,false",
       JSON.stringify(keysUnit));
     check("play: tempo slider has a visible Tempo label on its row, aligned with the sheet, and keeps the % readout",
       tempoLabel.text === "Tempo" && tempoLabel.forId === "play-tempo" && tempoLabel.visible && tempoLabel.sameRow
@@ -2941,7 +2943,7 @@ try {
     await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
 
     // Keys choice on Mary RH (C4-G4): each mode's range, edge silhouettes, full width, key height and saving.
-    for (const [mode, lo, hi, silL, silR] of [["tight", 60, 67, null, 68], ["plus", 59, 69, 58, 70], ["groups", 60, 71, null, null], ["octave", 57, 71, null, null], ["coctave", 60, 72, null, 73]]) {
+    for (const [mode, lo, hi, silL, silR] of [["tight", 60, 67, null, 68], ["plus", 59, 69, 58, 70], ["groups", 60, 71, null, null], ["octave", 57, 71, null, null], ["coctave", 60, 72, null, null]]) {
       await pauseToSheet();
       await p.click('#play-keys input[value="' + mode + '"]');
       await p.waitForFunction((lo, hi) => {

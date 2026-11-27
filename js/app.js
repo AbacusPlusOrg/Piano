@@ -649,9 +649,9 @@
       bindKey(b, n);
       blacksEl.appendChild(b);
     }
-    // Play, C octave, Tight and Plus one: a black key just outside either end shows as a half silhouette (not a key).
+    // Play, Tight and Plus one: a black key just outside either end shows as a half silhouette (not a key).
     var keysM = playMode ? playKeysMode() : "";
-    if (keysM === "coctave" || keysM === "tight" || keysM === "plus") {
+    if (playKeyEdges(keysM)) {
       [[range.low - 1, 0, "left"], [range.high + 1, width - blackW / 2, "right"]].forEach(function (e) {
         if (e[0] < 0 || e[0] > 127 || !isBlack(e[0])) return;
         var sil = document.createElement("div");
@@ -2319,7 +2319,9 @@
   //   plus:   one more white key on each side (past the adjacent black key, if any);
   //   groups: whole C-D-E and F-G-A-B groups holding any note (black keys count toward their group).
   // "octave" (the default, songKeyboardRange) pads to at least an octave.
-  // C octave, Tight and Plus one draw a black key just outside either end as a half silhouette (see buildKeyboard).
+  // Tight and Plus one draw a black key just outside either end as a half silhouette (see buildKeyboard);
+  // Octave and Groups end on whatever they end on, and C octave ends on a clean C with no C# past it.
+  function playKeyEdges(mode) { return mode === "tight" || mode === "plus"; }
   function playKeyRange(lo, hi, mode) {
     var low = snapLow(lo), high = snapHigh(hi);
     if (mode === "coctave") {
@@ -2334,7 +2336,7 @@
       low = lo - pl + (pl >= 5 ? 5 : 0);
       high = hi - ph + (ph >= 5 ? 11 : 4);
     }
-    return { low: Math.max(0, low), high: Math.min(127, high) };
+    return { low: Math.max(0, low), high: Math.min(127, high), edges: playKeyEdges(mode) };
   }
   var PLAY_KEYS_STORE_KEY = "aplus.playkeys.v1";
   var PLAY_KEYS_MODES = ["octave", "coctave", "tight", "plus", "groups"];
@@ -2373,7 +2375,7 @@
         if (hi - lo < 12 && hi < 127) hi = snapHigh(hi + 1);
       }
     }
-    return { low: lo, high: hi };
+    return { low: lo, high: hi, edges: false };
   }
 
   function buildSteps(notes) {
