@@ -909,6 +909,36 @@ try {
     await p.close();
     return { empty, duringDebounce, plugged, unplugged, replugged, beforeScan, scanning, afterScan };
   }
+  // Android app: native MIDI through window.AplusNative replaces Web MIDI.
+  async function loadNativeBridge() {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => {
+      delete Navigator.prototype.requestMIDIAccess; // Android WebView has no Web MIDI
+      window.AplusNative = { inputs: () => JSON.stringify([{ id: 7, name: "Garagekey Mini" }]) };
+    });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 400));
+    const statusText = () => document.querySelector("#status .msg").innerText.replace(/\s+/g, " ").trim();
+    const plugged = await p.evaluate(statusText);
+    const held = await p.evaluate(() => {
+      window.aplusMidiMessage(7, [0x90, 60, 100]);
+      const on = !!window.__pfTest.getState().held[60];
+      window.aplusMidiMessage(7, [0x80, 60, 0]);
+      return { on, off: !window.__pfTest.getState().held[60] };
+    });
+    await p.evaluate(() => window.aplusMidiDevices([]));
+    await new Promise((r) => setTimeout(r, 400));
+    const unplugged = await p.evaluate(statusText);
+    await p.close();
+    return { plugged, held, unplugged };
+  }
+  const native = await loadNativeBridge();
+  check("Android native bridge connects, plays notes and sees the unplug",
+    native.plugged === "Connected: Garagekey Mini" && native.held.on && native.held.off &&
+      /No MIDI keyboard detected/.test(native.unplugged),
+    JSON.stringify(native));
+
   const hotplug = await loadHotplug();
   console.log("HOTPLUG", JSON.stringify(hotplug));
   check("no-keyboard status offers Scan again",

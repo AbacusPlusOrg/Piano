@@ -174,6 +174,46 @@
     return typeof navigator.requestMIDIAccess === "function";
   }
 
+  // In the A+Piano Android app, native MIDI arrives through window.AplusNative.
+  // Present it as a minimal MIDIAccess so the browser code below runs unchanged.
+  if (window.AplusNative && !navigator.requestMIDIAccess) {
+    var nativeAccess = { inputs: new Map(), onstatechange: null };
+    // devices: [{id, name}] of every open keyboard; fires statechange per change.
+    window.aplusMidiDevices = function (devices) {
+      var ids = devices.map(function (d) { return String(d.id); });
+      var changed = [];
+      nativeAccess.inputs.forEach(function (port, id) {
+        if (ids.indexOf(id) < 0) {
+          port.state = "disconnected";
+          nativeAccess.inputs.delete(id);
+          changed.push(port);
+        }
+      });
+      devices.forEach(function (d) {
+        var id = String(d.id);
+        if (nativeAccess.inputs.has(id)) return;
+        var port = { id: id, name: d.name, type: "input", state: "connected", connection: "open", onmidimessage: null };
+        nativeAccess.inputs.set(id, port);
+        changed.push(port);
+      });
+      changed.forEach(function (port) {
+        if (nativeAccess.onstatechange) nativeAccess.onstatechange({ port: port });
+      });
+    };
+    window.aplusMidiMessage = function (id, bytes) {
+      var port = nativeAccess.inputs.get(String(id));
+      if (port && port.onmidimessage) port.onmidimessage({ data: bytes, target: port, timeStamp: performance.now() });
+    };
+    navigator.requestMIDIAccess = function () {
+      try {
+        window.aplusMidiDevices(JSON.parse(window.AplusNative.inputs()));
+      } catch (e) {
+        return Promise.reject(e);
+      }
+      return Promise.resolve(nativeAccess);
+    };
+  }
+
   function isSecure() {
     return window.isSecureContext === true;
   }
@@ -1508,6 +1548,11 @@
   }
 
   function checkPermission() {
+    // The Android app needs no MIDI permission.
+    if (window.AplusNative) {
+      applyPermission("granted");
+      return;
+    }
     if (!navigator.permissions || !navigator.permissions.query) {
       // Can't tell whether MIDI is already allowed: a tap is needed.
       markBootDecided();
