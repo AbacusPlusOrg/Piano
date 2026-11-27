@@ -308,7 +308,12 @@ try {
         text: msg.textContent,
         inTopRow: btnR.top >= topR.top - 1 && btnR.bottom <= topR.bottom + 1
           && tabs.getBoundingClientRect().left >= (volR.width ? volR.right : btnR.right) - 0.5,
-        playMode: document.body.classList.contains("mode-play")
+        playMode: document.body.classList.contains("mode-play"),
+        statusHidden: (function () {
+          const wrap = document.querySelector(".status-wrap");
+          const r = wrap.getBoundingClientRect();
+          return getComputedStyle(wrap).display === "none" || r.height === 0;
+        })()
       };
       st.className = prev.cls;
       msg.innerHTML = prev.html;
@@ -346,17 +351,19 @@ try {
     await pFit.evaluate(() => { try { localStorage.removeItem("aplus.mode.v1"); } catch (e) {} });
     await pFit.close();
     phoneSoundPages.push({ name, testMode, playMode });
-    const ok = (info, expectPlay) =>
+    const headerOk = (info) =>
       info.inHeader === true && info.inStatus === false
       && info.toggleVisible === true && info.sliderVisible === true
       && /Sound off\.?/.test(info.label || "") && /Volume\.?/.test(info.volLabel || "")
-      && info.msgOverflow === true && info.stOverflow === true
-      && info.inTopRow === true && info.playMode === expectPlay
-      && info.text === "Tap to connect MIDI keyboard";
+      && info.inTopRow === true;
     check("sound controls live in the header and status text is not truncated at " + name + " in Test",
-      ok(testMode, false), JSON.stringify(testMode));
-    check("sound controls live in the header and status text is not truncated at " + name + " in Play",
-      ok(playMode, true), JSON.stringify(playMode));
+      headerOk(testMode) && testMode.playMode === false && testMode.statusHidden === false
+        && testMode.msgOverflow === true && testMode.stOverflow === true
+        && testMode.text === "Tap to connect MIDI keyboard",
+      JSON.stringify(testMode));
+    check("status bar is hidden in Play and sound controls stay in the header at " + name,
+      headerOk(playMode) && playMode.playMode === true && playMode.statusHidden === true,
+      JSON.stringify(playMode));
   }
   await page.evaluate(() => { try { localStorage.removeItem("aplus.mode.v1"); } catch (e) {} });
 
@@ -2274,6 +2281,19 @@ try {
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     const ps = () => p.evaluate(() => window.__pfTest.play.state());
     const feed = (n) => p.evaluate((n) => { window.__pfTest.feed([0x90, n, 100]); window.__pfTest.feed([0x80, n, 0]); }, n);
+    const testChrome = await p.evaluate(() => {
+      const wrap = document.querySelector(".status-wrap");
+      const st = wrap.getBoundingClientRect();
+      const kb = document.querySelector(".kb-wrap").getBoundingClientRect();
+      return {
+        statusVisible: st.height > 0 && getComputedStyle(wrap).display !== "none",
+        statusH: Math.round(st.height),
+        kbTop: Math.round(kb.top),
+        kbH: Math.round(kb.height)
+      };
+    });
+    check("play: status bar is visible in Test before entering Play",
+      testChrome.statusVisible === true && testChrome.statusH > 0, JSON.stringify(testChrome));
     await p.click("#mode-play");
     await p.waitForFunction(() => window.__pfTest.play.state().steps > 0, { timeout: 8000 });
     const opts = await p.evaluate(() => ({
@@ -2307,7 +2327,26 @@ try {
           pauseShown: !!(pause && !pause.hidden),
           pauseLabel: pause ? pause.getAttribute("aria-label") : null,
           waitLabel: label,
-          playing: window.__pfTest.play.state().playing
+          playing: window.__pfTest.play.state().playing,
+          statusVisible: (function () {
+            const wrap = document.querySelector(".status-wrap");
+            const r = wrap.getBoundingClientRect();
+            return r.height > 0 && getComputedStyle(wrap).display !== "none";
+          })(),
+          midiShown: (function () {
+            const el = document.getElementById("play-midi");
+            const r = el && el.getBoundingClientRect();
+            return !!(el && r.height > 0 && getComputedStyle(el).display !== "none");
+          })(),
+          midiText: (document.getElementById("play-midi-msg") || {}).innerText
+            ? document.getElementById("play-midi-msg").innerText.replace(/\s+/g, " ").trim() : "",
+          midiConnectShown: (function () {
+            const btn = document.getElementById("play-midi-connect");
+            return !!(btn && !btn.hidden && btn.getBoundingClientRect().height > 0);
+          })(),
+          midiConnectLabel: (document.getElementById("play-midi-connect") || {}).getAttribute
+            ? document.getElementById("play-midi-connect").getAttribute("aria-label") : null,
+          needsConnect: document.getElementById("status").classList.contains("is-connect")
         };
       });
     }
@@ -2323,6 +2362,17 @@ try {
       JSON.stringify(overlayOpen));
     check("play: Wait checkbox is labelled Wait for me!",
       overlayOpen.waitLabel === "Wait for me!", overlayOpen.waitLabel);
+    check("play: status bar is hidden and the play area uses the freed height",
+      overlayOpen.statusVisible === false && overlayOpen.wrap.top < testChrome.kbTop
+        && overlayOpen.wrap.h > testChrome.kbH,
+      JSON.stringify({ test: testChrome, play: { statusVisible: overlayOpen.statusVisible, wrap: overlayOpen.wrap } }));
+    check("play: sheet shows the connection status and a Connect control when needed",
+      overlayOpen.midiShown === true && overlayOpen.midiText.length > 0
+        && (overlayOpen.needsConnect
+          ? (overlayOpen.midiConnectShown === true && overlayOpen.midiConnectLabel === "Connect MIDI keyboard."
+            && overlayOpen.midiText === "No keyboard connected")
+          : true),
+      JSON.stringify(overlayOpen));
 
     let st = await ps();
     const melody = [64, 62, 60, 62, 64, 64, 64, 62, 62, 62, 64, 67, 67, 64, 62, 60, 62, 64, 64, 64, 64, 62, 62, 64, 62, 60];
@@ -2457,6 +2507,8 @@ try {
     const back = await p.evaluate(() => {
       const keys = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
       const st = window.__pfTest.getState();
+      const wrap = document.querySelector(".status-wrap");
+      const sr = wrap.getBoundingClientRect();
       return {
         lowerVisible: getComputedStyle(document.querySelector(".lower")).display !== "none",
         highwayOff: getComputedStyle(document.getElementById("highway")).display === "none",
@@ -2464,13 +2516,15 @@ try {
         lo: Math.min(...keys),
         hi: Math.max(...keys),
         visibleLow: st.visibleLow,
-        visibleHigh: st.visibleHigh
+        visibleHigh: st.visibleHigh,
+        statusVisible: sr.height > 0 && getComputedStyle(wrap).display !== "none"
       };
     });
     check("play: Keyboard switch restores the checker",
       back.lowerVisible === true && back.highwayOff === true
         && back.count === 25 && back.lo === 48 && back.hi === 72
-        && back.visibleLow === 48 && back.visibleHigh === 72,
+        && back.visibleLow === 48 && back.visibleHigh === 72
+        && back.statusVisible === true,
       JSON.stringify(back));
     await p.close();
   }

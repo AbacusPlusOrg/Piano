@@ -148,6 +148,7 @@
     els.status.setAttribute("tabindex", "0");
     els.status.setAttribute("aria-label", "Tap to connect MIDI keyboard");
     els.status.style.cursor = "pointer";
+    syncPlayMidi();
   }
   function isConnectAction() {
     return els.status.classList.contains("is-connect");
@@ -162,12 +163,29 @@
     // message (or restart the scan-link) during silent auto-detect polls.
     if (els.status.className === className && msg && msg.innerHTML === html) {
       els.status.style.cursor = cursor;
+      syncPlayMidi();
       return;
     }
     clearConnectAction();
     els.status.className = className;
     msg.innerHTML = html;
     els.status.style.cursor = cursor;
+    syncPlayMidi();
+  }
+
+  // Compact Play-sheet line, driven by the same status box (no separate MIDI path).
+  function syncPlayMidi() {
+    var msg = document.getElementById("play-midi-msg");
+    var btn = document.getElementById("play-midi-connect");
+    var src = els.status && els.status.querySelector(".msg");
+    if (!msg || !btn || !src) return;
+    if (isConnectAction()) {
+      msg.textContent = "No keyboard connected";
+      btn.hidden = false;
+    } else {
+      msg.innerHTML = src.innerHTML;
+      btn.hidden = !statusRetry;
+    }
   }
 
   function midiSupported() {
@@ -2158,7 +2176,9 @@
     tempoOut: document.getElementById("play-tempo-out"),
     canvas: document.getElementById("highway"),
     sheet: document.getElementById("play-sheet"),
-    pause: document.getElementById("play-pause")
+    pause: document.getElementById("play-pause"),
+    midiMsg: document.getElementById("play-midi-msg"),
+    midiConnect: document.getElementById("play-midi-connect")
   };
 
   // Standard MIDI file -> { ppq, bpm, beatsPerBar, notes: [{ note, start, end }] } with times in beats.
@@ -2505,6 +2525,22 @@
     if (play.playing) pausePlay();
     else setPlaySheet(true);
   });
+  if (pe.midiConnect) {
+    pe.midiConnect.addEventListener("click", function (e) {
+      e.preventDefault();
+      els.status.click();
+    });
+  }
+  if (pe.midiMsg) {
+    pe.midiMsg.addEventListener("click", function (e) {
+      var link = e.target && e.target.closest && (e.target.closest(".reload-link") || e.target.closest(".scan-link"));
+      if (!link) return;
+      e.preventDefault();
+      var orig = els.status.querySelector(link.classList.contains("reload-link") ? ".reload-link" : ".scan-link");
+      if (orig) orig.click();
+    });
+  }
+  syncPlayMidi();
   pe.wait.addEventListener("change", function () { play.wait = pe.wait.checked; play.hit = {}; stopPlayback(); });
   pe.tempo.addEventListener("input", function () {
     play.rate = parseInt(pe.tempo.value, 10) / 100;

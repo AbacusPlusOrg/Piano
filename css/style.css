@@ -122,7 +122,9 @@ h1 span {
 }
 .status .msg strong { color: var(--text); font-weight: 600; }
 .status .msg .reload-link,
-.status .msg .scan-link {
+.status .msg .scan-link,
+.play-midi-msg .reload-link,
+.play-midi-msg .scan-link {
   appearance: none;
   background: none;
   border: 0;
@@ -138,7 +140,9 @@ h1 span {
   cursor: pointer;
 }
 .status .msg .reload-link:focus-visible,
-.status .msg .scan-link:focus-visible {
+.status .msg .scan-link:focus-visible,
+.play-midi-msg .reload-link:focus-visible,
+.play-midi-msg .scan-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -1045,7 +1049,7 @@ button {
 @media (max-width: 539px) { h1 span { display: none; } }
 
 .play-sheet, .play-pause, .highway { display: none; }
-body.mode-play .kb-bar, body.mode-play .lower { display: none; }
+body.mode-play .kb-bar, body.mode-play .lower, body.mode-play .status-wrap { display: none; }
 body.mode-play { height: 100dvh; max-height: 100dvh; overflow: hidden; }
 body.mode-play .kb-wrap { flex: 1 1 auto; min-height: 0; }
 body.mode-play .highway { display: block; flex: 1 1 auto; min-height: 90px; width: 100%; }
@@ -1078,6 +1082,26 @@ body.mode-play .play-sheet:not([hidden]) {
   font-weight: 600;
   font-size: 1.15rem;
   color: var(--text);
+}
+.play-midi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.play-midi-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.35;
+}
+.play-midi-msg strong { color: var(--text); font-weight: 600; }
+#play-midi-connect {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 5px 10px;
+  font-size: 0.8rem;
 }
 .play-sheet select, .play-sheet button {
   appearance: none;
@@ -1132,7 +1156,10 @@ body.mode-play .play-pause:not([hidden]) {
 .key.next:not(.held) { box-shadow: inset 0 0 0 2px var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
 
 @media (orientation: landscape) and (max-height: 540px) {
-  body.mode-play, body.mode-play.measuring { grid-template-rows: auto auto minmax(0, 1fr); }
+  body.mode-play, body.mode-play.measuring {
+    grid-template-areas: "title title" "kb kb";
+    grid-template-rows: auto minmax(0, 1fr);
+  }
   body.mode-play .highway { flex: 1 1 0; min-height: 50px; }
   body.mode-play .play-sheet:not([hidden]) { padding: 8px; }
   .play-sheet-card { padding: 10px 12px; gap: 6px; }
