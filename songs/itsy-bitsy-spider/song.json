@@ -1,0 +1,281 @@
+{
+  "id": "itsy-bitsy-spider",
+  "title": "Itsy Bitsy Spider",
+  "composer": "Traditional (American); in print by 1910",
+  "public_domain": true,
+  "key": "C major",
+  "time": "6/8",
+  "tempo": "dotted quarter = 60 (quarter = 90)",
+  "tempo_note": "PianoFlow teaching suggestion; the cited melody sources do not mark a tempo.",
+  "bars": 16,
+  "form": "eighth-note pickup + A B C A (4-bar phrases)",
+  "range": {
+    "low": "C3",
+    "high": "G4",
+    "midi_low": 48,
+    "midi_high": 67
+  },
+  "keyboard": "Fits the GarageKey Mini range C3–C6 (MIDI 48–84). Melody is G3–G4; left hand stays on or above C3.",
+  "setting": "PianoFlow teaching setting: verified traditional melody in the right hand, in C; the left-hand roots and held C and G chords are written for this catalog, not taken from a source arrangement.",
+  "lyric_snippet": "The itsy bitsy spider climbed up the water spout. Down came the rain and washed the spider out. Out came the sun and dried up all the rain, and the itsy bitsy spider climbed up the spout again.",
+  "files": {
+    "score": "score.musicxml",
+    "full_midi": "full.mid",
+    "rh_midi": "rh.mid",
+    "roots_midi": "roots.mid"
+  },
+  "sources": [
+    {
+      "id": "wikipedia-itsy",
+      "title": "Wikipedia, Itsy Bitsy Spider (article and its LilyPond score)",
+      "url": "https://en.wikipedia.org/wiki/Itsy_Bitsy_Spider",
+      "used_for": "Note-level source with rhythm, in G: \\partial 8, 6/8: d8 | g4 g8 g4 a8 | b4. b4 b8 | a4 g8 a4 b8 | g2. | b4. b4 c8 | d4. d | c4 b8 c4 d8 | b2. | g4. g4 a8 | b4. b | a4 g8 a4 b8 | g4. fis4 fis8 | bars 1-3 | g4.~g4. Transposed to C here. History: printed in 1910 in A. W. North, Camp and Camino in Lower California, as the \"Spider Song\". Its left-hand part was not used."
+    },
+    {
+      "id": "flutetree-itsy",
+      "title": "FluteTree Songbook, Itsy Bitsy Spider (ABC notation)",
+      "url": "https://www.flutetree.org/songbook/minor/ItsyBitsySpider.html",
+      "used_for": "Independent note-level cross-check with rhythm: L:1/8, M:6/8, pickup F | B2 B B2 c | d3 d2 d | c2 B c2 d | B3 z3 | ... | B3 F2 F | ... | B3 z2, i.e. so | do do do re | mi mi mi | re do re mi | do. Same pitches and rhythms as Wikipedia, except it rests after the line ends in bars 4 and 8 and its bar-12 pickup is so-so."
+    },
+    {
+      "id": "onlinepianokeyboard-itsy",
+      "title": "Online Piano Keyboard, Itsy Bitsy Spider piano notes",
+      "url": "https://onlinepianokeyboard.com/songs/itsy-bitsy-spider",
+      "used_for": "Pitch and octave cross-check in G (D4 | G4 G4 G4 A4 | B4 B4 B4 | A4 G4 A4 B4 | G4 ...), 6/8, pickup and 16 bars; bar 12 ends G4 D4 D4 (so-so)."
+    },
+    {
+      "id": "epiano-itsy",
+      "title": "ePiano, Itsy Bitsy Spider easy piano notes and letters",
+      "url": "https://www.epiano.org/songs/itsy-bitsy-spider",
+      "used_for": "C-major cross-check: G3 to G4, 6/8, the same letters bar by bar, C and G7 chord names (G7 under bars 3, 7, 11 and 15). Its left-hand part was not used."
+    }
+  ],
+  "variants": "Bars 4 and 8 hold the last note for the whole bar (Wikipedia; FluteTree rests after a dotted quarter). The 'and the' pickup in bar 12 is so-so (G3 G3), as in FluteTree, onlinepianokeyboard and ePiano; Wikipedia has ti-ti (B3 B3 in C). The last note lasts five eighths, completing the pickup bar, as in both note-level sources. Harmony follows ePiano's C and G7 chord names; the left-hand voicings are this catalog's own (G chord as D3 G3 B3; bar 12 is C3 E3 so the right hand's G3 stays free).",
+  "sections": [
+    {
+      "id": "A",
+      "name": "The itsy bitsy spider",
+      "bars": "1-4",
+      "phrase": "itsy-a"
+    },
+    {
+      "id": "B",
+      "name": "Down came the rain",
+      "bars": "5-8",
+      "phrase": "itsy-b"
+    },
+    {
+      "id": "C",
+      "name": "Out came the sun",
+      "bars": "9-12",
+      "phrase": "itsy-c"
+    }
+  ],
+  "phrases": [
+    {
+      "id": "itsy-a",
+      "piece": "itsy-bitsy-spider",
+      "piece_title": "Itsy Bitsy Spider",
+      "name": "The itsy bitsy spider",
+      "section": "A",
+      "bars": "1-4",
+      "occurrences": [
+        "1-4",
+        "13-16"
+      ],
+      "max_score": 1.4,
+      "top_instance": 1.1,
+      "notes": {
+        "five-finger-position": "After the pickup, C position from C up to E; steps and repeated notes.",
+        "one-hand-melody": "The 6/8 long-short swing (quarter-eighth pairs and dotted quarters) at a slow two-beat pulse.",
+        "position-shifts": "One reach down to the G3 pickup before the hand settles in C position for the phrase.",
+        "hands-together": "LH changes once a bar, always on beat 1 with a RH note.",
+        "basic-chords": "Held close triads, one a bar.",
+        "inversions": "The G chord is played with D at the bottom (D3 G3 B3), which keeps the left hand at or above C3."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH: pickup G3 (eighth), then thumb on middle C: C(quarter) C(eighth) C(quarter) D(eighth) | E(dotted quarter) E(quarter) E(eighth) | D(quarter) C(eighth) D(quarter) E(eighth) | C (held to the end of the bar; at bar 16, the end of the song). The pickup before bar 13 is at the end of phrase C.",
+          "is_full_version": false,
+          "score": 1.2,
+          "instances": {
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.7,
+            "position-shifts": 0.6
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds C3 (bars 1-2), G3 (bar 3), C3 (bar 4), one note a bar.",
+          "is_full_version": false,
+          "score": 1.3,
+          "instances": {
+            "hands-together": 1.0,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.7,
+            "position-shifts": 0.6
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH holds one chord a bar: C3 E3 G3 (bars 1-2 and 4), D3 G3 B3 (bar 3).",
+          "is_full_version": true,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8,
+            "basic-chords": 0.8,
+            "position-shifts": 0.6,
+            "inversions": 0.6
+          }
+        }
+      ]
+    },
+    {
+      "id": "itsy-b",
+      "piece": "itsy-bitsy-spider",
+      "piece_title": "Itsy Bitsy Spider",
+      "name": "Down came the rain",
+      "section": "B",
+      "bars": "5-8",
+      "occurrences": [
+        "5-8"
+      ],
+      "max_score": 1.4,
+      "top_instance": 1.1,
+      "notes": {
+        "five-finger-position": "C position with finger 5 on G, the top of the song.",
+        "one-hand-melody": "Long-short pairs climbing E-F-G and back.",
+        "hands-together": "One LH chord a bar under the RH.",
+        "basic-chords": "Held close triads, one a bar.",
+        "inversions": "Same D3 G3 B3 shape for the G chord in bar 7."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH in C position: E(dotted quarter) E(quarter) F(eighth) | G(dotted quarter) G(dotted quarter) | F(quarter) E(eighth) F(quarter) G(eighth) | E(dotted half).",
+          "is_full_version": false,
+          "score": 1.1,
+          "instances": {
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds C3 (bars 5-6), G3 (bar 7), C3 (bar 8).",
+          "is_full_version": false,
+          "score": 1.3,
+          "instances": {
+            "hands-together": 1.0,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH holds C3 E3 G3 (bars 5-6), D3 G3 B3 (bar 7), C3 E3 G3 (bar 8).",
+          "is_full_version": true,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8,
+            "basic-chords": 0.8,
+            "inversions": 0.6
+          }
+        }
+      ]
+    },
+    {
+      "id": "itsy-c",
+      "piece": "itsy-bitsy-spider",
+      "piece_title": "Itsy Bitsy Spider",
+      "name": "Out came the sun",
+      "section": "C",
+      "bars": "9-12",
+      "occurrences": [
+        "9-12"
+      ],
+      "max_score": 1.5,
+      "top_instance": 1.2,
+      "notes": {
+        "five-finger-position": "C position for bars 9-11.",
+        "one-hand-melody": "Long-short pairs and dotted quarters, mostly steps.",
+        "position-shifts": "Bar 12 drops a fourth to two G3s and climbs straight back to C position on the next downbeat.",
+        "hands-together": "One LH chord a bar; in bar 12 the LH holds while the RH moves down below it in register order.",
+        "basic-chords": "Held close triads and one dyad.",
+        "inversions": "Same D3 G3 B3 shape for the G chord in bar 11."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH: C(dotted quarter) C(quarter) D(eighth) | E(dotted quarter) E(dotted quarter) | D(quarter) C(eighth) D(quarter) E(eighth) | C(dotted quarter) G3(quarter) G3(eighth) - the 'and the' pickup down to G3 leads back into phrase A.",
+          "is_full_version": false,
+          "score": 1.2,
+          "instances": {
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8,
+            "position-shifts": 0.8
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds C3 (bars 9-10), G3 (bar 11), C3 (bar 12).",
+          "is_full_version": false,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8,
+            "position-shifts": 0.8
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH holds C3 E3 G3 (bars 9-10), D3 G3 B3 (bar 11), and C3 E3 in bar 12 (G3 is left to the RH).",
+          "is_full_version": true,
+          "score": 1.5,
+          "instances": {
+            "hands-together": 1.2,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.8,
+            "position-shifts": 0.8,
+            "basic-chords": 0.8,
+            "inversions": 0.6
+          }
+        }
+      ]
+    }
+  ],
+  "techniques_tagged": [
+    "five-finger-position",
+    "one-hand-melody",
+    "position-shifts",
+    "hands-together"
+  ],
+  "score": 0.9,
+  "score_raw": 2.775,
+  "score_display": "0.9: Hands Together, Position Shifts, One-Hand Melody",
+  "score_note": "Catalog-relative whole-piece 0–10 score from pianoflow/tools/score_pieces.py after Row, Row, Row Your Boat and Itsy Bitsy Spider were added. Raw = w1 + 0.35·w2 + 0.2·w3 + min(0.1·sum(rest), 2.0) on tagged technique weights; score = 0.3 + (raw − min_raw)/(max_raw − min_raw)·9.6. Basic chords and inversions appear in the full-rung instance scores but are below the tag thresholds (0.5 × weight), so they are not tagged on the whole piece. Adding a piece can shift other catalog scores (the formula is catalog-relative); these two did not move the catalog minimum or maximum, so no existing score changed."
+}

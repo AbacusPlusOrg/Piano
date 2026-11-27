@@ -2348,7 +2348,10 @@
   function loadSongIndex() {
     if (play.index) return Promise.resolve(play.index);
     return fetchJson("songs/index.json?v=" + ASSET_VERSION).then(function (idx) {
-      play.index = idx.songs || [];
+      // Easiest first by the catalog's 0-10 score, then by title; no level labels.
+      play.index = (idx.songs || []).slice().sort(function (x, y) {
+        return (x.score - y.score) || String(x.title).localeCompare(String(y.title));
+      });
       pe.song.innerHTML = "";
       play.index.forEach(function (s) { option(pe.song, s.id, s.title + " · " + s.score.toFixed(1)); });
       return selectSong(pe.song.value);

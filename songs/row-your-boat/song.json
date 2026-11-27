@@ -1,0 +1,200 @@
+{
+  "id": "row-your-boat",
+  "title": "Row, Row, Row Your Boat",
+  "composer": "Traditional (American); tune printed with these words in 1881, credited to Eliphalet Oram Lyte",
+  "public_domain": true,
+  "key": "C major",
+  "time": "6/8",
+  "tempo": "dotted quarter = 60 (quarter = 90)",
+  "tempo_note": "PianoFlow teaching suggestion; Octotune starts it at quarter = 90.",
+  "bars": 8,
+  "form": "A B (4-bar phrases); usually sung as a round",
+  "range": {
+    "low": "C3",
+    "high": "C5",
+    "midi_low": 48,
+    "midi_high": 72
+  },
+  "keyboard": "Fits the GarageKey Mini range C3–C6 (MIDI 48–84). Melody is C4–C5; left hand stays on or above C3.",
+  "setting": "PianoFlow teaching setting: verified traditional melody in the right hand, in C; the left-hand roots and blocked C and G chords are written for this catalog, not taken from a source arrangement.",
+  "lyric_snippet": "Row, row, row your boat, gently down the stream. Merrily, merrily, merrily, merrily, life is but a dream.",
+  "files": {
+    "score": "score.musicxml",
+    "full_midi": "full.mid",
+    "rh_midi": "rh.mid",
+    "roots_midi": "roots.mid"
+  },
+  "sources": [
+    {
+      "id": "wikipedia-row",
+      "title": "Wikipedia, Row, Row, Row Your Boat (article and its LilyPond melody)",
+      "url": "https://en.wikipedia.org/wiki/Row,_Row,_Row_Your_Boat",
+      "used_for": "Note-level source with rhythm: \\time 6/8, c4. c4. | c4 d8 e4. | e4 d8 e4 f8 | g2. | c8 c c g g g | e e e c c c | g'4 f8 e4 d8 | c2. (C4 to C5). History: earliest printing 1852 with a different tune; the modern tune with these words in 1881 (The Franklin Square Song Collection), mentioning Eliphalet Oram Lyte."
+    },
+    {
+      "id": "trebly-row",
+      "title": "Trebly, Row, Row, Row Your Boat notes (letter names with beat lengths)",
+      "url": "https://trebly.fun/songs/row-row-row-your-boat/",
+      "used_for": "Independent note-level cross-check: the same 27 notes and beat lengths bar by bar, 8 measures of 6/8 (dotted quarters, quarter-eighth pairs, eighth-note merrilys, dotted halves)."
+    },
+    {
+      "id": "octotune-row",
+      "title": "Octotune, Row, Row, Row Your Boat easy piano notes",
+      "url": "https://octotune.com/songs/row-row-row-your-boat",
+      "used_for": "Pitch and octave cross-check: C4 to C5, C major, 6/8, 8 measures, the same letters bar by bar; it also suggests moving to G position for the merrilys. Its left-hand part was not used."
+    }
+  ],
+  "variants": "The modern round tune (1881) is used, not the 1852 or 1854 tunes. All three sources agree on every pitch; Wikipedia and Trebly agree on every duration. Harmony C throughout with G in bar 7 matches ePiano's chord names; the left-hand voicings are this catalog's own (the G chord is D3 G3 B3 to stay at or above C3).",
+  "sections": [
+    {
+      "id": "A",
+      "name": "Row, row, row your boat",
+      "bars": "1-4",
+      "phrase": "row-a"
+    },
+    {
+      "id": "B",
+      "name": "Merrily, merrily",
+      "bars": "5-8",
+      "phrase": "row-b"
+    }
+  ],
+  "phrases": [
+    {
+      "id": "row-a",
+      "piece": "row-your-boat",
+      "piece_title": "Row, Row, Row Your Boat",
+      "name": "Row, row, row your boat",
+      "section": "A",
+      "bars": "1-4",
+      "occurrences": [
+        "1-4"
+      ],
+      "max_score": 1.5,
+      "top_instance": 1.2,
+      "notes": {
+        "five-finger-position": "C position, one finger per key from C up to G; steps only.",
+        "one-hand-melody": "The 6/8 long-short swing (dotted quarters and quarter-eighth pairs) at a slow two-beat pulse.",
+        "hands-together": "LH chords land on the two main beats while the RH plays its long-short pairs.",
+        "basic-chords": "One close C triad, repeated slowly; the hand never changes shape."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH, thumb on middle C: C(dotted quarter) C(dotted quarter) | C(quarter) D(eighth) E(dotted quarter) | E(quarter) D(eighth) E(quarter) F(eighth) | G(dotted half). Fingers 1-1 | 1-2-3 | 3-2-3-4 | 5. Two beats a bar, about 60 a minute.",
+          "is_full_version": false,
+          "score": 1.1,
+          "instances": {
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds C3 for each bar (dotted half notes).",
+          "is_full_version": false,
+          "score": 1.3,
+          "instances": {
+            "hands-together": 1.0,
+            "one-hand-melody": 0.9,
+            "five-finger-position": 0.7
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH plays a C3 E3 G3 chord on each beat (two dotted quarters a bar) in bars 1-3 and holds it through bar 4.",
+          "is_full_version": true,
+          "score": 1.5,
+          "instances": {
+            "hands-together": 1.2,
+            "one-hand-melody": 0.9,
+            "basic-chords": 0.9,
+            "five-finger-position": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "row-b",
+      "piece": "row-your-boat",
+      "piece_title": "Row, Row, Row Your Boat",
+      "name": "Merrily, merrily",
+      "section": "B",
+      "bars": "5-8",
+      "occurrences": [
+        "5-8"
+      ],
+      "max_score": 1.7,
+      "top_instance": 1.4,
+      "notes": {
+        "five-finger-position": "Each half of the phrase sits in one five-key position.",
+        "one-hand-melody": "Twelve even eighth notes in groups of three, then the long-short close.",
+        "position-shifts": "The tune spans an octave (C4-C5): the hand moves up to G position for the high C and back to C position a beat later.",
+        "hands-together": "LH chords on each beat under the twelve quick RH eighths, including the move between positions.",
+        "basic-chords": "Close C and G triads, two a bar.",
+        "inversions": "The G chord is played with D at the bottom (D3 G3 B3), which keeps the left hand at or above C3."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH moves up to G position for the merrilys (thumb on G4, finger 4 on C5): C5 C5 C5 G4 G4 G4 (eighths) | then back to C position: E E E C C C (eighths) | G(quarter) F(eighth) E(quarter) D(eighth) | C(dotted half).",
+          "is_full_version": false,
+          "score": 1.4,
+          "instances": {
+            "position-shifts": 1.1,
+            "one-hand-melody": 1.0,
+            "five-finger-position": 0.8
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds C3 (bars 5-6), G3 (bar 7), C3 (bar 8).",
+          "is_full_version": false,
+          "score": 1.5,
+          "instances": {
+            "hands-together": 1.2,
+            "position-shifts": 1.1,
+            "one-hand-melody": 1.0,
+            "five-finger-position": 0.8
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH plays two dotted-quarter chords a bar: C3 E3 G3 (bars 5-6), D3 G3 B3 (bar 7), and holds C3 E3 G3 under the final 'dream.'",
+          "is_full_version": true,
+          "score": 1.7,
+          "instances": {
+            "hands-together": 1.4,
+            "position-shifts": 1.2,
+            "one-hand-melody": 1.0,
+            "basic-chords": 0.9,
+            "five-finger-position": 0.8,
+            "inversions": 0.6
+          }
+        }
+      ]
+    }
+  ],
+  "techniques_tagged": [
+    "five-finger-position",
+    "one-hand-melody",
+    "position-shifts",
+    "hands-together"
+  ],
+  "score": 0.9,
+  "score_raw": 2.775,
+  "score_display": "0.9: Hands Together, Position Shifts, One-Hand Melody",
+  "score_note": "Catalog-relative whole-piece 0–10 score from pianoflow/tools/score_pieces.py after Row, Row, Row Your Boat and Itsy Bitsy Spider were added. Raw = w1 + 0.35·w2 + 0.2·w3 + min(0.1·sum(rest), 2.0) on tagged technique weights; score = 0.3 + (raw − min_raw)/(max_raw − min_raw)·9.6. Basic chords and inversions appear in the full-rung instance scores but are below the tag thresholds (0.5 × weight), so they are not tagged on the whole piece. Adding a piece can shift other catalog scores (the formula is catalog-relative); these two did not move the catalog minimum or maximum, so no existing score changed."
+}

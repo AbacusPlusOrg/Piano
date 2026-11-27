@@ -2310,10 +2310,17 @@ try {
     await p.waitForFunction(() => window.__pfTest.play.state().steps > 0, { timeout: 8000 });
     const opts = await p.evaluate(() => ({
       songs: [...document.querySelectorAll("#play-song option")].map((o) => o.value),
+      songLabels: [...document.querySelectorAll("#play-song option")].map((o) => o.textContent),
       rungs: [...document.querySelectorAll("#play-rung option")].map((o) => o.value),
       lowerHidden: getComputedStyle(document.querySelector(".lower")).display === "none",
     }));
     check("play: song picker lists the catalog", opts.songs.includes("mary-had-a-little-lamb") && opts.songs.includes("over-in-the-meadow"), opts.songs.join(","));
+    const pickScores = opts.songLabels.map((t) => +((t.match(/ · (\d+\.\d)$/) || [])[1]));
+    check("play: song picker lists Row, Row, Row Your Boat and Itsy Bitsy Spider, easiest first by score, with no level labels",
+      opts.songs.join(",") === "mary-had-a-little-lamb,over-in-the-meadow,itsy-bitsy-spider,row-your-boat"
+        && pickScores.every((v, i) => Number.isFinite(v) && (i === 0 || v >= pickScores[i - 1]))
+        && opts.songLabels.every((t) => !/beginner|easy|intermediate|advanced|level|grade/i.test(t)),
+      JSON.stringify(opts.songLabels));
     check("play: rung picker has right hand, roots and full", opts.rungs.join(",") === "rh,roots,full", opts.rungs.join(","));
     check("play: Keyboard panes hidden in Play", opts.lowerHidden);
 
@@ -2817,6 +2824,82 @@ try {
       }
     }
     await pauseToSheet();
+
+    // New songs: each part loads, the keyboard shows exactly the part's range, and playback waits for and follows the keys.
+    await p.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await new Promise((r) => setTimeout(r, 300));
+    for (const [song, ranges, count] of [
+      ["row-your-boat", { rh: [60, 72], roots: [48, 72], full: [48, 72] }, 27],
+      ["itsy-bitsy-spider", { rh: [55, 67], roots: [48, 67], full: [48, 67] }, 47]
+    ]) {
+      await pauseToSheet();
+      await p.select("#play-song", song);
+      await p.waitForFunction((s) => window.__pfTest.play.state().song === s && window.__pfTest.play.state().steps > 0, { timeout: 8000 }, song);
+      const meta = await p.evaluate(async (s) => {
+        const j = await (await fetch("songs/" + s + "/song.json")).json();
+        const buf = await (await fetch("songs/" + s + "/rh.mid")).arrayBuffer();
+        const m = window.__pfTest.play.parse(buf);
+        return { time: j.time, pd: j.public_domain, score: j.score, sources: j.sources.length,
+          rungs: [...document.querySelectorAll("#play-rung option")].map((o) => o.value), bpb: m.beatsPerBar, notes: m.notes.length,
+          bpm: Math.round(m.bpm) };
+      }, song);
+      check("play: " + song + " loads with right hand, roots and full parts, in 6/8, public domain, with sources",
+        meta.rungs.join(",") === "rh,roots,full" && meta.time === "6/8" && meta.bpb === 3 && meta.pd === true
+          && meta.sources >= 2 && meta.notes === count && meta.bpm === 90 && meta.score > 0,
+        JSON.stringify(meta));
+      for (const rung of ["rh", "roots", "full"]) {
+        await pauseToSheet();
+        if (await p.evaluate(() => window.__pfTest.play.state().rung) !== rung) await p.select("#play-rung", rung);
+        const [lo, hi] = ranges[rung];
+        await p.waitForFunction((r, lo, hi) => {
+          const n = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+          return window.__pfTest.play.state().rung === r && Math.min(...n) === lo && Math.max(...n) === hi;
+        }, { timeout: 8000 }, rung, lo, hi);
+        const kr = await p.evaluate(() => {
+          const st = window.__pfTest.play.state();
+          const keys = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+          const played = [].concat(...st.stepNotes);
+          return { keys: keys.length, lo: Math.min(...keys), hi: Math.max(...keys), pLo: Math.min(...played), pHi: Math.max(...played),
+            rangeLow: st.rangeLow, rangeHigh: st.rangeHigh };
+        });
+        check("play: " + song + " " + rung + " shows exactly the part's keys (" + lo + "-" + hi + ")",
+          kr.lo === lo && kr.hi === hi && kr.keys === hi - lo + 1 && kr.pLo === lo && kr.pHi === hi
+            && kr.rangeLow === lo && kr.rangeHigh === hi, JSON.stringify(kr));
+      }
+      await pauseToSheet();
+      await p.select("#play-rung", "rh");
+      await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
+      await p.click("#play-restart");
+      await p.click("#play-toggle");
+      await p.waitForFunction(() => { const s = window.__pfTest.play.state(); return s.playing && s.wait && s.step === 0; }, { timeout: 8000 });
+      const firstNotes = await p.evaluate(() => window.__pfTest.play.state().stepNotes.slice(0, 4));
+      // Wait mode: the clock stops at the first note until its key is played.
+      const beatAt = () => p.evaluate(() => window.__pfTest.play.state().beat);
+      let b1 = await beatAt();
+      for (let i = 0; i < 40; i++) { await new Promise((r) => setTimeout(r, 150)); const b2 = await beatAt(); if (b2 === b1 && b2 > -1) break; b1 = b2; }
+      await new Promise((r) => setTimeout(r, 300));
+      const waiting = await p.evaluate(() => ({ step: window.__pfTest.play.state().step, beat: window.__pfTest.play.state().beat }));
+      const stopped = waiting.beat === b1;
+      const tries = [];
+      for (let k = 0; k < firstNotes.length; k++) {
+        let n = 0;
+        while ((await p.evaluate(() => window.__pfTest.play.state().step)) === k && n < 40) {
+          await p.evaluate((ns) => { ns.forEach((x) => window.__pfTest.feed([0x90, x, 90])); ns.forEach((x) => window.__pfTest.feed([0x80, x, 0])); }, firstNotes[k]);
+          n++;
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        tries.push(n);
+      }
+      const after = await p.evaluate(() => window.__pfTest.play.state());
+      check("play: " + song + " right hand plays: waits at the first note, then follows the keys",
+        stopped && waiting.step === 0 && after.step >= 4 && after.playing === true && tries.every((n) => n < 40),
+        JSON.stringify({ firstNotes, waiting, stopped, tries, stepAfter: after.step, beat: +after.beat.toFixed(2) }));
+    }
+    await pauseToSheet();
+    await p.select("#play-song", "mary-had-a-little-lamb");
+    await p.waitForFunction(() => window.__pfTest.play.state().song === "mary-had-a-little-lamb" && window.__pfTest.play.state().steps > 0, { timeout: 8000 });
+    if (await p.evaluate(() => window.__pfTest.play.state().rung) !== "rh") await p.select("#play-rung", "rh");
+    await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
 
     // Tilted keys and straight lanes: notes land on the keys' top edge.
     await pauseToSheet();

@@ -1,5 +1,5 @@
 {
-  "_readme": "Public-domain teaching pieces for A+Piano. Each entry has a folder under songs/<id>/ with song.json, score.musicxml, full.mid, rh.mid and roots.mid. Scores are catalog-relative 0–10 values from PianoFlow.",
+  "_readme": "Public-domain teaching pieces for A+Piano. Each entry has a folder under songs/<id>/ with song.json, score.musicxml, full.mid, rh.mid and roots.mid. Scores are catalog-relative 0–10 values from PianoFlow. The app lists songs by score (easiest first), then title.",
   "songs": [
     {
       "id": "mary-had-a-little-lamb",
@@ -10,6 +10,16 @@
       "id": "over-in-the-meadow",
       "title": "Over in the Meadow",
       "score": 0.6
+    },
+    {
+      "id": "itsy-bitsy-spider",
+      "title": "Itsy Bitsy Spider",
+      "score": 0.9
+    },
+    {
+      "id": "row-your-boat",
+      "title": "Row, Row, Row Your Boat",
+      "score": 0.9
     }
   ]
 }
