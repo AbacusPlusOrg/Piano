@@ -2776,6 +2776,104 @@ try {
     }
     await pauseToSheet();
 
+    // 3D style toggle in the Play menu: Classic / A / B.
+    await p.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await new Promise((r) => setTimeout(r, 300));
+    await pauseToSheet();
+    await p.select("#play-song", "mary-had-a-little-lamb");
+    await p.waitForFunction(() => window.__pfTest.play.state().song === "mary-had-a-little-lamb" && window.__pfTest.play.state().steps > 0, { timeout: 8000 });
+    if (await p.evaluate(() => window.__pfTest.play.state().rung) !== "rh") await p.select("#play-rung", "rh");
+    await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
+    const styleBefore = await p.evaluate(() => {
+      const s = window.__pfTest.play.state();
+      const radios = [...document.querySelectorAll('#play-style input[name="play-style"]')];
+      const fs = document.getElementById("play-style");
+      return { style: s.style, far: s.farScale, tilt: s.tilt, legend: fs.querySelector("legend").textContent.trim(),
+        labels: radios.map((r) => r.parentElement.textContent.trim()), checked: radios.filter((r) => r.checked).map((r) => r.value),
+        card: JSON.stringify(document.querySelector(".play-sheet-card").getBoundingClientRect()) };
+    });
+    check("play: 3D style group defaults to Classic with labelled options",
+      styleBefore.style === "classic" && styleBefore.far === 0.45 && styleBefore.tilt === 0
+        && styleBefore.legend === "3D style" && styleBefore.labels.join(",") === "Classic,A,B"
+        && styleBefore.checked.join(",") === "classic",
+      JSON.stringify(styleBefore));
+    // Keyboard: arrow from the checked radio moves to A.
+    await p.focus('#play-style input[value="classic"]');
+    await p.keyboard.press("ArrowRight");
+    await p.waitForFunction(() => window.__pfTest.play.state().style === "a", { timeout: 4000 }).catch(() => {});
+    const viaKey = await p.evaluate(() => ({ style: window.__pfTest.play.state().style, focused: document.activeElement && document.activeElement.value }));
+    check("play: 3D style switches with the arrow keys", viaKey.style === "a" && viaKey.focused === "a", JSON.stringify(viaKey));
+    for (const [id, far, tilt] of [["a", 0.75, 24], ["b", 1, 24]]) {
+      await pauseToSheet();
+      const cardBefore = await p.evaluate(() => JSON.stringify(document.querySelector(".play-sheet-card").getBoundingClientRect()));
+      await p.click('#play-style label:has(input[value="' + id + '"])');
+      await p.waitForFunction((id) => window.__pfTest.play.state().style === id, { timeout: 4000 }, id);
+      await new Promise((r) => setTimeout(r, 100));
+      const sv = await p.evaluate(() => {
+        const s = window.__pfTest.play.state();
+        return { style: s.style, far: s.farScale, tilt: s.tilt, stored: localStorage.getItem("aplus.play3d.v1"),
+          tiltClass: document.getElementById("keyboard").classList.contains("kb-tilt"),
+          card: JSON.stringify(document.querySelector(".play-sheet-card").getBoundingClientRect()) };
+      });
+      check("play: 3D style " + id.toUpperCase() + " sets its values, persists, and does not move the sheet",
+        sv.style === id && sv.far === far && sv.tilt === tilt && sv.stored === id && sv.tiltClass === true && sv.card === cardBefore,
+        JSON.stringify(sv));
+      for (const [name, w, h] of [["390x844", 390, 844], ["740x360", 740, 360]]) {
+        await pauseToSheet();
+        await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+        await new Promise((r) => setTimeout(r, 300));
+        await p.click("#play-restart");
+        await p.click("#play-toggle");
+        await p.waitForFunction(() => { const s = window.__pfTest.play.state(); return s.playing && s.wait && s.step === 0 && s.beat >= 0; }, { timeout: 8000 });
+        await new Promise((r) => setTimeout(r, 80));
+        const tg = await p.evaluate(() => {
+          const cv = document.getElementById("highway"), hr = cv.getBoundingClientRect(), dpr = devicePixelRatio;
+          const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+          const amber = (i) => d[i + 3] > 150 && d[i] > 170 && d[i + 1] > 110 && d[i + 2] < 125;
+          let row = -1;
+          for (let y = cv.height - 1; y >= 0 && row < 0; y--) for (let x = 0; x < cv.width; x++) if (amber((y * cv.width + x) * 4)) { row = y; break; }
+          const xs = [];
+          if (row >= 0) for (let x = 0; x < cv.width; x++) if (amber((row * cv.width + x) * 4)) xs.push(x);
+          const st = window.__pfTest.play.state();
+          const sc = document.getElementById("kb-scroll"), kb = document.getElementById("keyboard");
+          const k = document.querySelector('#keyboard .key[data-note="' + st.next[0] + '"]');
+          const topCx = sc.getBoundingClientRect().left + kb.offsetLeft - sc.scrollLeft + k.offsetLeft + k.offsetWidth / 2;
+          const kbr = kb.getBoundingClientRect();
+          const whites = [...kb.querySelectorAll(".key.white")].map((e) => e.getBoundingClientRect());
+          const se = document.scrollingElement || document.documentElement;
+          return {
+            noteBottom: row < 0 ? null : +(hr.top + (row + 1) / dpr).toFixed(1),
+            keyTopEdge: +kbr.top.toFixed(1),
+            dx: xs.length ? +(hr.left + (xs[0] + xs[xs.length - 1]) / 2 / dpr - topCx).toFixed(1) : null,
+            frontWider: kbr.width > kb.offsetWidth + 4,
+            keysInside: Math.max(...whites.map((r) => r.bottom)) <= sc.getBoundingClientRect().bottom - 4,
+            scrolls: se.scrollHeight > innerHeight || window.scrollY !== 0
+          };
+        });
+        check("play: 3D style " + id.toUpperCase() + " at " + name + ": the waiting note lands on the tilted key's top edge",
+          tg.noteBottom != null && Math.abs(tg.noteBottom - tg.keyTopEdge) <= 3 && tg.dx != null && Math.abs(tg.dx) <= 3
+            && tg.frontWider && tg.keysInside && !tg.scrolls,
+          JSON.stringify(tg));
+      }
+    }
+    await pauseToSheet();
+    const persisted = await (async () => {
+      const q = await browser.newPage();
+      await q.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+      const v = await q.evaluate(() => ({ style: window.__pfTest.play.state().style, checked: document.querySelector('#play-style input:checked').value }));
+      await q.close();
+      return v;
+    })();
+    check("play: 3D style choice persists across reloads", persisted.style === "b" && persisted.checked === "b", JSON.stringify(persisted));
+    await p.setViewport({ width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await p.click('#play-style label:has(input[value="classic"])');
+    await p.waitForFunction(() => window.__pfTest.play.state().style === "classic", { timeout: 4000 });
+    const backClassic = await p.evaluate(() => ({ far: window.__pfTest.play.state().farScale, tilt: window.__pfTest.play.state().tilt,
+      tiltClass: document.getElementById("keyboard").classList.contains("kb-tilt"), transform: document.getElementById("keyboard").style.transform }));
+    check("play: Classic restores flat keys and the original perspective",
+      backClassic.far === 0.45 && backClassic.tilt === 0 && !backClassic.tiltClass && backClassic.transform === "", JSON.stringify(backClassic));
+    await p.evaluate(() => { try { localStorage.removeItem("aplus.play3d.v1"); } catch (e) {} });
+
     await p.click("#play-to-test");
     const back = await p.evaluate(() => {
       const keys = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);

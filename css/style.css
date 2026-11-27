@@ -1166,6 +1166,35 @@ body.mode-play .play-sheet:not([hidden]) {
   font-size: 0.86rem;
   color: var(--text);
 }
+.play-style {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.play-style legend {
+  float: left;
+  padding: 0;
+  margin-right: auto;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+.play-style label {
+  position: relative;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.play-style input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.play-style label:has(input:checked) { background: var(--accent); border-color: transparent; color: #1a120a; font-weight: 650; }
+.play-style label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .play-tempo-row {
   display: flex;
   align-items: center;
