@@ -2477,6 +2477,42 @@ try {
         before: !!(lr && lr.right <= ir.left), alignedLeft: !!(lr && Math.abs(lr.left - sr.left) <= 1),
         readout: out.textContent.trim() };
     });
+    const keysRow = await p.evaluate(() => {
+      const fs = document.getElementById("play-keys"), lg = fs.querySelector("legend");
+      const labels = [...fs.querySelectorAll("label")], radios = [...fs.querySelectorAll('input[type="radio"]')];
+      const lr = lg.getBoundingClientRect(), last = labels[labels.length - 1].getBoundingClientRect();
+      const tl = document.querySelector(".play-tempo-label").getBoundingClientRect(), sr = document.getElementById("play-song").getBoundingClientRect();
+      const mid = (r) => (r.top + r.bottom) / 2;
+      return { legend: lg.textContent.trim(), names: labels.map((l) => l.textContent.trim()), values: radios.map((r) => r.value),
+        checked: radios.filter((r) => r.checked).map((r) => r.value), sameName: radios.every((r) => r.name === "play-keys"),
+        leftAligned: Math.abs(lr.left - tl.left) <= 1, rightAligned: Math.abs(last.right - sr.right) <= 1,
+        oneRow: labels.every((l) => Math.abs(mid(l.getBoundingClientRect()) - mid(last)) <= 1) && Math.abs(mid(lr) - mid(last)) <= 3 };
+    });
+    check("play: Keys choice is a labelled group of four options in one row, aligned with the sheet, Octave by default",
+      keysRow.legend === "Keys" && keysRow.values.join(",") === "octave,tight,plus,groups"
+        && keysRow.names.join(",") === "Octave,Tight,Plus one,Groups" && keysRow.checked.join(",") === "octave"
+        && keysRow.sameName && keysRow.leftAligned && keysRow.rightAligned && keysRow.oneRow,
+      JSON.stringify(keysRow));
+    const keysUnit = await p.evaluate(() => {
+      const f = (lo, hi, m) => { const r = window.__pfTest.play.keysRange(lo, hi, m); return r.low + "-" + r.high; };
+      const all = (lo, hi) => ["octave", "tight", "plus", "groups"].map((m) => f(lo, hi, m)).join(" ");
+      return {
+        maryRh: all(60, 67),        // C4-G4
+        blackEnds: all(61, 66),     // C#4-F#4
+        blackEnds2: all(63, 70),    // D#4-A#4
+        twoKeys: all(64, 65),       // E4-F4
+        wide: all(59, 72),          // B3-C5
+        bassFull: all(48, 69)       // C3-A4
+      };
+    });
+    check("play: Keys ranges: tight covers the notes, plus one adds a white key past each end, groups take whole C-E / F-B groups",
+      keysUnit.maryRh === "57-71 60-67 59-69 60-71"
+        && keysUnit.blackEnds === "57-71 60-67 59-69 60-71"
+        && keysUnit.blackEnds2 === "60-74 62-71 60-72 60-71"
+        && keysUnit.twoKeys === "59-71 64-65 62-67 60-71"
+        && keysUnit.wide === "59-72 59-72 57-74 53-76"
+        && keysUnit.bassFull === "48-69 48-69 47-71 48-71",
+      JSON.stringify(keysUnit));
     check("play: tempo slider has a visible Tempo label on its row, aligned with the sheet, and keeps the % readout",
       tempoLabel.text === "Tempo" && tempoLabel.forId === "play-tempo" && tempoLabel.visible && tempoLabel.sameRow
         && tempoLabel.before && tempoLabel.alignedLeft && /^\d+%$/.test(tempoLabel.readout),
@@ -2538,7 +2574,7 @@ try {
           && info.hi - info.lo >= 12,
         JSON.stringify(info));
     }
-    // Mary RH is C4–G4 (span 7); pad to an octave and snap to white keys → A3–B4.
+    // Mary RH is C4–G4 (span 7); the default Octave choice pads to an octave and snaps to white keys → A3–B4.
     checkPlayRange("play: Mary right-hand keyboard matches the padded song range and lanes align",
       57, 71, 15, await playKeyboardFit());
 
@@ -2900,6 +2936,41 @@ try {
     await p.waitForFunction(() => window.__pfTest.play.state().song === "mary-had-a-little-lamb" && window.__pfTest.play.state().steps > 0, { timeout: 8000 });
     if (await p.evaluate(() => window.__pfTest.play.state().rung) !== "rh") await p.select("#play-rung", "rh");
     await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
+
+    // Keys choice on Mary RH (C4-G4): each mode's range, edge silhouettes, full width, key height and saving.
+    for (const [mode, lo, hi, silL, silR] of [["tight", 60, 67, null, 68], ["plus", 59, 69, 58, 70], ["groups", 60, 71, null, null], ["octave", 57, 71, null, null]]) {
+      await pauseToSheet();
+      await p.click('#play-keys input[value="' + mode + '"]');
+      await p.waitForFunction((lo, hi) => {
+        const n = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+        return Math.min(...n) === lo && Math.max(...n) === hi;
+      }, { timeout: 8000 }, lo, hi);
+      await p.click("#play-restart");
+      await p.click("#play-toggle");
+      await p.waitForFunction(() => { const s = window.__pfTest.play.state(); return s.playing && s.wait && s.step === 0 && s.beat >= 0; }, { timeout: 8000 });
+      await new Promise((r) => setTimeout(r, 120));
+      const km = await p.evaluate(() => {
+        const kb = document.getElementById("keyboard"), kbr = kb.getBoundingClientRect(), sc = document.getElementById("kb-scroll");
+        const sil = [...kb.querySelectorAll(".key-silhouette")].map((e) => ({ note: +e.dataset.note, side: e.classList.contains("left") ? "L" : "R",
+          hidden: e.getAttribute("aria-hidden"), w: +e.offsetWidth.toFixed(1),
+          inside: e.offsetLeft >= -0.5 && e.offsetLeft + e.offsetWidth <= kb.offsetWidth + 0.5 }));
+        const bw = (kb.querySelector(".key.black") || {}).offsetWidth || 0;
+        const st = window.__pfTest.play.state(), kh = window.__pfTest.play.keyHeight();
+        const keys = kb.querySelectorAll(".key").length;
+        return { mode: window.__pfTest.play.keysMode(), saved: localStorage.getItem("aplus.playkeys.v1"), keys, rangeLow: st.rangeLow, rangeHigh: st.rangeHigh,
+          sil, blackW: bw, kbW: Math.round(kbr.width), fillW: Math.round(sc.getBoundingClientRect().width - 8), tilt: st.tilt,
+          keyH: Math.round(kh.now), shownH: Math.round(innerHeight - kbr.top - 7), playing: st.playing };
+      });
+      const wantSil = [silL != null ? silL + "L" : null, silR != null ? silR + "R" : null].filter(Boolean).join(",");
+      check("play: Keys " + mode + " on Mary RH shows " + lo + "-" + hi + " with edge silhouettes [" + wantSil + "], full width, key height kept, saved",
+        km.mode === mode && km.saved === mode && km.keys === hi - lo + 1 && km.rangeLow === lo && km.rangeHigh === hi
+          && km.sil.map((x) => x.note + x.side).join(",") === wantSil
+          && km.sil.every((x) => x.hidden === "true" && x.inside && Math.abs(x.w - km.blackW / 2) <= 1)
+          && km.kbW >= km.fillW - 1 && Math.abs(km.shownH - km.keyH) <= 2 && km.playing,
+        JSON.stringify(km));
+    }
+    await pauseToSheet();
+    await p.evaluate(() => localStorage.removeItem("aplus.playkeys.v1"));
 
     // Tilted keys and straight lanes: notes land on the keys' top edge.
     await pauseToSheet();

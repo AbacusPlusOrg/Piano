@@ -649,6 +649,20 @@
       bindKey(b, n);
       blacksEl.appendChild(b);
     }
+    // Play, Tight and Plus one: a black key just outside either end shows as a half silhouette (not a key).
+    var keysM = playMode ? playKeysMode() : "";
+    if (keysM === "tight" || keysM === "plus") {
+      [[range.low - 1, 0, "left"], [range.high + 1, width - blackW / 2, "right"]].forEach(function (e) {
+        if (e[0] < 0 || e[0] > 127 || !isBlack(e[0])) return;
+        var sil = document.createElement("div");
+        sil.className = "key-silhouette " + e[2];
+        sil.setAttribute("aria-hidden", "true");
+        sil.dataset.note = String(e[0]);
+        sil.style.width = blackW / 2 + "px";
+        sil.style.left = e[1] + "px";
+        blacksEl.appendChild(sil);
+      });
+    }
 
     kb.appendChild(whitesEl);
     kb.appendChild(blacksEl);
@@ -2258,6 +2272,7 @@
     restart: document.getElementById("play-restart"),
     wait: document.getElementById("play-wait"),
     tempo: document.getElementById("play-tempo"),
+    keys: document.getElementById("play-keys"),
     tempoOut: document.getElementById("play-tempo-out"),
     canvas: document.getElementById("highway"),
     sheet: document.getElementById("play-sheet"),
@@ -2299,10 +2314,41 @@
     return { ppq: ppq, bpm: 60000000 / tempo, beatsPerBar: bpb, notes: raw };
   }
 
+  // Play "Keys" choices for a part whose notes run lo..hi (MIDI). Ends are always white keys.
+  //   tight:  the white keys that cover every note (a black end note takes its outer white neighbour);
+  //   plus:   one more white key on each side (past the adjacent black key, if any);
+  //   groups: whole C-D-E and F-G-A-B groups holding any note (black keys count toward their group).
+  // "octave" (the default, songKeyboardRange) pads to at least an octave.
+  // Tight and Plus one draw a black key just outside either end as a half silhouette (see buildKeyboard).
+  function playKeyRange(lo, hi, mode) {
+    var low = snapLow(lo), high = snapHigh(hi);
+    if (mode === "plus") {
+      low = snapLow(low - 1);
+      high = snapHigh(high + 1);
+    } else if (mode === "groups") {
+      var pl = lo % 12, ph = hi % 12;
+      low = lo - pl + (pl >= 5 ? 5 : 0);
+      high = hi - ph + (ph >= 5 ? 11 : 4);
+    }
+    return { low: Math.max(0, low), high: Math.min(127, high) };
+  }
+  var PLAY_KEYS_STORE_KEY = "aplus.playkeys.v1";
+  var PLAY_KEYS_MODES = ["octave", "tight", "plus", "groups"];
+  function playKeysMode() {
+    try { var m = localStorage.getItem(PLAY_KEYS_STORE_KEY); return PLAY_KEYS_MODES.indexOf(m) >= 0 ? m : "octave"; }
+    catch (e) { return "octave"; }
+  }
+  function applyPlayRange() {
+    var r = play.midi ? songKeyboardRange(play.midi.notes, playKeysMode()) : null;
+    play.rangeLow = r ? r.low : null;
+    play.rangeHigh = r ? r.high : null;
+    if (document.body.classList.contains("mode-play")) rebuildKeyboard();
+  }
+
   // Notes that start together form one step; wait mode holds at each step until all its keys are pressed.
   // Lowest–highest notes of the current rung, snapped to white keys and
   // padded to at least an octave so a short phrase doesn't make giant keys.
-  function songKeyboardRange(notes) {
+  function songKeyboardRange(notes, mode) {
     if (!notes || !notes.length) return null;
     var lo = Infinity, hi = -Infinity, i, n;
     for (i = 0; i < notes.length; i++) {
@@ -2310,6 +2356,7 @@
       if (n < lo) lo = n;
       if (n > hi) hi = n;
     }
+    if (mode && mode !== "octave") return playKeyRange(lo, hi, mode);
     lo = snapLow(Math.max(0, lo));
     hi = snapHigh(Math.min(127, hi));
     if (hi - lo < 12) {
@@ -2383,10 +2430,7 @@
       play.midi = parseMidi(buf);
       play.steps = buildSteps(play.midi.notes);
       play.endBeat = play.midi.notes.reduce(function (m, n) { return Math.max(m, n.end); }, 0);
-      var r = songKeyboardRange(play.midi.notes);
-      play.rangeLow = r ? r.low : null;
-      play.rangeHigh = r ? r.high : null;
-      if (document.body.classList.contains("mode-play")) rebuildKeyboard();
+      applyPlayRange();
       restartPlay();
     });
   }
@@ -2774,6 +2818,17 @@
   syncPlayMidi();
   pe.wait.addEventListener("change", function () { play.wait = pe.wait.checked; play.hit = {}; stopPlayback(); });
 
+  if (pe.keys) {
+    var keysMode = playKeysMode();
+    Array.prototype.forEach.call(pe.keys.querySelectorAll("input"), function (r) {
+      r.checked = r.value === keysMode;
+      r.addEventListener("change", function () {
+        if (!r.checked) return;
+        try { localStorage.setItem(PLAY_KEYS_STORE_KEY, r.value); } catch (e) {}
+        applyPlayRange();
+      });
+    });
+  }
   pe.tempo.addEventListener("input", function () {
     play.rate = parseInt(pe.tempo.value, 10) / 100;
     pe.tempoOut.textContent = pe.tempo.value + "%";
@@ -2892,6 +2947,8 @@
       },
       parse: function (buf) { return parseMidi(buf); },
       keyFit: function (w, n, h) { return playKeyFit(w, n, h); },
+      keysRange: function (lo, hi, mode) { return songKeyboardRange([{ note: lo }, { note: hi }], mode); },
+      keysMode: function () { return playKeysMode(); },
       keyRange: function (w, n, v) { return playKeyHeightRange(w, n, v); },
       keyHeight: function () { return { now: playKeyH.now, min: playKeyH.min, max: playKeyH.max, land: playKeyH.land }; },
       drawMs: function (n) {

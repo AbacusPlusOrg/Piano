@@ -8,7 +8,7 @@
   <meta name="description" content="A+Piano MIDI Input Test: note detection and visual feedback.">
   <title>A+Piano — MIDI Input Test</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2314110e'/%3E%3Crect x='3' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='6.4' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='9.8' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='4.6' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3Crect x='8' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=1795800898">
+  <link rel="stylesheet" href="css/style.css?v=1795804786">
 </head>
 <body>
   <div class="top">
@@ -72,6 +72,13 @@
           <input type="range" id="play-tempo" min="50" max="150" step="5" value="100">
           <output id="play-tempo-out" for="play-tempo">100%</output>
         </div>
+        <fieldset class="play-keys" id="play-keys">
+          <legend>Keys</legend>
+          <label title="The song's keys, padded to at least an octave."><input type="radio" name="play-keys" value="octave"> Octave</label>
+          <label title="Only the white keys the part uses."><input type="radio" name="play-keys" value="tight"> Tight</label>
+          <label title="One more white key on each side."><input type="radio" name="play-keys" value="plus"> Plus one</label>
+          <label title="Whole C–E and F–B groups."><input type="radio" name="play-keys" value="groups"> Groups</label>
+        </fieldset>
         <div class="play-actions">
           <button type="button" id="play-toggle">Start</button>
           <button type="button" id="play-restart">Restart</button>
@@ -134,6 +141,6 @@
     </div>
   </div>
 
-  <script src="js/app.js?v=1795800898" defer></script>
+  <script src="js/app.js?v=1795804786" defer></script>
 </body>
 </html>
