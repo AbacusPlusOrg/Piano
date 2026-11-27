@@ -517,20 +517,15 @@
     var inset = 4;
     var landscape = window.matchMedia("(orientation: landscape) and (max-height: 540px)").matches;
     var playMode = document.body.classList.contains("mode-play");
+    var blackLen = prop.blackLengthRatio;
     var maxH;
     if (playMode) {
-      var topEl = document.querySelector(".top");
-      var bodyStyle = getComputedStyle(document.body);
-      var padY = (parseFloat(bodyStyle.paddingTop) || 0) + (parseFloat(bodyStyle.paddingBottom) || 0);
-      var headerReserve = 0;
-      if (topEl && getComputedStyle(topEl).display !== "none") {
-        var gap = landscape ? (parseFloat(bodyStyle.rowGap) || 5) : (parseFloat(getComputedStyle(topEl).marginBottom) || 10);
-        headerReserve = topEl.getBoundingClientRect().height + gap;
-      }
-      var hwyMin = landscape ? 50 : 90;
-      var scrollPad = parseFloat(getComputedStyle(els.kbScroll).paddingBottom) || 0;
-      var avail = window.innerHeight - padY - headerReserve - hwyMin - scrollPad - 2;
-      maxH = Math.max(landscape ? 80 : 110, Math.round(avail));
+      // Play: fill the width for the song's range with real-looking keys
+      // (white key length 4.5x its width, black keys 62% as long), capped so
+      // the falling notes always get most of the height.
+      KEY_RATIO = PLAY_KEY_RATIO;
+      blackLen = PLAY_BLACK_LEN;
+      maxH = Math.round(window.innerHeight * (landscape ? PLAY_KEY_CAP_LAND : PLAY_KEY_CAP_PORT));
     } else if (landscape) {
       maxH = Math.max(90, els.kbScroll.clientHeight || 140);
     } else {
@@ -549,7 +544,7 @@
     kb.style.width = width + "px";
     kb.style.height = Math.round(height) + "px";
     kb.style.margin = "0 auto";
-    kb.style.setProperty("--black-len", (prop.blackLengthRatio * 100).toFixed(2) + "%");
+    kb.style.setProperty("--black-len", (blackLen * 100).toFixed(2) + "%");
     // Corner rounding scales with key width (a real key is only slightly rounded).
     kb.style.setProperty("--wr", Math.min(4, Math.max(1, whiteW * 0.08)).toFixed(1) + "px");
     kb.style.setProperty("--br", Math.min(2.5, Math.max(0.8, whiteW * 0.05)).toFixed(1) + "px");
@@ -2173,6 +2168,11 @@
 
   var MODE_STORE_KEY = "aplus.mode.v1";
   var LOOKAHEAD_BEATS = 5;   // beats visible above the keys
+  var PLAY_KEY_RATIO = 4.5;  // white key visible length / width (real: ~150 / 23.5 mm, front part shown)
+  var PLAY_BLACK_LEN = 0.62; // black key length / white key length
+  var PLAY_KEY_CAP_PORT = 0.33; // key height cap, share of viewport height
+  var PLAY_KEY_CAP_LAND = 0.40;
+  var FAR_SCALE = 0.45;      // highway far end width / near end width
   var LEAD_IN_BEATS = 3;     // notes fall this long before the first one reaches the keys
   var EARLY_BEATS = 0.25;    // a key pressed this close before its note still counts
   var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
@@ -2482,6 +2482,22 @@
     }
   }
 
+  // Perspective: d beats ahead maps to depth z; scale 1 at the keys, FAR_SCALE at the top.
+  function depthScale(d) {
+    var z = Math.max(0, Math.min(LOOKAHEAD_BEATS, d)) / LOOKAHEAD_BEATS * (1 / FAR_SCALE - 1);
+    return 1 / (1 + z);
+  }
+
+  function quadPath(g, xl0, xr0, yb, xl1, xr1, yt, rad) {
+    g.beginPath();
+    g.moveTo((xl0 + xr0) / 2, yb);
+    g.arcTo(xr0, yb, xr1, yt, rad);
+    g.arcTo(xr1, yt, xl1, yt, rad);
+    g.arcTo(xl1, yt, xl0, yb, rad);
+    g.arcTo(xl0, yb, xr0, yb, rad);
+    g.closePath();
+  }
+
   function drawHighway() {
     var cv = pe.canvas;
     lightNextKeys();
@@ -2494,47 +2510,89 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, r.width, r.height);
     play.drawn = 0;
-    // Key columns from the live keyboard, so bars line up with the keys after any scroll or resize.
-    var cols = {};
+    var H = r.height;
+    // Key columns from the live keyboard, so notes land on the keys after any scroll or resize.
+    var cols = {}, edges = [];
     var keys = els.keyboard.querySelectorAll(".key");
     for (var i = 0; i < keys.length; i++) {
       var kr = keys[i].getBoundingClientRect();
-      cols[keys[i].dataset.note] = { x: kr.left - r.left, w: kr.width, black: keys[i].classList.contains("black") };
+      var black = keys[i].classList.contains("black");
+      cols[keys[i].dataset.note] = { x: kr.left - r.left, w: kr.width, black: black };
+      if (!black) edges.push(kr.left - r.left);
     }
-    var H = r.height, ppb = H / LOOKAHEAD_BEATS;
-    if (play.midi) {
-      g.strokeStyle = "rgba(244, 238, 228, 0.08)";
+    var kbr = els.keyboard.getBoundingClientRect();
+    var nearL = Math.max(0, kbr.left - r.left), nearR = Math.min(r.width, kbr.right - r.left);
+    var cx = (nearL + nearR) / 2;
+    var horizon = -FAR_SCALE * H / (1 - FAR_SCALE);
+    function yAt(s) { return horizon + (H - horizon) * s; }
+    function xAt(x, s) { return cx + (x - cx) * s; }
+
+    if (nearR > nearL) {
+      // Lane board: a trapezoid over the keyboard that narrows toward the top.
+      var board = g.createLinearGradient(0, 0, 0, H);
+      board.addColorStop(0, "rgba(244, 238, 228, 0.015)");
+      board.addColorStop(1, "rgba(244, 238, 228, 0.06)");
+      g.fillStyle = board;
+      g.beginPath();
+      g.moveTo(nearL, H); g.lineTo(nearR, H);
+      g.lineTo(xAt(nearR, FAR_SCALE), 0); g.lineTo(xAt(nearL, FAR_SCALE), 0);
+      g.closePath(); g.fill();
       g.lineWidth = 1;
-      for (var bar = Math.ceil(play.beat / play.midi.beatsPerBar) * play.midi.beatsPerBar; bar <= play.beat + LOOKAHEAD_BEATS; bar += play.midi.beatsPerBar) {
-        var by = Math.round(H - (bar - play.beat) * ppb) + 0.5;
-        g.beginPath(); g.moveTo(0, by); g.lineTo(r.width, by); g.stroke();
+      g.strokeStyle = "rgba(244, 238, 228, 0.06)";
+      g.beginPath();
+      for (var e = 1; e < edges.length; e++) {
+        g.moveTo(edges[e], H); g.lineTo(xAt(edges[e], FAR_SCALE), 0);
       }
+      g.stroke();
+      g.strokeStyle = "rgba(244, 238, 228, 0.16)";
+      g.beginPath();
+      g.moveTo(nearL, H); g.lineTo(xAt(nearL, FAR_SCALE), 0);
+      g.moveTo(nearR, H); g.lineTo(xAt(nearR, FAR_SCALE), 0);
+      g.stroke();
+    }
+    if (play.midi) {
+      g.strokeStyle = "rgba(244, 238, 228, 0.09)";
+      g.lineWidth = 1;
+      g.beginPath();
+      for (var bar = Math.ceil(play.beat / play.midi.beatsPerBar) * play.midi.beatsPerBar; bar <= play.beat + LOOKAHEAD_BEATS; bar += play.midi.beatsPerBar) {
+        var bs = depthScale(bar - play.beat), by = Math.round(yAt(bs)) + 0.5;
+        g.moveTo(xAt(nearL, bs), by); g.lineTo(xAt(nearR, bs), by);
+      }
+      g.stroke();
       var cur = play.steps[play.step];
-      var font = "600 11px system-ui, sans-serif";
-      g.font = font;
       g.textAlign = "center";
       play.midi.notes.forEach(function (n) {
         var c = cols[n.note];
-        var y1 = H - (n.start - play.beat) * ppb, y0 = H - (n.end - play.beat) * ppb;
-        if (!c || y1 < 0 || y0 > H) return;
+        var d0 = n.start - play.beat, d1 = n.end - play.beat;
+        if (!c || d1 < 0 || d0 > LOOKAHEAD_BEATS) return;
+        var s0 = depthScale(d0), s1 = depthScale(d1);
+        var yb = yAt(s0) - 0.5, yt = yAt(s1) + 1;
+        if (yb - yt <= 1) return;
         var done = n.end <= play.beat;
         var isNext = cur && Math.abs(n.start - cur.beat) < 1e-6 && !play.hit[n.note];
+        var xl = c.x + 1.5, xr = c.x + Math.max(4.5, c.w - 1.5);
+        var xl0 = xAt(xl, s0), xr0 = xAt(xr, s0), xl1 = xAt(xl, s1), xr1 = xAt(xr, s1);
         g.globalAlpha = done ? 0.25 : (isNext ? 1 : 0.8);
         g.fillStyle = n.note < 60 ? "#b98249" : "#e0a15a";
-        var x = c.x + 1.5, bw = Math.max(3, c.w - 3), top = Math.max(-4, y0 + 1), bh = Math.min(H + 4, y1) - top - 1;
-        if (bh <= 0) return;
-        g.beginPath();
-        if (g.roundRect) g.roundRect(x, top, bw, bh, Math.min(4, bw / 3)); else g.rect(x, top, bw, bh);
+        quadPath(g, xl0, xr0, yb, xl1, xr1, yt, Math.min(4 * s0, (xr0 - xl0) / 3, (yb - yt) / 2));
         g.fill();
         if (isNext) { g.globalAlpha = 1; g.strokeStyle = "#ffb45a"; g.lineWidth = 2; g.stroke(); }
-        if (bw >= 12 && bh >= 16) {
+        var fs = Math.round(Math.max(9, Math.min(12, 12 * s0)));
+        if (xr0 - xl0 >= 12 && yb - yt >= fs + 6) {
           g.globalAlpha = done ? 0.35 : 1;
           g.fillStyle = "#1a120a";
-          g.fillText(noteName(n.note).replace(/-?\d+$/, ""), x + bw / 2, Math.min(y1, H) - 5);
+          g.font = "600 " + fs + "px system-ui, sans-serif";
+          g.fillText(noteName(n.note).replace(/-?\d+$/, ""), (xl0 + xr0) / 2, yb - 5);
         }
         play.drawn++;
       });
       g.globalAlpha = 1;
+    }
+    if (nearR > nearL) {
+      // Hit line along the top of the keys.
+      g.strokeStyle = "rgba(244, 238, 228, 0.32)";
+      g.lineWidth = 1;
+      g.beginPath(); g.moveTo(nearL, H - 0.5); g.lineTo(nearR, H - 0.5); g.stroke();
     }
     var msg = !play.midi ? "Loading song…" : (!play.playing && play.beat <= -LEAD_IN_BEATS ? "Press Start." :
       (!play.playing && play.step >= play.steps.length ? "Done. Press Start to play again." : ""));
@@ -2706,7 +2764,13 @@
           rangeLow: play.rangeLow, rangeHigh: play.rangeHigh,
           sheetOpen: !!(pe.sheet && !pe.sheet.hidden) };
       },
-      parse: function (buf) { return parseMidi(buf); }
+      parse: function (buf) { return parseMidi(buf); },
+      drawMs: function (n) {
+        n = n || 60;
+        var t = performance.now();
+        for (var i = 0; i < n; i++) drawHighway();
+        return (performance.now() - t) / n;
+      }
     },
     debug: {
       open: function () { openDebug(); },

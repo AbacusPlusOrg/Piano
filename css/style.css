@@ -1198,6 +1198,15 @@ body.mode-play .play-pause:not([hidden]) {
   outline-offset: 2px;
 }
 .key.next:not(.held)::after { opacity: 0.45; }
+/* Play: keys with a lit top face, shade toward the fallboard and a front edge. */
+body.mode-play .key.white {
+  background: linear-gradient(180deg, #cfc4b2 0%, #ece4d7 9%, #faf6ef 52%, #f3ede3 84%, #e6dccb 92%, #d3c6b0 100%);
+  box-shadow: inset 0 7px 7px -6px rgba(0, 0, 0, 0.35), 0 3px 0 #a89780, 0 8px 12px rgba(0, 0, 0, 0.35);
+}
+body.mode-play .key.black {
+  background: linear-gradient(180deg, #1c1814 0%, #2e2822 12%, #3a332c 78%, #4a4239 86%, #16120f 88%, #0b0907 100%);
+  box-shadow: 0 3px 0 #000, 0 6px 9px rgba(0, 0, 0, 0.5);
+}
 .key.next:not(.held) { box-shadow: inset 0 0 0 2px var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
 
 @media (orientation: landscape) and (max-height: 540px) {

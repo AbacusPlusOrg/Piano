@@ -2413,11 +2413,13 @@ try {
         const ctx = cv.getContext("2d");
         const img = ctx.getImageData(0, 0, cv.width, cv.height);
         const data = img.data;
+        // Note bars are amber; the lane board and lines are faint neutrals.
+        const amber = (i) => data[i + 3] > 150 && data[i] > 170 && data[i + 1] > 110 && data[i + 2] < 125;
         let maxY = -1;
         for (let y = cv.height - 1; y >= 0; y--) {
           const row = y * cv.width * 4;
           for (let x = 0; x < cv.width; x++) {
-            if (data[row + x * 4 + 3] > 40) { maxY = y; break; }
+            if (amber(row + x * 4)) { maxY = y; break; }
           }
           if (maxY >= 0) break;
         }
@@ -2687,6 +2689,92 @@ try {
           && pausedFit.wrapBottom >= pausedFit.innerHeight - pausedFit.padBottom - 1,
         JSON.stringify({ open: openFit, playing: playFit, paused: pausedFit }));
     }
+
+    // Song-sized keyboard with real proportions, perspective highway, notes landing on their keys.
+    async function pauseToSheet() {
+      if (await p.evaluate(() => window.__pfTest.play.state().playing)) await p.click("#play-pause");
+      await p.waitForFunction(() => !window.__pfTest.play.state().playing && !document.getElementById("play-sheet").hidden, { timeout: 8000 });
+    }
+    for (const [song, rung, lo, hi] of [["mary-had-a-little-lamb", "rh", 57, 71], ["over-in-the-meadow", "full", 48, 69]]) {
+      await pauseToSheet();
+      await p.select("#play-song", song);
+      await p.waitForFunction((s) => window.__pfTest.play.state().song === s && window.__pfTest.play.state().steps > 0, { timeout: 8000 }, song);
+      if (await p.evaluate(() => window.__pfTest.play.state().rung) !== rung) {
+        await p.select("#play-rung", rung);
+      }
+      await p.waitForFunction((r, lo, hi) => {
+        const notes = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
+        return window.__pfTest.play.state().rung === r && Math.min(...notes) === lo && Math.max(...notes) === hi;
+      }, { timeout: 8000 }, rung, lo, hi);
+      for (const [name, w, h] of [["390x844", 390, 844], ["360x640", 360, 640], ["915x412", 915, 412], ["740x360", 740, 360]]) {
+        await pauseToSheet();
+        await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+        await new Promise((r) => setTimeout(r, 300));
+        await p.click("#play-restart");
+        await p.click("#play-toggle");
+        await p.waitForFunction(() => { const s = window.__pfTest.play.state(); return s.playing && s.wait && s.step === 0 && s.beat >= 0; }, { timeout: 8000 });
+        await new Promise((r) => setTimeout(r, 80));
+        const g = await p.evaluate(() => {
+          const land = matchMedia("(orientation: landscape) and (max-height: 540px)").matches;
+          const cap = land ? 0.40 : 0.33;
+          const kb = document.getElementById("keyboard").getBoundingClientRect();
+          const sc = document.getElementById("kb-scroll");
+          const scr = sc.getBoundingClientRect();
+          const wk = document.querySelector("#keyboard .key.white").getBoundingClientRect();
+          const bk = document.querySelector("#keyboard .key.black");
+          const bkr = bk ? bk.getBoundingClientRect() : null;
+          const cv = document.getElementById("highway");
+          const hr = cv.getBoundingClientRect();
+          const dpr = window.devicePixelRatio || 1;
+          const data = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+          const amber = (i) => data[i + 3] > 150 && data[i] > 170 && data[i + 1] > 110 && data[i + 2] < 125;
+          let row = -1;
+          for (let y = cv.height - 1; y >= 0 && row < 0; y--) {
+            for (let x = 0; x < cv.width; x++) if (amber((y * cv.width + x) * 4)) { row = y; break; }
+          }
+          const spans = [];
+          if (row >= 0) {
+            let s = -1;
+            for (let x = 0; x <= cv.width; x++) {
+              const on = x < cv.width && amber((row * cv.width + x) * 4);
+              if (on && s < 0) s = x;
+              if (!on && s >= 0) { spans.push(hr.left + (s + x) / 2 / dpr); s = -1; }
+            }
+          }
+          const st = window.__pfTest.play.state();
+          const offsets = st.next.map((n) => {
+            const k = document.querySelector('#keyboard .key[data-note="' + n + '"]').getBoundingClientRect();
+            const c = k.left + k.width / 2;
+            return spans.length ? Math.min(...spans.map((x) => Math.abs(x - c))) : 99;
+          });
+          const se = document.scrollingElement || document.documentElement;
+          return {
+            land, cap,
+            ratio: +(wk.height / wk.width).toFixed(2),
+            blackLen: bkr ? +(bkr.height / wk.height).toFixed(2) : null,
+            keyShare: +(kb.height / innerHeight).toFixed(3),
+            hwShare: +(hr.height / innerHeight).toFixed(3),
+            kbW: Math.round(kb.width), fillW: Math.round(scr.width - 8),
+            centered: Math.abs((kb.left + kb.right) / 2 - (scr.left + scr.right) / 2) <= 1,
+            noteBottom: row < 0 ? null : +(hr.top + (row + 1) / dpr).toFixed(1),
+            keysTop: +scr.top.toFixed(1),
+            next: st.next, offsets: offsets.map((o) => +o.toFixed(1)),
+            scrolls: se.scrollHeight > innerHeight || se.scrollWidth > innerWidth || window.scrollY !== 0,
+            drawMs: +window.__pfTest.play.drawMs(30).toFixed(3)
+          };
+        });
+        const capped = g.keyShare >= g.cap - 0.003;
+        check("play: " + song + " " + rung + " at " + name + ": real key proportions, capped height, highway majority, note on its key",
+          g.ratio >= 4.3 && g.ratio <= 4.7 && (g.blackLen == null || (g.blackLen >= 0.6 && g.blackLen <= 0.65))
+            && g.keyShare <= g.cap + 0.003 && g.hwShare >= 0.5 && !g.scrolls && g.centered
+            && (capped || g.kbW >= g.fillW - 1)
+            && g.noteBottom != null && Math.abs(g.keysTop - g.noteBottom) <= 3
+            && g.next.length > 0 && g.offsets.every((o) => o <= 3)
+            && g.drawMs < 4,
+          JSON.stringify(g));
+      }
+    }
+    await pauseToSheet();
 
     await p.click("#play-to-test");
     const back = await p.evaluate(() => {
