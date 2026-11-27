@@ -2369,6 +2369,49 @@ try {
     function keyboardAnchored(a, b) {
       return a.keysBottom === b.keysBottom && a.keys.h === b.keys.h && a.wrap.bottom === b.wrap.bottom;
     }
+    async function waitingNoteGeometry() {
+      return p.evaluate(() => {
+        const cv = document.getElementById("highway");
+        const keys = document.getElementById("kb-scroll").getBoundingClientRect();
+        const hr = cv.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const backingOk = cv.width === Math.round(hr.width * dpr) && cv.height === Math.round(hr.height * dpr);
+        const ctx = cv.getContext("2d");
+        const img = ctx.getImageData(0, 0, cv.width, cv.height);
+        const data = img.data;
+        let maxY = -1;
+        for (let y = cv.height - 1; y >= 0; y--) {
+          const row = y * cv.width * 4;
+          for (let x = 0; x < cv.width; x++) {
+            if (data[row + x * 4 + 3] > 40) { maxY = y; break; }
+          }
+          if (maxY >= 0) break;
+        }
+        const noteBottom = maxY < 0 ? null : hr.top + (maxY + 1) / dpr;
+        const st = window.__pfTest.play.state();
+        return {
+          backingOk,
+          canvasW: cv.width,
+          canvasH: cv.height,
+          cssW: Math.round(hr.width),
+          cssH: Math.round(hr.height),
+          dpr,
+          noteBottom: noteBottom == null ? null : Math.round(noteBottom * 10) / 10,
+          keysTop: Math.round(keys.top * 10) / 10,
+          canvasBottom: Math.round(hr.bottom * 10) / 10,
+          gap: noteBottom == null ? null : Math.round((keys.top - noteBottom) * 10) / 10,
+          slotGap: Math.round((keys.top - hr.bottom) * 10) / 10,
+          playing: st.playing,
+          beat: st.beat,
+          step: st.step,
+          wait: st.wait
+        };
+      });
+    }
+    function hitLineAtKeys(g) {
+      return g && g.backingOk === true && g.wait === true && g.playing === true
+        && g.noteBottom != null && Math.abs(g.gap) <= 6 && Math.abs(g.slotGap) <= 2;
+    }
     const overlayOpen = await playAreaBox();
     check("play: overlay is shown on entering Play",
       overlayOpen.sheetOpen === true && overlayOpen.sheetRole === "dialog" && overlayOpen.modal === "true"
@@ -2458,6 +2501,9 @@ try {
       JSON.stringify({ before: areaBeforeStart, playing: areaPlaying }));
     st = await ps();
     check("play: wait mode holds at the first note", st.playing && st.step === 0 && st.beat === 0, "beat=" + st.beat + " step=" + st.step);
+    const hit = await waitingNoteGeometry();
+    check("play: waiting note lands at the top of the keyboard and the canvas backing matches its size",
+      hitLineAtKeys(hit), JSON.stringify(hit));
     check("play: next key glows", JSON.stringify(st.lit) === "[64]", JSON.stringify(st.lit));
     await feed(65);
     st = await ps();
@@ -2573,8 +2619,11 @@ try {
           && openFit.playing === false && openFit.sheetOpen === true,
         JSON.stringify(openFit));
       await p.click("#play-toggle");
-      await p.waitForFunction(() => window.__pfTest.play.state().playing === true, { timeout: 8000 });
-      await new Promise((r) => setTimeout(r, 150));
+      await p.waitForFunction(() => {
+        const st = window.__pfTest.play.state();
+        return st.playing === true && st.wait === true && st.step === 0 && st.beat >= 0;
+      }, { timeout: 8000 });
+      await new Promise((r) => setTimeout(r, 80));
       const playFit = await playViewportChrome();
       check("play: header is hidden and the play area fills the viewport at " + name,
         playFit.headerVisible === false && playFit.playing === true && playFit.scrollY === 0
@@ -2583,6 +2632,9 @@ try {
           && playFit.wrapTop <= playFit.padTop + 1
           && playFit.wrapBottom >= playFit.innerHeight - playFit.padBottom - 1,
         JSON.stringify(playFit));
+      const playHit = await waitingNoteGeometry();
+      check("play: waiting note lands at the keyboard at " + name,
+        hitLineAtKeys(playHit), JSON.stringify(playHit));
       await p.click("#play-pause");
       await p.waitForFunction(() => window.__pfTest.play.state().playing === false && !document.getElementById("play-sheet").hidden, { timeout: 8000 });
       await new Promise((r) => setTimeout(r, 80));

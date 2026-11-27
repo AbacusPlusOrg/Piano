@@ -1048,7 +1048,7 @@ button {
 .mode-switch [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 539px) { h1 span { display: none; } }
 
-.play-sheet, .play-pause, .highway { display: none; }
+.play-sheet, .play-pause, .highway, .highway-slot { display: none; }
 body.mode-play .kb-bar, body.mode-play .lower, body.mode-play .status-wrap { display: none; }
 html.mode-play {
   height: 100vh;
@@ -1067,7 +1067,21 @@ body.mode-play {
 }
 body.mode-play.is-playing .top { display: none; }
 body.mode-play .kb-wrap { flex: 1 1 auto; min-height: 0; }
-body.mode-play .highway { display: block; flex: 1 1 0; min-height: 90px; width: 100%; overflow: hidden; }
+body.mode-play .highway-slot {
+  display: block;
+  position: relative;
+  flex: 1 1 0;
+  min-height: 90px;
+  width: 100%;
+  overflow: hidden;
+}
+body.mode-play .highway {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 body.mode-play .kb-scroll { flex: 0 0 auto; height: auto; min-height: 0; }
 body.mode-play .play-sheet:not([hidden]) {
   display: flex;
@@ -1180,7 +1194,7 @@ body.mode-play .play-pause:not([hidden]) {
     grid-template-areas: "kb kb";
     grid-template-rows: minmax(0, 1fr);
   }
-  body.mode-play .highway { flex: 1 1 0; min-height: 50px; overflow: hidden; }
+  body.mode-play .highway-slot { flex: 1 1 0; min-height: 50px; }
   body.mode-play .kb-scroll { flex: 0 0 auto; height: auto; min-height: 0; }
   body.mode-play .play-sheet:not([hidden]) { padding: 8px; }
   .play-sheet-card { padding: 10px 12px; gap: 6px; }

@@ -2339,6 +2339,7 @@
     document.body.classList.toggle("is-playing", playing);
     document.documentElement.classList.toggle("is-playing", playing);
     if (on && window.scrollTo) window.scrollTo(0, 0);
+    if (on) requestAnimationFrame(function () { drawHighway(); });
   }
 
   function updatePlayChrome() {
@@ -2607,7 +2608,10 @@
     if (e.shiftKey && (idx <= 0)) { e.preventDefault(); focusEl(list[list.length - 1]); }
     else if (!e.shiftKey && (idx === list.length - 1 || idx < 0)) { e.preventDefault(); focusEl(list[0]); }
   });
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(function () { drawHighway(); }).observe(pe.canvas);
+  if (typeof ResizeObserver !== "undefined") {
+    var highwayArea = pe.canvas && pe.canvas.parentElement ? pe.canvas.parentElement : pe.canvas;
+    new ResizeObserver(function () { drawHighway(); }).observe(highwayArea);
+  }
   els.kbScroll.addEventListener("scroll", function () { if (!play.playing) drawHighway(); });
   try { if (localStorage.getItem(MODE_STORE_KEY) === "play") setMode("play", false); } catch (e) {}
 
