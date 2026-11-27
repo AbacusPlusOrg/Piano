@@ -2459,6 +2459,21 @@ try {
       JSON.stringify({ soundInSheet: overlayOpen.soundInSheet, testSwitch: overlayOpen.testSwitch, headerVisible: overlayOpen.headerVisible }));
     check("play: Wait checkbox is labelled Wait for me!",
       overlayOpen.waitLabel === "Wait for me!", overlayOpen.waitLabel);
+    const tempoLabel = await p.evaluate(() => {
+      const input = document.getElementById("play-tempo");
+      const label = input.labels && input.labels[0];
+      const out = document.getElementById("play-tempo-out");
+      const lr = label ? label.getBoundingClientRect() : null, ir = input.getBoundingClientRect();
+      const sr = document.getElementById("play-song").getBoundingClientRect();
+      return { text: label ? label.textContent.trim() : null, forId: label ? label.htmlFor : null,
+        visible: !!(lr && lr.width > 0 && lr.height > 0), sameRow: !!(lr && Math.abs((lr.top + lr.bottom) / 2 - (ir.top + ir.bottom) / 2) <= 2),
+        before: !!(lr && lr.right <= ir.left), alignedLeft: !!(lr && Math.abs(lr.left - sr.left) <= 1),
+        readout: out.textContent.trim() };
+    });
+    check("play: tempo slider has a visible Tempo label on its row, aligned with the sheet, and keeps the % readout",
+      tempoLabel.text === "Tempo" && tempoLabel.forId === "play-tempo" && tempoLabel.visible && tempoLabel.sameRow
+        && tempoLabel.before && tempoLabel.alignedLeft && /^\d+%$/.test(tempoLabel.readout),
+      JSON.stringify(tempoLabel));
     check("play: status bar is hidden and the play area uses the freed height",
       overlayOpen.statusVisible === false && overlayOpen.wrap.top < testChrome.kbTop
         && overlayOpen.wrap.h > testChrome.kbH,

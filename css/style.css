@@ -1171,6 +1171,7 @@ body.mode-play .play-sheet:not([hidden]) {
   align-items: center;
   gap: 8px;
 }
+.play-tempo-label { flex-shrink: 0; font-size: 0.86rem; color: var(--text); }
 #play-tempo { flex: 1 1 auto; min-width: 50px; accent-color: var(--accent); }
 #play-tempo-out { width: 4ch; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 .play-actions { display: flex; gap: 8px; }
