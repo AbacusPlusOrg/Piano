@@ -313,6 +313,13 @@ try {
           const wrap = document.querySelector(".status-wrap");
           const r = wrap.getBoundingClientRect();
           return getComputedStyle(wrap).display === "none" || r.height === 0;
+        })(),
+        headerVisible: topR.height > 0 && getComputedStyle(top).display !== "none",
+        inSheet: !!(document.getElementById("play-sheet") && document.getElementById("play-sheet").contains(wrap)),
+        testSwitch: (function () {
+          const btn = document.getElementById("play-to-test");
+          const r = btn && btn.getBoundingClientRect();
+          return !!(btn && r && r.height > 0 && getComputedStyle(btn).display !== "none");
         })()
       };
       st.className = prev.cls;
@@ -361,8 +368,13 @@ try {
         && testMode.msgOverflow === true && testMode.stOverflow === true
         && testMode.text === "Tap to connect MIDI keyboard",
       JSON.stringify(testMode));
-    check("status bar is hidden in Play and sound controls stay in the header at " + name,
-      headerOk(playMode) && playMode.playMode === true && playMode.statusHidden === true,
+    check("status bar and header are hidden in Play and sound controls are in the sheet at " + name,
+      playMode.playMode === true && playMode.statusHidden === true
+        && playMode.headerVisible === false && playMode.inHeader === false
+        && playMode.inSheet === true && playMode.inStatus === false
+        && playMode.toggleVisible === true && playMode.sliderVisible === true
+        && /Sound off\.?/.test(playMode.label || "") && /Volume\.?/.test(playMode.volLabel || "")
+        && playMode.testSwitch === true,
       JSON.stringify(playMode));
   }
   await page.evaluate(() => { try { localStorage.removeItem("aplus.mode.v1"); } catch (e) {} });
@@ -2353,6 +2365,23 @@ try {
             return r.height > 0 && getComputedStyle(top).display !== "none";
           })(),
           headerTop: Math.round(document.querySelector(".top").getBoundingClientRect().top),
+          soundInSheet: (function () {
+            const sheet = document.getElementById("play-sheet");
+            const sound = document.getElementById("sound-controls");
+            const btn = document.getElementById("btn-sound");
+            const vol = document.getElementById("sound-volume");
+            const vis = (el) => !!(el && el.getBoundingClientRect().height > 0 && getComputedStyle(el).display !== "none");
+            return !!(sheet && sound && sheet.contains(sound) && vis(btn) && vis(vol)
+              && /Sound /.test(btn.getAttribute("aria-label") || "")
+              && /Volume/.test(vol.getAttribute("aria-label") || ""));
+          })(),
+          testSwitch: (function () {
+            const btn = document.getElementById("play-to-test");
+            const r = btn && btn.getBoundingClientRect();
+            return !!(btn && r && r.height > 0 && getComputedStyle(btn).display !== "none"
+              && (btn.getAttribute("aria-label") || "") === "Switch to Test."
+              && btn.textContent.trim() === "Test");
+          })(),
           keysBottom: Math.round(document.getElementById("kb-scroll").getBoundingClientRect().bottom),
           scrollY: Math.round(window.scrollY || window.pageYOffset || 0),
           scrollHeight: Math.max(
@@ -2368,6 +2397,11 @@ try {
     }
     function keyboardAnchored(a, b) {
       return a.keysBottom === b.keysBottom && a.keys.h === b.keys.h && a.wrap.bottom === b.wrap.bottom;
+    }
+    function samePlayArea(a, b) {
+      return JSON.stringify(a.wrap) === JSON.stringify(b.wrap)
+        && JSON.stringify(a.highway) === JSON.stringify(b.highway)
+        && JSON.stringify(a.keys) === JSON.stringify(b.keys);
     }
     async function waitingNoteGeometry() {
       return p.evaluate(() => {
@@ -2416,8 +2450,11 @@ try {
     check("play: overlay is shown on entering Play",
       overlayOpen.sheetOpen === true && overlayOpen.sheetRole === "dialog" && overlayOpen.modal === "true"
         && overlayOpen.start === "Start" && overlayOpen.pauseShown === false && overlayOpen.playing === false
-        && overlayOpen.headerVisible === true && overlayOpen.headerTop >= 0,
+        && overlayOpen.headerVisible === false,
       JSON.stringify(overlayOpen));
+    check("play: sheet has the sound controls and a Test switch, and the header is hidden",
+      overlayOpen.soundInSheet === true && overlayOpen.testSwitch === true && overlayOpen.headerVisible === false,
+      JSON.stringify({ soundInSheet: overlayOpen.soundInSheet, testSwitch: overlayOpen.testSwitch, headerVisible: overlayOpen.headerVisible }));
     check("play: Wait checkbox is labelled Wait for me!",
       overlayOpen.waitLabel === "Wait for me!", overlayOpen.waitLabel);
     check("play: status bar is hidden and the play area uses the freed height",
@@ -2491,11 +2528,9 @@ try {
       areaPlaying.sheetOpen === false && areaPlaying.pauseShown === true
         && areaPlaying.pauseLabel === "Pause." && areaPlaying.playing === true,
       JSON.stringify(areaPlaying));
-    check("play: header is hidden while playing and the keyboard stays at the bottom",
+    check("play: header stays hidden and the play area size is unchanged after Start",
       areaPlaying.headerVisible === false && areaPlaying.scrollY === 0
-        && keyboardAnchored(areaBeforeStart, areaPlaying)
-        && areaPlaying.wrap.top < areaBeforeStart.wrap.top
-        && areaPlaying.wrap.h > areaBeforeStart.wrap.h
+        && samePlayArea(areaBeforeStart, areaPlaying)
         && areaPlaying.scrollHeight <= areaPlaying.innerHeight
         && areaPlaying.keysBottom <= areaPlaying.innerHeight,
       JSON.stringify({ before: areaBeforeStart, playing: areaPlaying }));
@@ -2525,10 +2560,10 @@ try {
       areaPaused.sheetOpen === true && areaPaused.start === "Resume" && areaPaused.restart === "Restart"
         && areaPaused.pauseShown === false && areaPaused.playing === false,
       JSON.stringify(areaPaused));
-    check("play: header returns after Pause and the keyboard stays at the bottom",
-      areaPaused.headerVisible === true && areaPaused.headerTop >= 0 && areaPaused.scrollY === 0
-        && keyboardAnchored(areaPlaying, areaPaused)
-        && areaPaused.wrap.top > areaPlaying.wrap.top
+    check("play: header stays hidden and the play area size is unchanged after Pause",
+      areaPaused.headerVisible === false && areaPaused.scrollY === 0
+        && samePlayArea(areaPlaying, areaPaused)
+        && areaPaused.soundInSheet === true && areaPaused.testSwitch === true
         && areaPaused.scrollHeight <= areaPaused.innerHeight
         && areaPaused.keysBottom <= areaPaused.innerHeight,
       JSON.stringify({ playing: areaPlaying, paused: areaPaused }));
@@ -2612,11 +2647,13 @@ try {
       await p.waitForFunction(() => !window.__pfTest.play.state().playing && !document.getElementById("play-sheet").hidden, { timeout: 8000 });
       await new Promise((r) => setTimeout(r, 80));
       const openFit = await playViewportChrome();
-      check("play: header is visible and the page fits the viewport at " + name + " with the sheet open",
-        openFit.headerVisible === true && openFit.headerTop >= 0 && openFit.scrollY === 0
+      check("play: header is hidden and the page fits the viewport at " + name + " with the sheet open",
+        openFit.headerVisible === false && openFit.scrollY === 0
           && openFit.scrollHeight <= openFit.innerHeight
           && openFit.keysBottom <= openFit.innerHeight
-          && openFit.playing === false && openFit.sheetOpen === true,
+          && openFit.playing === false && openFit.sheetOpen === true
+          && openFit.wrapTop <= openFit.padTop + 1
+          && openFit.wrapBottom >= openFit.innerHeight - openFit.padBottom - 1,
         JSON.stringify(openFit));
       await p.click("#play-toggle");
       await p.waitForFunction(() => {
@@ -2639,20 +2676,30 @@ try {
       await p.waitForFunction(() => window.__pfTest.play.state().playing === false && !document.getElementById("play-sheet").hidden, { timeout: 8000 });
       await new Promise((r) => setTimeout(r, 80));
       const pausedFit = await playViewportChrome();
-      check("play: header returns and the page does not scroll after Pause at " + name,
-        pausedFit.headerVisible === true && pausedFit.headerTop >= 0 && pausedFit.scrollY === 0
+      check("play: header stays hidden, the play area size is unchanged, and the page does not scroll after Pause at " + name,
+        pausedFit.headerVisible === false && pausedFit.scrollY === 0
           && pausedFit.scrollHeight <= pausedFit.innerHeight
           && pausedFit.keysBottom <= pausedFit.innerHeight
-          && pausedFit.playing === false && pausedFit.sheetOpen === true,
-        JSON.stringify(pausedFit));
+          && pausedFit.playing === false && pausedFit.sheetOpen === true
+          && pausedFit.wrapTop === playFit.wrapTop && pausedFit.wrapH === playFit.wrapH
+          && pausedFit.wrapTop === openFit.wrapTop && pausedFit.wrapH === openFit.wrapH
+          && pausedFit.wrapTop <= pausedFit.padTop + 1
+          && pausedFit.wrapBottom >= pausedFit.innerHeight - pausedFit.padBottom - 1,
+        JSON.stringify({ open: openFit, playing: playFit, paused: pausedFit }));
     }
 
-    await p.click("#mode-keyboard");
+    await p.click("#play-to-test");
     const back = await p.evaluate(() => {
       const keys = [...document.querySelectorAll("#keyboard .key")].map((k) => +k.dataset.note);
       const st = window.__pfTest.getState();
       const wrap = document.querySelector(".status-wrap");
       const sr = wrap.getBoundingClientRect();
+      const top = document.querySelector(".top");
+      const tr = top.getBoundingClientRect();
+      const sound = document.getElementById("sound-controls");
+      const btn = document.getElementById("btn-sound");
+      const vol = document.getElementById("sound-volume");
+      const vis = (el) => !!(el && el.getBoundingClientRect().height > 0 && getComputedStyle(el).display !== "none");
       return {
         lowerVisible: getComputedStyle(document.querySelector(".lower")).display !== "none",
         highwayOff: getComputedStyle(document.getElementById("highway")).display === "none",
@@ -2661,14 +2708,19 @@ try {
         hi: Math.max(...keys),
         visibleLow: st.visibleLow,
         visibleHigh: st.visibleHigh,
-        statusVisible: sr.height > 0 && getComputedStyle(wrap).display !== "none"
+        statusVisible: sr.height > 0 && getComputedStyle(wrap).display !== "none",
+        headerVisible: tr.height > 0 && getComputedStyle(top).display !== "none",
+        soundInHeader: !!(top && sound && top.contains(sound) && vis(btn) && vis(vol)),
+        playMode: document.body.classList.contains("mode-play")
       };
     });
-    check("play: Keyboard switch restores the checker",
+    check("play: the Test switch restores the checker and the Test header",
       back.lowerVisible === true && back.highwayOff === true
         && back.count === 25 && back.lo === 48 && back.hi === 72
         && back.visibleLow === 48 && back.visibleHigh === 72
-        && back.statusVisible === true,
+        && back.statusVisible === true
+        && back.headerVisible === true && back.soundInHeader === true
+        && back.playMode === false,
       JSON.stringify(back));
     await p.close();
   }

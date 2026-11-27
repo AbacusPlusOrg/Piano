@@ -1065,7 +1065,7 @@ body.mode-play {
   max-height: 100dvh;
   overflow: hidden;
 }
-body.mode-play.is-playing .top { display: none; }
+body.mode-play .top { display: none; }
 body.mode-play .kb-wrap { flex: 1 1 auto; min-height: 0; }
 body.mode-play .highway-slot {
   display: block;
@@ -1106,12 +1106,26 @@ body.mode-play .play-sheet:not([hidden]) {
   gap: 10px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
+.play-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .play-sheet-title {
   margin: 0;
   font-family: Palatino, "Palatino Linotype", "Iowan Old Style", "Times New Roman", serif;
   font-weight: 600;
   font-size: 1.15rem;
   color: var(--text);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.play-sheet-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .play-midi {
   display: flex;
@@ -1127,12 +1141,13 @@ body.mode-play .play-sheet:not([hidden]) {
   line-height: 1.35;
 }
 .play-midi-msg strong { color: var(--text); font-weight: 600; }
-#play-midi-connect {
+#play-midi-connect, #play-to-test {
   flex: 0 0 auto;
   width: auto;
   padding: 5px 10px;
   font-size: 0.8rem;
 }
+.play-sheet .sound-toggle { width: 32px; }
 .play-sheet select, .play-sheet button {
   appearance: none;
   background: var(--surface-2);
@@ -1187,10 +1202,6 @@ body.mode-play .play-pause:not([hidden]) {
 
 @media (orientation: landscape) and (max-height: 540px) {
   body.mode-play, body.mode-play.measuring {
-    grid-template-areas: "title title" "kb kb";
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  body.mode-play.is-playing, body.mode-play.is-playing.measuring {
     grid-template-areas: "kb kb";
     grid-template-rows: minmax(0, 1fr);
   }

@@ -2195,7 +2195,8 @@
     sheet: document.getElementById("play-sheet"),
     pause: document.getElementById("play-pause"),
     midiMsg: document.getElementById("play-midi-msg"),
-    midiConnect: document.getElementById("play-midi-connect")
+    midiConnect: document.getElementById("play-midi-connect"),
+    toTest: document.getElementById("play-to-test")
   };
 
   // Standard MIDI file -> { ppq, bpm, beatsPerBar, notes: [{ note, start, end }] } with times in beats.
@@ -2334,12 +2335,23 @@
 
   function syncPlayViewport() {
     var on = document.body.classList.contains("mode-play");
-    var playing = on && play.playing;
     document.documentElement.classList.toggle("mode-play", on);
-    document.body.classList.toggle("is-playing", playing);
-    document.documentElement.classList.toggle("is-playing", playing);
     if (on && window.scrollTo) window.scrollTo(0, 0);
     if (on) requestAnimationFrame(function () { drawHighway(); });
+  }
+
+  function placeSoundControls(inPlay) {
+    var sound = els.soundControls;
+    var sheetTools = document.getElementById("play-sheet-tools");
+    var topTools = document.querySelector(".top-tools");
+    var tabs = document.getElementById("mode-switch");
+    var testBtn = document.getElementById("play-to-test");
+    if (!sound) return;
+    if (inPlay && sheetTools) {
+      sheetTools.insertBefore(sound, testBtn || null);
+    } else if (!inPlay && topTools && tabs) {
+      topTools.insertBefore(sound, tabs);
+    }
   }
 
   function updatePlayChrome() {
@@ -2538,10 +2550,8 @@
     var on = mode === "play";
     document.body.classList.toggle("mode-play", on);
     document.documentElement.classList.toggle("mode-play", on);
-    if (!on) {
-      document.body.classList.remove("is-playing");
-      document.documentElement.classList.remove("is-playing");
-    } else if (window.scrollTo) window.scrollTo(0, 0);
+    placeSoundControls(on);
+    if (on && window.scrollTo) window.scrollTo(0, 0);
     pe.modeKeyboard.setAttribute("aria-selected", on ? "false" : "true");
     pe.modePlay.setAttribute("aria-selected", on ? "true" : "false");
     pe.modeKeyboard.tabIndex = on ? -1 : 0;
@@ -2556,6 +2566,7 @@
 
   pe.modeKeyboard.addEventListener("click", function () { setMode("keyboard"); });
   pe.modePlay.addEventListener("click", function () { setMode("play"); });
+  if (pe.toTest) pe.toTest.addEventListener("click", function () { setMode("keyboard"); });
   pe.song.addEventListener("change", function () { selectSong(pe.song.value); });
   pe.rung.addEventListener("change", function () { selectRung(pe.rung.value); });
   pe.toggle.addEventListener("click", startPlay);
