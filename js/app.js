@@ -2753,6 +2753,26 @@
   pe.modeKeyboard.addEventListener("click", function () { setMode("keyboard"); });
   pe.modePlay.addEventListener("click", function () { setMode("play"); });
   if (pe.toTest) pe.toTest.addEventListener("click", function () { setMode("keyboard"); });
+  // Full screen: the button shows only where the browser allows it; the resize that follows re-fits the keys.
+  var fsBtn = document.getElementById("play-fullscreen"), docEl = document.documentElement;
+  var fsEnter = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+  var fsExit = document.exitFullscreen || document.webkitExitFullscreen;
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function syncFullscreen() {
+    var on = !!fsElement();
+    fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    fsBtn.setAttribute("aria-label", on ? "Exit full screen" : "Full screen");
+  }
+  if (fsBtn && fsEnter && fsExit && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener("click", function () {
+      var r = fsElement() ? fsExit.call(document) : fsEnter.call(docEl);
+      if (r && r.catch) r.catch(syncFullscreen);
+    });
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    document.addEventListener("webkitfullscreenchange", syncFullscreen);
+    syncFullscreen();
+  }
   pe.song.addEventListener("change", function () { selectSong(pe.song.value); });
   pe.rung.addEventListener("change", function () { selectRung(pe.rung.value); });
   pe.toggle.addEventListener("click", startPlay);

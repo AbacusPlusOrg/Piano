@@ -1067,6 +1067,11 @@ body.mode-play {
 }
 body.mode-play .top { display: none; }
 body.mode-play .kb-wrap { flex: 1 1 auto; min-height: 0; }
+/* Play has no header, so the page frame goes: the play area runs to the screen edges (safe areas kept). */
+body.mode-play { padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); }
+body.mode-play .kb-wrap { border-width: 0; border-radius: 0; }
+.play-fullscreen .fs-exit, .play-fullscreen[aria-pressed="true"] .fs-enter { display: none; }
+.play-fullscreen[aria-pressed="true"] .fs-exit { display: inline; }
 body.mode-play .highway-slot {
   display: block;
   position: relative;

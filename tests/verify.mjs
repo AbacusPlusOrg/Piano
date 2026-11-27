@@ -2494,6 +2494,28 @@ try {
         && keysRow.names.join(",") === "Octave,C octave,Tight,Plus one,Groups" && keysRow.checked.join(",") === "octave"
         && keysRow.sameName && keysRow.leftAligned && keysRow.rightAligned && keysRow.oneRow,
       JSON.stringify(keysRow));
+    const fsState = () => p.evaluate(() => {
+      const b = document.getElementById("play-fullscreen"), r = b.getBoundingClientRect();
+      const sr = document.getElementById("play-song").getBoundingClientRect(), tr = document.getElementById("play-to-test").getBoundingClientRect();
+      const kw = document.querySelector(".kb-wrap").getBoundingClientRect(), kb = document.getElementById("keyboard").getBoundingClientRect();
+      return { shown: !b.hidden && r.width > 0, label: b.getAttribute("aria-label"), pressed: b.getAttribute("aria-pressed"),
+        fs: !!document.fullscreenElement, inHead: b.closest(".play-sheet-head") !== null && Math.abs((r.top + r.bottom) / 2 - (tr.top + tr.bottom) / 2) <= 1,
+        rightAligned: Math.abs(r.right - sr.right) <= 1, focusable: b.tabIndex === 0,
+        edgeToEdge: kw.left === 0 && Math.abs(kw.right - innerWidth) <= 0.5, keysFull: kb.width >= kw.width - 8 && Math.abs((kb.left - kw.left) - (kw.right - kb.right)) <= 1 };
+    });
+    const fs0 = await fsState();
+    await p.click("#play-fullscreen");
+    await p.waitForFunction(() => !!document.fullscreenElement && document.getElementById("play-fullscreen").getAttribute("aria-pressed") === "true", { timeout: 4000 }).catch(() => {});
+    const fs1 = await fsState();
+    await p.click("#play-fullscreen");
+    await p.waitForFunction(() => !document.fullscreenElement && document.getElementById("play-fullscreen").getAttribute("aria-pressed") === "false", { timeout: 4000 }).catch(() => {});
+    const fs2 = await fsState();
+    check("play: Full screen button sits at the end of the sheet header, labelled, and toggles full screen on and off",
+      fs0.shown && fs0.label === "Full screen" && fs0.pressed === "false" && !fs0.fs && fs0.inHead && fs0.rightAligned && fs0.focusable
+        && fs1.fs && fs1.label === "Exit full screen" && fs1.pressed === "true" && fs1.keysFull
+        && !fs2.fs && fs2.label === "Full screen" && fs2.pressed === "false",
+      JSON.stringify({ fs0, fs1, fs2 }));
+    check("play: the play area runs edge to edge and the keys fill its width (4px inset kept)", fs0.edgeToEdge && fs0.keysFull && fs2.edgeToEdge, JSON.stringify(fs0));
     const keysUnit = await p.evaluate(() => {
       const f = (lo, hi, m) => { const r = window.__pfTest.play.keysRange(lo, hi, m); return r.low + "-" + r.high; };
       const all = (lo, hi) => ["octave", "coctave", "tight", "plus", "groups"].map((m) => f(lo, hi, m)).join(" ");
