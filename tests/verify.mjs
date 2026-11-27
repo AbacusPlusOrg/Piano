@@ -2953,6 +2953,8 @@ try {
         const kb = document.getElementById("keyboard"), kbr = kb.getBoundingClientRect(), sc = document.getElementById("kb-scroll");
         const sil = [...kb.querySelectorAll(".key-silhouette")].map((e) => ({ note: +e.dataset.note, side: e.classList.contains("left") ? "L" : "R",
           hidden: e.getAttribute("aria-hidden"), w: +e.offsetWidth.toFixed(1),
+          look: (() => { const c = getComputedStyle(e), k = getComputedStyle(kb.querySelector(".key.black"));
+            return c.opacity === k.opacity && c.backgroundImage === k.backgroundImage && c.pointerEvents === "none"; })(),
           inside: e.offsetLeft >= -0.5 && e.offsetLeft + e.offsetWidth <= kb.offsetWidth + 0.5 }));
         const bw = (kb.querySelector(".key.black") || {}).offsetWidth || 0;
         const st = window.__pfTest.play.state(), kh = window.__pfTest.play.keyHeight();
@@ -2962,10 +2964,10 @@ try {
           keyH: Math.round(kh.now), shownH: Math.round(innerHeight - kbr.top - 7), playing: st.playing };
       });
       const wantSil = [silL != null ? silL + "L" : null, silR != null ? silR + "R" : null].filter(Boolean).join(",");
-      check("play: Keys " + mode + " on Mary RH shows " + lo + "-" + hi + " with edge silhouettes [" + wantSil + "], full width, key height kept, saved",
+      check("play: Keys " + mode + " on Mary RH shows " + lo + "-" + hi + " with edge half keys [" + wantSil + "] colored like the black keys, full width, key height kept, saved",
         km.mode === mode && km.saved === mode && km.keys === hi - lo + 1 && km.rangeLow === lo && km.rangeHigh === hi
           && km.sil.map((x) => x.note + x.side).join(",") === wantSil
-          && km.sil.every((x) => x.hidden === "true" && x.inside && Math.abs(x.w - km.blackW / 2) <= 1)
+          && km.sil.every((x) => x.hidden === "true" && x.inside && x.look && Math.abs(x.w - km.blackW / 2) <= 1)
           && km.kbW >= km.fillW - 1 && Math.abs(km.shownH - km.keyH) <= 2 && km.playing,
         JSON.stringify(km));
     }

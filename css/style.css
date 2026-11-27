@@ -1204,14 +1204,12 @@ body.mode-play .play-sheet:not([hidden]) {
 .play-keys input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
 .play-keys label:has(input:checked) { background: var(--accent); border-color: transparent; color: #1a120a; font-weight: 650; }
 .play-keys label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* Black key just outside the shown range: half silhouette at the edge, not playable. */
+/* Black key just outside the shown range: half of it at the edge, colored like the black keys, not playable. */
 .key-silhouette {
   position: absolute;
   top: 0;
   height: 100%;
   pointer-events: none;
-  background: linear-gradient(180deg, #2a241f 0%, #1a1612 100%);
-  opacity: 0.55;
 }
 .key-silhouette.left { border-radius: 0 0 var(--br, 2px) 0; }
 .key-silhouette.right { border-radius: 0 0 0 var(--br, 2px); }
@@ -1245,7 +1243,7 @@ body.mode-play .key.white {
   background: linear-gradient(180deg, #cfc4b2 0%, #ece4d7 9%, #faf6ef 52%, #f3ede3 84%, #e6dccb 92%, #d3c6b0 100%);
   box-shadow: inset 0 7px 7px -6px rgba(0, 0, 0, 0.35), 0 3px 0 #a89780, 0 8px 12px rgba(0, 0, 0, 0.35);
 }
-body.mode-play .key.black {
+body.mode-play .key.black, body.mode-play .key-silhouette {
   background: linear-gradient(180deg, #1c1814 0%, #2e2822 12%, #3a332c 78%, #4a4239 86%, #16120f 88%, #0b0907 100%);
   box-shadow: 0 3px 0 #000, 0 6px 9px rgba(0, 0, 0, 0.5);
 }
@@ -1283,7 +1281,7 @@ body.mode-play .key-height:focus-visible::before { background: var(--accent); }
 body.mode-play .kb-tilt .key.white {
   box-shadow: inset 0 8px 8px -6px rgba(0, 0, 0, 0.4), 0 6px 0 #c4b49a, 0 7px 0 #8e7e67, 0 12px 14px rgba(0, 0, 0, 0.45);
 }
-body.mode-play .kb-tilt .key.black {
+body.mode-play .kb-tilt .key.black, body.mode-play .kb-tilt .key-silhouette {
   background: linear-gradient(180deg, #221d19 0%, #3a332c 60%, #4d453c 100%);
   box-shadow: 0 7px 0 #0b0907, 0 8px 0 #000, 2px 9px 8px rgba(0, 0, 0, 0.55),
     inset 1px 0 0 rgba(255, 255, 255, 0.08), inset -1px 0 0 rgba(0, 0, 0, 0.6);
