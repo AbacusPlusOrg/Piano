@@ -8,7 +8,7 @@
   <meta name="description" content="A+Piano MIDI Input Test: note detection and visual feedback.">
   <title>A+Piano — MIDI Input Test</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2314110e'/%3E%3Crect x='3' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='6.4' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='9.8' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='4.6' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3Crect x='8' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=1795761402">
+  <link rel="stylesheet" href="css/style.css?v=1795762449">
 </head>
 <body>
   <div class="top">
@@ -44,18 +44,26 @@
       <span class="kb-tap-hint">Tap keys to test.</span>
       <button type="button" id="btn-reset-range" disabled>Reset range</button>
     </div>
-    <div id="play-bar" class="play-bar">
-      <select id="play-song" aria-label="Song."></select>
-      <select id="play-rung" aria-label="Part to play."></select>
-      <button type="button" id="play-toggle" aria-pressed="false">Play</button>
-      <button type="button" id="play-restart">Restart</button>
-      <label class="toggle"><input type="checkbox" id="play-wait" checked> Wait</label>
-      <input type="range" id="play-tempo" min="50" max="150" step="5" value="100" aria-label="Tempo.">
-      <output id="play-tempo-out" for="play-tempo">100%</output>
-    </div>
     <canvas id="highway" class="highway" aria-label="Falling notes."></canvas>
     <div id="kb-scroll" class="kb-scroll">
       <div id="keyboard" class="keyboard" aria-label="On-screen keyboard"></div>
+    </div>
+    <button type="button" id="play-pause" class="play-pause" hidden aria-label="Pause.">Pause</button>
+    <div id="play-sheet" class="play-sheet" role="dialog" aria-modal="true" aria-labelledby="play-sheet-title" hidden>
+      <div class="play-sheet-card">
+        <h2 id="play-sheet-title" class="play-sheet-title">Ready to play</h2>
+        <select id="play-song" aria-label="Song."></select>
+        <select id="play-rung" aria-label="Part to play."></select>
+        <label class="toggle"><input type="checkbox" id="play-wait" checked> Wait for me!</label>
+        <div class="play-tempo-row">
+          <input type="range" id="play-tempo" min="50" max="150" step="5" value="100" aria-label="Tempo.">
+          <output id="play-tempo-out" for="play-tempo">100%</output>
+        </div>
+        <div class="play-actions">
+          <button type="button" id="play-toggle">Start</button>
+          <button type="button" id="play-restart">Restart</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -113,6 +121,6 @@
     </div>
   </div>
 
-  <script src="js/app.js?v=1795761402" defer></script>
+  <script src="js/app.js?v=1795762449" defer></script>
 </body>
 </html>

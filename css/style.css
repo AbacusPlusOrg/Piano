@@ -325,6 +325,7 @@ button {
 .latency em { color: var(--text-faint); font-style: normal; }
 
 .kb-wrap {
+  position: relative;
   flex: 0 0 auto;
   min-height: 0;
   display: flex;
@@ -1043,45 +1044,99 @@ button {
 .mode-switch [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 539px) { h1 span { display: none; } }
 
-.play-bar, .highway { display: none; }
+.play-sheet, .play-pause, .highway { display: none; }
 body.mode-play .kb-bar, body.mode-play .lower { display: none; }
 body.mode-play { height: 100dvh; max-height: 100dvh; overflow: hidden; }
 body.mode-play .kb-wrap { flex: 1 1 auto; min-height: 0; }
-body.mode-play .play-bar {
+body.mode-play .highway { display: block; flex: 1 1 auto; min-height: 90px; width: 100%; }
+body.mode-play .play-sheet:not([hidden]) {
   display: flex;
-  flex-wrap: wrap;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  flex-shrink: 0;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(13, 11, 9, 0.82);
 }
-.play-bar select, .play-bar button {
+.play-sheet-card {
+  width: min(100%, 22rem);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.play-sheet-title {
+  margin: 0;
+  font-family: Palatino, "Palatino Linotype", "Iowan Old Style", "Times New Roman", serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+.play-sheet select, .play-sheet button {
   appearance: none;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 0.75rem;
+  padding: 8px 10px;
+  font-size: 0.86rem;
   color: var(--text);
   min-width: 0;
+  width: 100%;
 }
-.play-bar select { flex: 1 1 40%; text-overflow: ellipsis; }
-.play-bar button, .play-bar .toggle { flex-shrink: 0; }
-#play-toggle { min-width: 4.6em; }
-#play-toggle[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.play-bar .toggle { display: inline-flex; align-items: center; gap: 4px; }
-#play-tempo { flex: 1 1 60px; min-width: 50px; accent-color: var(--accent); }
-#play-tempo-out { width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
-body.mode-play .highway { display: block; flex: 1 1 auto; min-height: 90px; width: 100%; }
+.play-sheet .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+.play-tempo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#play-tempo { flex: 1 1 auto; min-width: 50px; accent-color: var(--accent); }
+#play-tempo-out { width: 4ch; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.play-actions { display: flex; gap: 8px; }
+.play-actions button { width: auto; flex: 1 1 0; }
+#play-toggle { background: var(--accent); color: #1a120a; border-color: transparent; font-weight: 650; }
+body.mode-play .play-pause:not([hidden]) {
+  display: block;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  appearance: none;
+  background: rgba(36, 30, 25, 0.88);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 650;
+  color: var(--text);
+  cursor: pointer;
+}
+.play-pause:focus-visible, .play-sheet button:focus-visible, .play-sheet select:focus-visible,
+.play-sheet input:focus-visible, .play-sheet output:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .key.next:not(.held)::after { opacity: 0.45; }
 .key.next:not(.held) { box-shadow: inset 0 0 0 2px var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
 
 @media (orientation: landscape) and (max-height: 540px) {
   body.mode-play, body.mode-play.measuring { grid-template-rows: auto auto minmax(0, 1fr); }
-  body.mode-play .play-bar { flex-wrap: nowrap; padding: 4px 8px; }
   body.mode-play .highway { flex: 1 1 0; min-height: 50px; }
+  body.mode-play .play-sheet:not([hidden]) { padding: 8px; }
+  .play-sheet-card { padding: 10px 12px; gap: 6px; }
+  .play-sheet-title { font-size: 1rem; }
+  .play-sheet select, .play-sheet button { padding: 5px 8px; font-size: 0.8rem; }
+  body.mode-play .play-pause:not([hidden]) { top: 6px; right: 6px; padding: 4px 8px; }
 }

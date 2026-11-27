@@ -2156,7 +2156,9 @@
     wait: document.getElementById("play-wait"),
     tempo: document.getElementById("play-tempo"),
     tempoOut: document.getElementById("play-tempo-out"),
-    canvas: document.getElementById("highway")
+    canvas: document.getElementById("highway"),
+    sheet: document.getElementById("play-sheet"),
+    pause: document.getElementById("play-pause")
   };
 
   // Standard MIDI file -> { ppq, bpm, beatsPerBar, notes: [{ note, start, end }] } with times in beats.
@@ -2279,12 +2281,64 @@
     });
   }
 
+  function canResume() {
+    return !!play.midi && play.step < play.steps.length && play.beat > -LEAD_IN_BEATS;
+  }
+
+  function updateStartLabel() {
+    if (pe.toggle) pe.toggle.textContent = canResume() ? "Resume" : "Start";
+  }
+
+  function updatePlayChrome() {
+    var inPlay = document.body.classList.contains("mode-play");
+    var sheetOpen = !!(inPlay && pe.sheet && !pe.sheet.hidden);
+    updateStartLabel();
+    if (!pe.pause) return;
+    if (!inPlay) {
+      pe.pause.hidden = true;
+    } else if (play.playing) {
+      pe.pause.hidden = false;
+      pe.pause.textContent = "Pause";
+      pe.pause.setAttribute("aria-label", "Pause.");
+    } else if (!sheetOpen) {
+      pe.pause.hidden = false;
+      pe.pause.textContent = "Songs";
+      pe.pause.setAttribute("aria-label", "Song options.");
+    } else {
+      pe.pause.hidden = true;
+    }
+  }
+
+  function setPlaySheet(open) {
+    if (!pe.sheet) return;
+    if (!document.body.classList.contains("mode-play")) open = false;
+    var opening = open && pe.sheet.hidden;
+    var closing = !open && !pe.sheet.hidden;
+    pe.sheet.hidden = !open;
+    if (pe.canvas) pe.canvas.setAttribute("aria-hidden", open ? "true" : "false");
+    if (els.kbScroll) els.kbScroll.setAttribute("aria-hidden", open ? "true" : "false");
+    updatePlayChrome();
+    if (opening && pe.toggle) pe.toggle.focus();
+    else if (closing && pe.pause && !pe.pause.hidden) pe.pause.focus();
+  }
+
+  function pausePlay() {
+    if (!play.playing) return;
+    setPlaying(false);
+    setPlaySheet(true);
+  }
+
+  function startPlay() {
+    if (play.step >= play.steps.length) restartPlay();
+    setPlaying(true);
+    setPlaySheet(false);
+  }
+
   function setPlaying(on) {
     play.playing = on && !!play.midi;
-    pe.toggle.textContent = play.playing ? "Pause" : "Play";
-    pe.toggle.setAttribute("aria-pressed", play.playing ? "true" : "false");
     if (!play.playing) stopPlayback();
     if (play.playing && !play.raf) { play.last = performance.now(); play.raf = requestAnimationFrame(playFrame); }
+    updatePlayChrome();
     drawHighway();
   }
 
@@ -2294,6 +2348,7 @@
     play.step = 0;
     play.hit = {};
     setPlaying(false);
+    if (document.body.classList.contains("mode-play")) setPlaySheet(true);
   }
 
   function stopPlayback() {
@@ -2325,7 +2380,7 @@
       });
     }
     play.beat = next;
-    if (play.step >= play.steps.length && play.beat >= play.endBeat) { setPlaying(false); return; }
+    if (play.step >= play.steps.length && play.beat >= play.endBeat) { setPlaying(false); setPlaySheet(true); return; }
     drawHighway();
     play.raf = requestAnimationFrame(playFrame);
   }
@@ -2415,8 +2470,8 @@
       });
       g.globalAlpha = 1;
     }
-    var msg = !play.midi ? "Loading song…" : (!play.playing && play.beat <= -LEAD_IN_BEATS ? "Press Play." :
-      (!play.playing && play.step >= play.steps.length ? "Done. Press Restart to play again." : ""));
+    var msg = !play.midi ? "Loading song…" : (!play.playing && play.beat <= -LEAD_IN_BEATS ? "Press Start." :
+      (!play.playing && play.step >= play.steps.length ? "Done. Press Start to play again." : ""));
     if (msg) {
       g.fillStyle = "#b5a89a";
       g.font = "500 14px system-ui, sans-serif";
@@ -2433,10 +2488,10 @@
     pe.modeKeyboard.tabIndex = on ? -1 : 0;
     pe.modePlay.tabIndex = on ? 0 : -1;
     if (remember !== false) { try { localStorage.setItem(MODE_STORE_KEY, mode); } catch (e) {} }
-    if (!on) setPlaying(false);
+    if (!on) { setPlaying(false); setPlaySheet(false); }
     fitLandscapeKeys();
     rebuildKeyboard();
-    if (on) loadSongIndex();
+    if (on) { loadSongIndex(); setPlaySheet(true); }
     drawHighway();
   }
 
@@ -2444,15 +2499,39 @@
   pe.modePlay.addEventListener("click", function () { setMode("play"); });
   pe.song.addEventListener("change", function () { selectSong(pe.song.value); });
   pe.rung.addEventListener("change", function () { selectRung(pe.rung.value); });
-  pe.toggle.addEventListener("click", function () {
-    if (!play.playing && play.step >= play.steps.length) restartPlay();
-    setPlaying(!play.playing);
-  });
+  pe.toggle.addEventListener("click", startPlay);
   pe.restart.addEventListener("click", restartPlay);
+  pe.pause.addEventListener("click", function () {
+    if (play.playing) pausePlay();
+    else setPlaySheet(true);
+  });
   pe.wait.addEventListener("change", function () { play.wait = pe.wait.checked; play.hit = {}; stopPlayback(); });
   pe.tempo.addEventListener("input", function () {
     play.rate = parseInt(pe.tempo.value, 10) / 100;
     pe.tempoOut.textContent = pe.tempo.value + "%";
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!document.body.classList.contains("mode-play")) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (play.playing) pausePlay();
+      else if (pe.sheet && !pe.sheet.hidden) {
+        if (canResume()) startPlay();
+        else setPlaySheet(false);
+      } else setPlaySheet(true);
+      return;
+    }
+    if (e.key !== "Tab" || !pe.sheet || pe.sheet.hidden) return;
+    var nodes = pe.sheet.querySelectorAll("button, select, input, textarea");
+    var list = [], i, el;
+    for (i = 0; i < nodes.length; i++) {
+      el = nodes[i];
+      if (!el.disabled && el.offsetParent !== null) list.push(el);
+    }
+    if (!list.length) return;
+    var idx = list.indexOf(document.activeElement);
+    if (e.shiftKey && (idx <= 0)) { e.preventDefault(); list[list.length - 1].focus(); }
+    else if (!e.shiftKey && (idx === list.length - 1 || idx < 0)) { e.preventDefault(); list[0].focus(); }
   });
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(function () { drawHighway(); }).observe(pe.canvas);
   els.kbScroll.addEventListener("scroll", function () { if (!play.playing) drawHighway(); });
@@ -2535,7 +2614,8 @@
           beat: play.beat, playing: play.playing, wait: play.wait, drawn: play.drawn, next: nextNotes(),
           stepNotes: play.steps.map(function (s) { return s.notes; }),
           lit: Array.prototype.map.call(els.keyboard.querySelectorAll(".key.next"), function (k) { return +k.dataset.note; }),
-          rangeLow: play.rangeLow, rangeHigh: play.rangeHigh };
+          rangeLow: play.rangeLow, rangeHigh: play.rangeHigh,
+          sheetOpen: !!(pe.sheet && !pe.sheet.hidden) };
       },
       parse: function (buf) { return parseMidi(buf); }
     },

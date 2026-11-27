@@ -2284,6 +2284,46 @@ try {
     check("play: song picker lists the catalog", opts.songs.includes("mary-had-a-little-lamb") && opts.songs.includes("over-in-the-meadow"), opts.songs.join(","));
     check("play: rung picker has right hand, roots and full", opts.rungs.join(",") === "rh,roots,full", opts.rungs.join(","));
     check("play: Keyboard panes hidden in Play", opts.lowerHidden);
+
+    function playAreaBox() {
+      return p.evaluate(() => {
+        const box = (el) => {
+          const r = el.getBoundingClientRect();
+          return { top: Math.round(r.top), left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) };
+        };
+        const sheet = document.getElementById("play-sheet");
+        const pause = document.getElementById("play-pause");
+        const wait = document.getElementById("play-wait");
+        const label = wait && wait.parentElement ? wait.parentElement.textContent.replace(/\s+/g, " ").trim() : "";
+        return {
+          wrap: box(document.querySelector(".kb-wrap")),
+          highway: box(document.getElementById("highway")),
+          keys: box(document.getElementById("kb-scroll")),
+          sheetOpen: !!(sheet && !sheet.hidden),
+          sheetRole: sheet ? sheet.getAttribute("role") : null,
+          modal: sheet ? sheet.getAttribute("aria-modal") : null,
+          start: (document.getElementById("play-toggle") || {}).textContent || "",
+          restart: (document.getElementById("play-restart") || {}).textContent || "",
+          pauseShown: !!(pause && !pause.hidden),
+          pauseLabel: pause ? pause.getAttribute("aria-label") : null,
+          waitLabel: label,
+          playing: window.__pfTest.play.state().playing
+        };
+      });
+    }
+    function samePlayArea(a, b) {
+      return JSON.stringify(a.wrap) === JSON.stringify(b.wrap)
+        && JSON.stringify(a.highway) === JSON.stringify(b.highway)
+        && JSON.stringify(a.keys) === JSON.stringify(b.keys);
+    }
+    const overlayOpen = await playAreaBox();
+    check("play: overlay is shown on entering Play",
+      overlayOpen.sheetOpen === true && overlayOpen.sheetRole === "dialog" && overlayOpen.modal === "true"
+        && overlayOpen.start === "Start" && overlayOpen.pauseShown === false && overlayOpen.playing === false,
+      JSON.stringify(overlayOpen));
+    check("play: Wait checkbox is labelled Wait for me!",
+      overlayOpen.waitLabel === "Wait for me!", overlayOpen.waitLabel);
+
     let st = await ps();
     const melody = [64, 62, 60, 62, 64, 64, 64, 62, 62, 62, 64, 67, 67, 64, 62, 60, 62, 64, 64, 64, 64, 62, 62, 64, 62, 60];
     check("play: Mary right-hand MIDI parses to the verified melody", st.song === "mary-had-a-little-lamb" &&
@@ -2334,9 +2374,18 @@ try {
       57, 71, 15, await playKeyboardFit());
 
     await p.evaluate(() => { const t = document.getElementById("play-tempo"); t.value = 150; t.dispatchEvent(new Event("input")); });
+    const areaBeforeStart = await playAreaBox();
     await p.click("#play-toggle");
-    await p.waitForFunction(() => window.__pfTest.play.state().beat >= 0, { timeout: 8000 });
+    await p.waitForFunction(() => window.__pfTest.play.state().playing === true && window.__pfTest.play.state().beat >= 0, { timeout: 8000 });
     await new Promise((r) => setTimeout(r, 300));
+    const areaPlaying = await playAreaBox();
+    check("play: overlay is hidden while playing and the pause button is shown",
+      areaPlaying.sheetOpen === false && areaPlaying.pauseShown === true
+        && areaPlaying.pauseLabel === "Pause." && areaPlaying.playing === true,
+      JSON.stringify(areaPlaying));
+    check("play: play area size is unchanged after Start",
+      samePlayArea(areaBeforeStart, areaPlaying),
+      JSON.stringify({ before: areaBeforeStart, playing: areaPlaying }));
     st = await ps();
     check("play: wait mode holds at the first note", st.playing && st.step === 0 && st.beat === 0, "beat=" + st.beat + " step=" + st.step);
     check("play: next key glows", JSON.stringify(st.lit) === "[64]", JSON.stringify(st.lit));
@@ -2354,6 +2403,15 @@ try {
     });
     st = await ps();
     check("play: on-screen tap advances", st.step === 2, "step=" + st.step);
+    await p.click("#play-pause");
+    const areaPaused = await playAreaBox();
+    check("play: pause reopens the overlay with Resume and Restart",
+      areaPaused.sheetOpen === true && areaPaused.start === "Resume" && areaPaused.restart === "Restart"
+        && areaPaused.pauseShown === false && areaPaused.playing === false,
+      JSON.stringify(areaPaused));
+    check("play: play area size is unchanged after Pause",
+      samePlayArea(areaPlaying, areaPaused),
+      JSON.stringify({ playing: areaPlaying, paused: areaPaused }));
     await p.select("#play-rung", "full");
     await p.waitForFunction(() => window.__pfTest.play.state().rung === "full", { timeout: 8000 });
     st = await ps();
