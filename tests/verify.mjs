@@ -134,12 +134,19 @@ try {
   const soundBefore = await page.evaluate(() => {
     const st = document.getElementById("status");
     const kb = document.querySelector(".kb-wrap");
+    const top = document.querySelector(".top");
+    const h1 = document.querySelector("h1");
+    const tabs = document.getElementById("mode-switch");
     const btn = document.getElementById("btn-sound");
     const vol = document.getElementById("sound-volume");
     const wrap = document.querySelector(".sound-controls");
     const stR = st.getBoundingClientRect();
     const kbR = kb.getBoundingClientRect();
+    const topR = top.getBoundingClientRect();
+    const h1R = h1.getBoundingClientRect();
+    const tabsR = tabs.getBoundingClientRect();
     const btnR = btn.getBoundingClientRect();
+    const mid = (r) => (r.top + r.bottom) / 2;
     return {
       statusTop: Math.round(stR.top),
       statusH: Math.round(stR.height),
@@ -148,17 +155,23 @@ try {
       hasSlider: !!(vol && vol.getBoundingClientRect().height > 0 && getComputedStyle(vol).display !== "none"),
       pressed: btn ? btn.getAttribute("aria-pressed") : null,
       label: btn ? btn.getAttribute("aria-label") : null,
-      inWrap: !!(wrap && wrap.contains(btn)),
-      onRight: btnR.left > stR.left + stR.width * 0.5,
-      insideHeight: btnR.top >= stR.top - 1 && btnR.bottom <= stR.bottom + 1,
+      volLabel: vol ? vol.getAttribute("aria-label") : null,
+      inHeader: !!(top && top.contains(wrap) && wrap.contains(btn)),
+      inStatus: !!(st.contains(wrap) || st.contains(btn)),
+      sameRow: Math.abs(mid(btnR) - mid(h1R)) < 8 && Math.abs(mid(btnR) - mid(tabsR)) < 8
+        && btnR.bottom <= topR.bottom + 1 && btnR.top >= topR.top - 1,
+      afterTitle: btnR.left >= h1R.right - 0.5,
+      beforeTabs: tabsR.left >= btnR.right - 0.5,
       hookOff: window.__pfTest.sound.enabled() === false
     };
   });
-  check("sound toggle sits in the status box without changing its height",
+  check("sound controls sit in the header, not the status bar",
     soundBefore.hasToggle === true && soundBefore.hasSlider === true
       && soundBefore.pressed === "false" && /Sound off\.?/.test(soundBefore.label || "")
-      && soundBefore.statusH === 61 && soundBefore.inWrap === true
-      && soundBefore.onRight === true && soundBefore.insideHeight === true
+      && /Volume\.?/.test(soundBefore.volLabel || "")
+      && soundBefore.statusH === 61 && soundBefore.inHeader === true
+      && soundBefore.inStatus === false
+      && soundBefore.sameRow === true && soundBefore.afterTitle === true && soundBefore.beforeTabs === true
       && soundBefore.hookOff === true && soundBefore.kbTop > soundBefore.statusTop,
     JSON.stringify(soundBefore));
 
@@ -223,9 +236,16 @@ try {
   const landSound = await pLandSound.evaluate(() => {
     const st = document.getElementById("status");
     const kb = document.querySelector(".kb-wrap");
+    const top = document.querySelector(".top");
+    const h1 = document.querySelector("h1");
+    const tabs = document.getElementById("mode-switch");
     const btn = document.getElementById("btn-sound");
     const vol = document.getElementById("sound-volume");
+    const wrap = document.querySelector(".sound-controls");
     const stR = st.getBoundingClientRect();
+    const topR = top.getBoundingClientRect();
+    const h1R = h1.getBoundingClientRect();
+    const tabsR = tabs.getBoundingClientRect();
     const btnR = btn.getBoundingClientRect();
     const volR = vol.getBoundingClientRect();
     const mid = (r) => (r.top + r.bottom) / 2;
@@ -235,20 +255,110 @@ try {
       kbTop: Math.round(kb.getBoundingClientRect().top),
       sliderVisible: !!(vol && volR.height > 0 && getComputedStyle(vol).display !== "none"),
       toggleVisible: !!(btn && btnR.height > 0 && getComputedStyle(btn).display !== "none"),
-      sliderInBox: volR.top >= stR.top - 1 && volR.bottom <= stR.bottom + 1,
-      toggleInBox: btnR.top >= stR.top - 1 && btnR.bottom <= stR.bottom + 1,
-      centered: Math.abs(mid(volR) - mid(stR)) < 3 && Math.abs(mid(btnR) - mid(stR)) < 3,
+      inHeader: !!(top && top.contains(wrap) && wrap.contains(btn)),
+      inStatus: !!(st.contains(wrap) || st.contains(btn)),
+      sameRow: Math.abs(mid(btnR) - mid(h1R)) < 8 && Math.abs(mid(btnR) - mid(tabsR)) < 8
+        && btnR.bottom <= topR.bottom + 1 && volR.bottom <= topR.bottom + 1,
+      afterTitle: btnR.left >= h1R.right - 0.5,
+      beforeTabs: tabsR.left >= volR.right - 0.5,
       beside: volR.left >= btnR.right - 0.5
     };
   });
   await pLandSound.close();
-  check("volume slider is visible in phone landscape and the status box stays 45px",
+  check("volume slider is visible in the landscape header and the status box stays 45px",
     landSound.sliderVisible === true && landSound.toggleVisible === true
       && landSound.statusH === 45
-      && landSound.sliderInBox === true && landSound.toggleInBox === true
-      && landSound.centered === true && landSound.beside === true
+      && landSound.inHeader === true && landSound.inStatus === false
+      && landSound.sameRow === true && landSound.beside === true
+      && landSound.afterTitle === true && landSound.beforeTabs === true
       && landSound.kbTop > landSound.statusTop,
     JSON.stringify(landSound));
+
+  async function soundHeaderAndStatusFit(p) {
+    return p.evaluate(() => {
+      const st = document.getElementById("status");
+      const msg = st.querySelector(".msg");
+      const top = document.querySelector(".top");
+      const wrap = document.querySelector(".sound-controls");
+      const btn = document.getElementById("btn-sound");
+      const vol = document.getElementById("sound-volume");
+      const tabs = document.getElementById("mode-switch");
+      const prev = { cls: st.className, html: msg.innerHTML, role: st.getAttribute("role"), tab: st.getAttribute("tabindex") };
+      st.className = "status is-connect";
+      st.setAttribute("role", "button");
+      st.setAttribute("tabindex", "0");
+      msg.textContent = "Tap to connect MIDI keyboard";
+      const msgOverflow = msg.scrollWidth <= msg.clientWidth;
+      const stOverflow = st.scrollWidth <= st.clientWidth;
+      const btnR = btn.getBoundingClientRect();
+      const volR = vol.getBoundingClientRect();
+      const topR = top.getBoundingClientRect();
+      const visible = (el, r) => !!(el && r.height > 0 && getComputedStyle(el).display !== "none");
+      const out = {
+        inHeader: !!(top && top.contains(wrap) && wrap.contains(btn)),
+        inStatus: !!(st.contains(wrap) || st.contains(btn)),
+        toggleVisible: visible(btn, btnR),
+        sliderVisible: visible(vol, volR),
+        label: btn ? btn.getAttribute("aria-label") : null,
+        volLabel: vol ? vol.getAttribute("aria-label") : null,
+        msgOverflow,
+        stOverflow,
+        msgScroll: msg.scrollWidth,
+        msgClient: msg.clientWidth,
+        text: msg.textContent,
+        inTopRow: btnR.top >= topR.top - 1 && btnR.bottom <= topR.bottom + 1
+          && tabs.getBoundingClientRect().left >= (volR.width ? volR.right : btnR.right) - 0.5,
+        playMode: document.body.classList.contains("mode-play")
+      };
+      st.className = prev.cls;
+      msg.innerHTML = prev.html;
+      if (prev.role) st.setAttribute("role", prev.role); else st.removeAttribute("role");
+      if (prev.tab) st.setAttribute("tabindex", prev.tab); else st.removeAttribute("tabindex");
+      return out;
+    });
+  }
+  const phoneSoundPages = [];
+  for (const [name, w, h, land] of [
+    ["portrait-390", 390, 844, false],
+    ["portrait-360", 360, 800, false],
+    ["portrait-320", 320, 680, false],
+    ["landscape-915x412", 915, 412, true]
+  ]) {
+    const pFit = await browser.newPage();
+    pFit.on("pageerror", (err) => jsErrors.push(String(err)));
+    await pFit.setViewport({
+      width: w, height: h, deviceScaleFactor: 1,
+      isMobile: true, hasTouch: true, isLandscape: !!land
+    });
+    await pFit.evaluateOnNewDocument(() => {
+      try {
+        localStorage.removeItem("aplus.pane.v1");
+        localStorage.removeItem("aplus.sound.v1");
+        localStorage.removeItem("aplus.mode.v1");
+      } catch (e) {}
+    });
+    await pFit.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await new Promise((r) => setTimeout(r, 200));
+    const testMode = await soundHeaderAndStatusFit(pFit);
+    await pFit.evaluate(() => document.getElementById("mode-play").click());
+    await new Promise((r) => setTimeout(r, 40));
+    const playMode = await soundHeaderAndStatusFit(pFit);
+    await pFit.evaluate(() => { try { localStorage.removeItem("aplus.mode.v1"); } catch (e) {} });
+    await pFit.close();
+    phoneSoundPages.push({ name, testMode, playMode });
+    const ok = (info, expectPlay) =>
+      info.inHeader === true && info.inStatus === false
+      && info.toggleVisible === true && info.sliderVisible === true
+      && /Sound off\.?/.test(info.label || "") && /Volume\.?/.test(info.volLabel || "")
+      && info.msgOverflow === true && info.stOverflow === true
+      && info.inTopRow === true && info.playMode === expectPlay
+      && info.text === "Tap to connect MIDI keyboard";
+    check("sound controls live in the header and status text is not truncated at " + name + " in Test",
+      ok(testMode, false), JSON.stringify(testMode));
+    check("sound controls live in the header and status text is not truncated at " + name + " in Play",
+      ok(playMode, true), JSON.stringify(playMode));
+  }
+  await page.evaluate(() => { try { localStorage.removeItem("aplus.mode.v1"); } catch (e) {} });
 
   const soundLevels = await page.evaluate(async () => {
     const out = {};

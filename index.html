@@ -8,14 +8,26 @@
   <meta name="description" content="A+Piano MIDI Input Test: note detection and visual feedback.">
   <title>A+Piano — MIDI Input Test</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2314110e'/%3E%3Crect x='3' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='6.4' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='9.8' y='3' width='2.2' height='10' rx='0.4' fill='%23f4eee4'/%3E%3Crect x='4.6' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3Crect x='8' y='3' width='1.5' height='6' rx='0.3' fill='%23e0a15a'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=1795759820">
+  <link rel="stylesheet" href="css/style.css?v=1795760577">
 </head>
 <body>
   <div class="top">
     <h1>A+Piano <span>— MIDI Input Test</span></h1>
-    <div id="mode-switch" class="mode-switch" role="tablist" aria-label="Keyboard or Play">
-      <button type="button" role="tab" id="mode-keyboard" aria-selected="true">Test</button>
-      <button type="button" role="tab" id="mode-play" aria-selected="false" tabindex="-1">Play</button>
+    <div class="top-tools">
+      <div class="sound-controls" id="sound-controls">
+        <button type="button" id="btn-sound" class="sound-toggle" aria-pressed="false" aria-label="Sound off.">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M3.5 9.5v5h3.2l4.3 3.6V5.9L6.7 9.5H3.5z"/>
+            <path class="sound-waves" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M15.6 9a4.2 4.2 0 0 1 0 6M18.6 6.8a7.2 7.2 0 0 1 0 10.4"/>
+            <path class="sound-slash" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 5.5 19 18.5"/>
+          </svg>
+        </button>
+        <input type="range" id="sound-volume" class="sound-volume" min="0" max="100" value="70" step="1" aria-label="Volume.">
+      </div>
+      <div id="mode-switch" class="mode-switch" role="tablist" aria-label="Keyboard or Play">
+        <button type="button" role="tab" id="mode-keyboard" aria-selected="true">Test</button>
+        <button type="button" role="tab" id="mode-play" aria-selected="false" tabindex="-1">Play</button>
+      </div>
     </div>
   </div>
 
@@ -23,16 +35,6 @@
     <div id="status" class="status is-warn" role="status">
       <span class="dot" aria-hidden="true"></span>
       <div class="msg">Checking for MIDI<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
-    </div>
-    <div class="sound-controls" id="sound-controls">
-      <button type="button" id="btn-sound" class="sound-toggle" aria-pressed="false" aria-label="Sound off.">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path fill="currentColor" d="M3.5 9.5v5h3.2l4.3 3.6V5.9L6.7 9.5H3.5z"/>
-          <path class="sound-waves" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M15.6 9a4.2 4.2 0 0 1 0 6M18.6 6.8a7.2 7.2 0 0 1 0 10.4"/>
-          <path class="sound-slash" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 5.5 19 18.5"/>
-        </svg>
-      </button>
-      <input type="range" id="sound-volume" class="sound-volume" min="0" max="100" value="70" step="1" aria-label="Volume.">
     </div>
   </div>
 
@@ -111,6 +113,6 @@
     </div>
   </div>
 
-  <script src="js/app.js?v=1795759820" defer></script>
+  <script src="js/app.js?v=1795760577" defer></script>
 </body>
 </html>
