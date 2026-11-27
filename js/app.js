@@ -199,6 +199,7 @@
       changed.forEach(function (port) {
         if (nativeAccess.onstatechange) nativeAccess.onstatechange({ port: port });
       });
+      if (debugState.open) renderDebug(); // the app also calls this when only its own log changed
     };
     window.aplusMidiMessage = function (id, bytes) {
       var port = nativeAccess.inputs.get(String(id));
@@ -2464,6 +2465,39 @@
     return "<section class=\"debug-section\"><h3 class=\"debug-h\">" + escapeHtml(title) + "</h3>" + inner + "</section>";
   }
 
+  // Android app only: the phone's own USB and MIDI view, as label/value rows.
+  function nativeDiagRows() {
+    if (!window.AplusNative || typeof window.AplusNative.diag !== "function") return null;
+    var d;
+    try { d = JSON.parse(window.AplusNative.diag()); } catch (e) { return [["Native diagnostics", "Unreadable: " + e]]; }
+    var yn = function (v) { return v ? "Yes." : "No."; };
+    var usbMidi = (d.usb || []).filter(function (u) {
+      return (u.interfaces || []).some(function (i) { return i[0] === 1 && i[1] === 3; });
+    });
+    var rows = [
+      ["Android", "API " + d.sdk],
+      ["MIDI feature", yn(d.featureMidi)],
+      ["USB host", yn(d.featureUsbHost)],
+      ["MidiManager", yn(d.midiManager)]
+    ];
+    if (usbMidi.length && !(d.midi || []).length) {
+      rows.push(["Verdict", "Android sees a USB MIDI device, but its MIDI service lists none."]);
+    } else if (!(d.usb || []).length) {
+      rows.push(["Verdict", "Android sees no USB device. Check the cable, the OTG adapter and the USB-C port setting."]);
+    }
+    (d.midi || []).forEach(function (m) {
+      rows.push(["MIDI device " + (m.id == null ? "" : "#" + m.id),
+        m.name + " · in " + m.inputs + ", out " + m.outputs + " · " + m.open]);
+    });
+    (d.usb || []).forEach(function (u) {
+      rows.push(["USB device", u.name + " · " + u.vendorId + ":" + u.productId +
+        " · permission " + (u.permission ? "yes" : "no") + " · interfaces " +
+        (u.interfaces || []).map(function (i) { return i[0] + "/" + i[1] + (i[0] === 1 && i[1] === 3 ? " (MIDI)" : ""); }).join(", ")]);
+    });
+    (d.events || []).slice().reverse().forEach(function (e) { rows.push(["App event", e]); });
+    return rows;
+  }
+
   function buildDebugReport() {
     var snap = debugSnapshot();
     var lines = [];
@@ -2517,6 +2551,12 @@
     lines.push("  Sound profile: " + soundProfile(snap.soundProfile).label + ".");
     lines.push("  User agent: " + (snap.userAgent || "—"));
     lines.push("");
+    var nrows = nativeDiagRows();
+    if (nrows) {
+      lines.push("Native USB/MIDI");
+      nrows.forEach(function (r) { lines.push("  " + r[0] + ": " + r[1]); });
+      lines.push("");
+    }
     lines.push("Event log");
     if (!snap.events.length) {
       lines.push("  (none)");
@@ -2555,6 +2595,7 @@
       gridRow("Sound profile", soundProfile(snap.soundProfile).label + ".") +
       gridRow("User agent", snap.userAgent || "—", "debug-ua") +
       "</div>";
+    var nrows = nativeDiagRows();
     var events = ev
       ? "<ul class=\"debug-events\">" + ev + "</ul>"
       : "<p class=\"debug-none\">No events yet.</p>";
@@ -2562,6 +2603,7 @@
       section("Devices", renderPortGroup("Inputs", snap.inputs) + renderPortGroup("Outputs", snap.outputs)) +
       section("Connection", conn) +
       section("Browser", browser) +
+      (nrows ? section("Native USB/MIDI", "<div class=\"debug-grid\">" + nrows.map(function (r) { return gridRow(r[0], r[1]); }).join("") + "</div>") : "") +
       section("Event log", events);
   }
 

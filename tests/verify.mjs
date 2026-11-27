@@ -914,7 +914,12 @@ try {
     const p = await browser.newPage();
     p.on("pageerror", (err) => jsErrors.push(String(err)));
     await p.evaluateOnNewDocument(() => {
-      window.AplusNative = { inputs: () => JSON.stringify([{ id: 7, name: "Garagekey Mini" }]) };
+      window.AplusNative = {
+        inputs: () => JSON.stringify([{ id: 7, name: "Garagekey Mini" }]),
+        diag: () => JSON.stringify({ sdk: 34, featureMidi: true, featureUsbHost: true, midiManager: true, midi: [],
+          usb: [{ name: "Garagekey Mini", vendorId: 1, productId: 2, permission: false, interfaces: [[1, 1], [1, 3]] }],
+          events: ["10:00:00 started"] })
+      };
     });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
     await new Promise((r) => setTimeout(r, 400));
@@ -929,14 +934,22 @@ try {
     await p.evaluate(() => window.aplusMidiDevices([]));
     await new Promise((r) => setTimeout(r, 400));
     const unplugged = await p.evaluate(statusText);
+    const help = await p.evaluate(() => {
+      window.__pfTest.debug.open();
+      return { panel: document.getElementById("debug-body").innerText, report: window.__pfTest.debug.report() };
+    });
     await p.close();
-    return { plugged, held, unplugged };
+    return { plugged, held, unplugged, help };
   }
   const native = await loadNativeBridge();
   check("Android native bridge connects, plays notes and sees the unplug",
     native.plugged === "Connected: Garagekey Mini" && native.held.on && native.held.off &&
       /No MIDI keyboard detected/.test(native.unplugged),
     JSON.stringify(native));
+  check("Help tab shows native USB/MIDI diagnostics and the report includes them",
+    /Native USB\/MIDI/i.test(native.help.panel) && /Android sees a USB MIDI device, but its MIDI service lists none/i.test(native.help.panel) &&
+      /1\/3 \(MIDI\)/i.test(native.help.panel) && /Native USB\/MIDI[\s\S]*API 34/.test(native.help.report),
+    native.help.panel.slice(native.help.panel.indexOf("NATIVE"), native.help.panel.indexOf("EVENT LOG")));
 
   const hotplug = await loadHotplug();
   console.log("HOTPLUG", JSON.stringify(hotplug));
