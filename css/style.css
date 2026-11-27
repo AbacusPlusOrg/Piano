@@ -1050,9 +1050,25 @@ button {
 
 .play-sheet, .play-pause, .highway { display: none; }
 body.mode-play .kb-bar, body.mode-play .lower, body.mode-play .status-wrap { display: none; }
-body.mode-play { height: 100dvh; max-height: 100dvh; overflow: hidden; }
+html.mode-play {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+body.mode-play {
+  min-height: 0;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+body.mode-play.is-playing .top { display: none; }
 body.mode-play .kb-wrap { flex: 1 1 auto; min-height: 0; }
-body.mode-play .highway { display: block; flex: 1 1 auto; min-height: 90px; width: 100%; }
+body.mode-play .highway { display: block; flex: 1 1 0; min-height: 90px; width: 100%; overflow: hidden; }
+body.mode-play .kb-scroll { flex: 0 0 auto; height: auto; min-height: 0; }
 body.mode-play .play-sheet:not([hidden]) {
   display: flex;
   position: absolute;
@@ -1160,7 +1176,12 @@ body.mode-play .play-pause:not([hidden]) {
     grid-template-areas: "title title" "kb kb";
     grid-template-rows: auto minmax(0, 1fr);
   }
-  body.mode-play .highway { flex: 1 1 0; min-height: 50px; }
+  body.mode-play.is-playing, body.mode-play.is-playing.measuring {
+    grid-template-areas: "kb kb";
+    grid-template-rows: minmax(0, 1fr);
+  }
+  body.mode-play .highway { flex: 1 1 0; min-height: 50px; overflow: hidden; }
+  body.mode-play .kb-scroll { flex: 0 0 auto; height: auto; min-height: 0; }
   body.mode-play .play-sheet:not([hidden]) { padding: 8px; }
   .play-sheet-card { padding: 10px 12px; gap: 6px; }
   .play-sheet-title { font-size: 1rem; }

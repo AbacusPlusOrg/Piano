@@ -516,9 +516,26 @@
     var scrollW = els.kbScroll.clientWidth || 360;
     var inset = 4;
     var landscape = window.matchMedia("(orientation: landscape) and (max-height: 540px)").matches;
-    var maxH = landscape
-      ? Math.max(90, els.kbScroll.clientHeight || 140)
-      : Math.max(110, Math.round(window.innerHeight * 0.45));
+    var playMode = document.body.classList.contains("mode-play");
+    var maxH;
+    if (playMode) {
+      var topEl = document.querySelector(".top");
+      var bodyStyle = getComputedStyle(document.body);
+      var padY = (parseFloat(bodyStyle.paddingTop) || 0) + (parseFloat(bodyStyle.paddingBottom) || 0);
+      var headerReserve = 0;
+      if (topEl && getComputedStyle(topEl).display !== "none") {
+        var gap = landscape ? (parseFloat(bodyStyle.rowGap) || 5) : (parseFloat(getComputedStyle(topEl).marginBottom) || 10);
+        headerReserve = topEl.getBoundingClientRect().height + gap;
+      }
+      var hwyMin = landscape ? 50 : 90;
+      var scrollPad = parseFloat(getComputedStyle(els.kbScroll).paddingBottom) || 0;
+      var avail = window.innerHeight - padY - headerReserve - hwyMin - scrollPad - 2;
+      maxH = Math.max(landscape ? 80 : 110, Math.round(avail));
+    } else if (landscape) {
+      maxH = Math.max(90, els.kbScroll.clientHeight || 140);
+    } else {
+      maxH = Math.max(110, Math.round(window.innerHeight * 0.45));
+    }
     var whiteW = Math.max(minWhite, (scrollW - inset * 2) / whiteCount);
     var height = whiteW * KEY_RATIO;
     if (height > maxH) {
@@ -2309,10 +2326,26 @@
     if (pe.toggle) pe.toggle.textContent = canResume() ? "Resume" : "Start";
   }
 
+  function focusEl(el) {
+    if (!el || typeof el.focus !== "function") return;
+    try { el.focus({ preventScroll: true }); }
+    catch (err) { el.focus(); }
+  }
+
+  function syncPlayViewport() {
+    var on = document.body.classList.contains("mode-play");
+    var playing = on && play.playing;
+    document.documentElement.classList.toggle("mode-play", on);
+    document.body.classList.toggle("is-playing", playing);
+    document.documentElement.classList.toggle("is-playing", playing);
+    if (on && window.scrollTo) window.scrollTo(0, 0);
+  }
+
   function updatePlayChrome() {
     var inPlay = document.body.classList.contains("mode-play");
     var sheetOpen = !!(inPlay && pe.sheet && !pe.sheet.hidden);
     updateStartLabel();
+    syncPlayViewport();
     if (!pe.pause) return;
     if (!inPlay) {
       pe.pause.hidden = true;
@@ -2338,8 +2371,8 @@
     if (pe.canvas) pe.canvas.setAttribute("aria-hidden", open ? "true" : "false");
     if (els.kbScroll) els.kbScroll.setAttribute("aria-hidden", open ? "true" : "false");
     updatePlayChrome();
-    if (opening && pe.toggle) pe.toggle.focus();
-    else if (closing && pe.pause && !pe.pause.hidden) pe.pause.focus();
+    if (opening && pe.toggle) focusEl(pe.toggle);
+    else if (closing && pe.pause && !pe.pause.hidden) focusEl(pe.pause);
   }
 
   function pausePlay() {
@@ -2503,6 +2536,11 @@
   function setMode(mode, remember) {
     var on = mode === "play";
     document.body.classList.toggle("mode-play", on);
+    document.documentElement.classList.toggle("mode-play", on);
+    if (!on) {
+      document.body.classList.remove("is-playing");
+      document.documentElement.classList.remove("is-playing");
+    } else if (window.scrollTo) window.scrollTo(0, 0);
     pe.modeKeyboard.setAttribute("aria-selected", on ? "false" : "true");
     pe.modePlay.setAttribute("aria-selected", on ? "true" : "false");
     pe.modeKeyboard.tabIndex = on ? -1 : 0;
@@ -2566,8 +2604,8 @@
     }
     if (!list.length) return;
     var idx = list.indexOf(document.activeElement);
-    if (e.shiftKey && (idx <= 0)) { e.preventDefault(); list[list.length - 1].focus(); }
-    else if (!e.shiftKey && (idx === list.length - 1 || idx < 0)) { e.preventDefault(); list[0].focus(); }
+    if (e.shiftKey && (idx <= 0)) { e.preventDefault(); focusEl(list[list.length - 1]); }
+    else if (!e.shiftKey && (idx === list.length - 1 || idx < 0)) { e.preventDefault(); focusEl(list[0]); }
   });
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(function () { drawHighway(); }).observe(pe.canvas);
   els.kbScroll.addEventListener("scroll", function () { if (!play.playing) drawHighway(); });
@@ -3171,7 +3209,7 @@
     else idx = (idx + dir + PANE_IDS.length) % PANE_IDS.length;
     showPane(PANE_IDS[idx]);
     var tab = document.getElementById("tab-" + PANE_IDS[idx]);
-    if (tab) tab.focus();
+    if (tab) focusEl(tab);
   }
 
   function openDebug() { showPane("help"); }
