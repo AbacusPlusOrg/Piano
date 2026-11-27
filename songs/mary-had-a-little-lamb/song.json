@@ -1,0 +1,186 @@
+{
+  "id": "mary-had-a-little-lamb",
+  "title": "Mary Had a Little Lamb",
+  "composer": "Traditional (the “Merrily We Roll Along” tune)",
+  "lyricist": "Sarah Josepha Hale",
+  "lyric_year": 1830,
+  "public_domain": true,
+  "key": "C major",
+  "time": "4/4",
+  "tempo": "quarter = 100",
+  "tempo_note": "PianoFlow teaching suggestion; LearnPianoGame plays it at 100, Pianomi at 88.",
+  "bars": 8,
+  "form": "A A' (4-bar phrases)",
+  "range": {
+    "low": "C3",
+    "high": "G4",
+    "midi_low": 48,
+    "midi_high": 67
+  },
+  "keyboard": "Fits the GarageKey Mini range C3–C6 (MIDI 48–84). Melody is C4–G4; left hand stays on or above C3.",
+  "setting": "PianoFlow teaching setting: verified traditional melody in the right hand, in C major; the left-hand roots and blocked C and G chords are written for this catalog, not taken from a source arrangement.",
+  "lyric_snippet": "Mary had a little lamb, little lamb, little lamb, Mary had a little lamb, its fleece was white as snow.",
+  "files": {
+    "score": "score.musicxml",
+    "full_midi": "full.mid",
+    "rh_midi": "rh.mid",
+    "roots_midi": "roots.mid"
+  },
+  "sources": [
+    {
+      "id": "learnpianogame-mary",
+      "title": "LearnPianoGame, Mary Had a Little Lamb, letter notes",
+      "url": "https://learnpianogame.com/songs/mary/",
+      "used_for": "Note-level source: melody bar by bar with octaves and beat lengths (E4 D4 C4 D4 | E4 E4 E4(2) | D4 D4 D4(2) | E4 G4 G4(2) | E4 D4 C4 D4 | E4 E4 E4 E4 | D4 D4 E4 D4 | C4(4)), 4/4, C major, range C4–G4. Its chord names (C C G C C C G C) agree with this setting's harmony; its arrangement was not copied."
+    },
+    {
+      "id": "pianomi-mary",
+      "title": "Pianomi, Mary Had a Little Lamb, easy piano letter notes",
+      "url": "https://pianomi.app/sheet-music/mary-had-a-little-lamb/",
+      "used_for": "Independent note-level cross-check: the same pitches bar by bar in C major, 4/4, 8 bars, with half notes at the ends of bars 2–4. Its left-hand part (which goes down to G2) was not used."
+    },
+    {
+      "id": "wikipedia-mary",
+      "title": "Wikipedia, Mary Had a Little Lamb",
+      "url": "https://en.wikipedia.org/wiki/Mary_Had_a_Little_Lamb",
+      "used_for": "Text and history only: Hale's poem first published in 1830 (Poems for Our Children, Marsh, Capen & Lyon); today it is sung to the “Merrily We Roll Along” tune, not Lowell Mason's 1830s setting."
+    }
+  ],
+  "variants": "The tune used here is the one commonly sung today (also the tune of “Merrily We Roll Along”). Lowell Mason set Hale's words to a different melody in the 1830s (Juvenile Lyre, 1831); that setting has fallen out of use and was not used. Both note-level sources agree on every pitch and bar line in C major. Some arrangements put the G chord's bass on G2 (Pianomi); this setting keeps the left hand at or above C3 by playing the G chord as D3 G3 B3.",
+  "sections": [
+    {
+      "id": "A",
+      "name": "Mary had a little lamb",
+      "bars": "1-4",
+      "phrase": "mary-a"
+    },
+    {
+      "id": "A'",
+      "name": "Its fleece was white as snow",
+      "bars": "5-8",
+      "phrase": "mary-a2"
+    }
+  ],
+  "phrases": [
+    {
+      "id": "mary-a",
+      "name": "Mary had a little lamb",
+      "section": "A",
+      "bars": "1-4",
+      "occurrences": [
+        "1-4"
+      ],
+      "max_score": 1.4,
+      "top_instance": 1.1,
+      "notes": {
+        "five-finger-position": "Four keys (C, D, E, G) under one C-position hand; quarters and halves only, so One-Hand Melody is not scored separately.",
+        "hands-together": "LH changes only on beats 1 and 3, always with a RH note.",
+        "basic-chords": "Slow half-note triads in one close grip.",
+        "inversions": "The G chord is played with D at the bottom (D3 G3 B3), which keeps the left hand at or above C3."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH, thumb on middle C: E D C D | E E E(half) | D D D(half) | E G G(half). Fingers 3-2-1-2 | 3-3-3 | 2-2-2 | 3-5-5. About 100 quarter notes a minute.",
+          "is_full_version": false,
+          "score": 0.6,
+          "instances": {
+            "five-finger-position": 0.6
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds one whole note per bar: C3 (bars 1-2), G3 (bar 3), C3 (bar 4).",
+          "is_full_version": false,
+          "score": 1.1,
+          "instances": {
+            "hands-together": 0.9,
+            "five-finger-position": 0.6
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH plays two half-note chords per bar: C3 E3 G3 (bars 1-2 and 4), D3 G3 B3 (bar 3).",
+          "is_full_version": true,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "basic-chords": 0.9,
+            "five-finger-position": 0.7,
+            "inversions": 0.6
+          }
+        }
+      ]
+    },
+    {
+      "id": "mary-a2",
+      "name": "Its fleece was white as snow",
+      "section": "A'",
+      "bars": "5-8",
+      "occurrences": [
+        "5-8"
+      ],
+      "max_score": 1.4,
+      "top_instance": 1.1,
+      "notes": {
+        "five-finger-position": "Same four keys; bar 7 turns back up to E before the close on C.",
+        "hands-together": "Same once-or-twice-a-bar LH changes; the last bar is held by both hands.",
+        "basic-chords": "Slow half-note triads in one close grip, ending on a held C chord.",
+        "inversions": "Same D3 G3 B3 shape for the G chord in bar 7."
+      },
+      "ladder": [
+        {
+          "id": "rh",
+          "index": 0,
+          "label": "Right hand alone",
+          "play": "RH, thumb on middle C: E D C D | E E E E | D D E D | C(whole). Fingers 3-2-1-2 | 3-3-3-3 | 2-2-3-2 | 1.",
+          "is_full_version": false,
+          "score": 0.6,
+          "instances": {
+            "five-finger-position": 0.6
+          }
+        },
+        {
+          "id": "roots",
+          "index": 1,
+          "label": "Right hand and left-hand roots",
+          "play": "RH as before; LH holds C3 (bars 5-6), G3 (bar 7), C3 (bar 8).",
+          "is_full_version": false,
+          "score": 1.1,
+          "instances": {
+            "hands-together": 0.9,
+            "five-finger-position": 0.6
+          }
+        },
+        {
+          "id": "full",
+          "index": 2,
+          "label": "Both hands (teaching setting)",
+          "play": "RH as before; LH half-note chords C3 E3 G3 (bars 5-6), D3 G3 B3 (bar 7), and a whole-note C3 E3 G3 under the final 'snow.'",
+          "is_full_version": true,
+          "score": 1.4,
+          "instances": {
+            "hands-together": 1.1,
+            "basic-chords": 0.9,
+            "five-finger-position": 0.7,
+            "inversions": 0.6
+          }
+        }
+      ]
+    }
+  ],
+  "techniques_tagged": [
+    "five-finger-position",
+    "hands-together"
+  ],
+  "score": 0.3,
+  "score_raw": 2.175,
+  "score_display": "0.3: Hands Together, Five-Finger Position",
+  "score_note": "Catalog-relative whole-piece 0–10 score from pianoflow/tools/score_pieces.py after Mary Had a Little Lamb was added. Raw = w1 + 0.35·w2 + 0.2·w3 + min(0.1·sum(rest), 2.0) on tagged technique weights; score = 0.3 + (raw − min_raw)/(max_raw − min_raw)·9.6. Basic chords (peak 0.9) and inversions (peak 0.6) appear in the full-rung instance scores but are below the tag thresholds (0.5 × weight: 1.0 and 1.5), so they are not tagged on the whole piece. Adding a piece can shift other catalog scores slightly (the formula is catalog-relative)."
+}

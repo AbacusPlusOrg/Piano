@@ -42,7 +42,16 @@ export function runSongsChecks(check, importMetaUrl = import.meta.url) {
     }
     const songPath = path.join(dir, "song.json");
     if (fs.existsSync(songPath)) {
-      try { JSON.parse(fs.readFileSync(songPath, "utf8")); }
+      try {
+        const files = JSON.parse(fs.readFileSync(songPath, "utf8")).files || {};
+        // The Play view loads these by name, so each listed file must exist.
+        for (const f of Object.values(files)) {
+          if (!fs.existsSync(path.join(dir, f))) missing.push(s.id + "/" + f + " (listed in song.json)");
+          else if (/\.mid$/.test(f) && fs.readFileSync(path.join(dir, f)).slice(0, 4).toString("ascii") !== "MThd") {
+            missing.push(s.id + "/" + f + " (not a MIDI file)");
+          }
+        }
+      }
       catch (e) { missing.push(s.id + "/song.json (invalid JSON: " + e.message + ")"); }
     }
     const xmlPath = path.join(dir, "score.musicxml");

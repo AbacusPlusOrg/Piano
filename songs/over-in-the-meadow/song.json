@@ -23,7 +23,8 @@
   "files": {
     "score": "score.musicxml",
     "full_midi": "full.mid",
-    "rh_midi": "rh.mid"
+    "rh_midi": "rh.mid",
+    "roots_midi": "roots.mid"
   },
   "sources": [
     {
@@ -317,8 +318,8 @@
     "one-hand-melody",
     "hands-together"
   ],
-  "score": 0.3,
+  "score": 0.6,
   "score_raw": 2.45,
-  "score_display": "0.3: Hands Together, One-Hand Melody, Five-Finger Position",
-  "score_note": "Catalog-relative whole-piece 0–10 score from pianoflow/tools/score_pieces.py after this piece was added. Raw = w1 + 0.35·w2 + 0.2·w3 + min(0.1·sum(rest), 2.0) on tagged technique weights; score = 0.3 + (raw − min_raw)/(max_raw − min_raw)·9.6. Broken-chords appear in the full-rung instance scores (peak 1.3) but are below the tag threshold (0.5 × weight 3.0 = 1.5), so they are not tagged on the whole piece. Adding this piece shifts other catalog scores slightly (the formula is catalog-relative)."
+  "score_display": "0.6: Hands Together, One-Hand Melody, Five-Finger Position",
+  "score_note": "Catalog-relative whole-piece 0–10 score from pianoflow/tools/score_pieces.py after Mary Had a Little Lamb was added. Raw = w1 + 0.35·w2 + 0.2·w3 + min(0.1·sum(rest), 2.0) on tagged technique weights; score = 0.3 + (raw − min_raw)/(max_raw − min_raw)·9.6. Broken-chords appear in the full-rung instance scores (peak 1.3) but are below the tag threshold (0.5 × weight 3.0 = 1.5), so they are not tagged on the whole piece. Adding a piece can shift other catalog scores slightly (the formula is catalog-relative)."
 }

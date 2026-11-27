@@ -643,6 +643,7 @@
     scrollNoteIntoView(note);
     updateReadout();
     soundNoteOn(note, vel);
+    playKey(note);
   }
 
   function noteOff(note, vel, ch, source) {
@@ -2120,6 +2121,303 @@
     requestAnimationFrame(rebuildKeyboard);
   });
 
+  /* ---------- Play: falling notes onto the keys, next keys lit ---------- */
+
+  var MODE_STORE_KEY = "aplus.mode.v1";
+  var LOOKAHEAD_BEATS = 5;   // beats visible above the keys
+  var LEAD_IN_BEATS = 3;     // notes fall this long before the first one reaches the keys
+  var EARLY_BEATS = 0.25;    // a key pressed this close before its note still counts
+  var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
+  var play = {
+    index: null, song: null, rung: null, midi: null, steps: [], step: 0, hit: {},
+    beat: 0, endBeat: 0, playing: false, wait: true, rate: 1, last: 0, raf: 0, drawn: 0, sounding: {}, lit: ""
+  };
+  var pe = {
+    modeKeyboard: document.getElementById("mode-keyboard"),
+    modePlay: document.getElementById("mode-play"),
+    song: document.getElementById("play-song"),
+    rung: document.getElementById("play-rung"),
+    toggle: document.getElementById("play-toggle"),
+    restart: document.getElementById("play-restart"),
+    wait: document.getElementById("play-wait"),
+    tempo: document.getElementById("play-tempo"),
+    tempoOut: document.getElementById("play-tempo-out"),
+    canvas: document.getElementById("highway")
+  };
+
+  // Standard MIDI file -> { ppq, bpm, beatsPerBar, notes: [{ note, start, end }] } with times in beats.
+  function parseMidi(buf) {
+    var d = new DataView(buf), ppq = d.getUint16(12), ntr = d.getUint16(10), p = 14;
+    var tempo = 500000, bpb = 4, raw = [];
+    function vlq() { var v = 0, b; do { b = d.getUint8(p++); v = (v << 7) | (b & 0x7f); } while (b & 0x80); return v; }
+    for (var tr = 0; tr < ntr; tr++) {
+      var end = p + 8 + d.getUint32(p + 4), t = 0, run = 0, open = {};
+      p += 8;
+      while (p < end) {
+        t += vlq();
+        var st = d.getUint8(p);
+        if (st & 0x80) p++; else st = run;
+        if (st === 0xff) {
+          var type = d.getUint8(p++), len = vlq();
+          if (type === 0x51) tempo = (d.getUint8(p) << 16) | (d.getUint8(p + 1) << 8) | d.getUint8(p + 2);
+          if (type === 0x58) bpb = d.getUint8(p) * 4 / Math.pow(2, d.getUint8(p + 1));
+          p += len;
+          continue;
+        }
+        if (st === 0xf0 || st === 0xf7) { p += vlq(); continue; }
+        run = st;
+        var hi = st & 0xf0, a = d.getUint8(p++), v = (hi === 0xc0 || hi === 0xd0) ? 0 : d.getUint8(p++);
+        if (hi === 0x90 && v > 0) open[a] = t;
+        else if ((hi === 0x80 || hi === 0x90) && open[a] != null) { raw.push({ note: a, start: open[a] / ppq, end: t / ppq }); delete open[a]; }
+      }
+      p = end;
+    }
+    raw.sort(function (x, y) { return x.start - y.start || x.note - y.note; });
+    return { ppq: ppq, bpm: 60000000 / tempo, beatsPerBar: bpb, notes: raw };
+  }
+
+  // Notes that start together form one step; wait mode holds at each step until all its keys are pressed.
+  function buildSteps(notes) {
+    var steps = [];
+    notes.forEach(function (n) {
+      var last = steps[steps.length - 1];
+      if (last && Math.abs(last.beat - n.start) < 1e-6) last.notes.push(n.note);
+      else steps.push({ beat: n.start, notes: [n.note] });
+    });
+    return steps;
+  }
+
+  function songUrl(id, file) { return "songs/" + id + "/" + file + "?v=" + ASSET_VERSION; }
+  function fetchJson(url) { return fetch(url).then(function (r) { if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }); }
+
+  function option(sel, value, text) {
+    var o = document.createElement("option");
+    o.value = value;
+    o.textContent = text;
+    sel.appendChild(o);
+  }
+
+  function loadSongIndex() {
+    if (play.index) return Promise.resolve(play.index);
+    return fetchJson("songs/index.json?v=" + ASSET_VERSION).then(function (idx) {
+      play.index = idx.songs || [];
+      pe.song.innerHTML = "";
+      play.index.forEach(function (s) { option(pe.song, s.id, s.title + " · " + s.score.toFixed(1)); });
+      return selectSong(pe.song.value);
+    }).catch(function (e) { logEvent("Songs failed to load: " + e.message); });
+  }
+
+  function selectSong(id) {
+    return fetchJson(songUrl(id, "song.json")).then(function (song) {
+      play.song = song;
+      pe.rung.innerHTML = "";
+      RUNG_FILES.forEach(function (rf) {
+        if (!song.files[rf[1]]) return;
+        // Label and the rung's highest 0-10 score across the song's phrases.
+        var label = rf[0], score = 0;
+        (song.phrases || []).forEach(function (ph) {
+          ph.ladder.forEach(function (r) { if (r.id === rf[0]) { label = r.label; score = Math.max(score, r.score); } });
+        });
+        option(pe.rung, rf[0], label + " · " + score.toFixed(1));
+      });
+      return selectRung(pe.rung.value);
+    });
+  }
+
+  function selectRung(rungId) {
+    var file = RUNG_FILES.filter(function (rf) { return rf[0] === rungId; })[0];
+    var name = play.song.files[file[1]];
+    return fetch(songUrl(play.song.id, name)).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+      play.rung = rungId;
+      play.midi = parseMidi(buf);
+      play.steps = buildSteps(play.midi.notes);
+      play.endBeat = play.midi.notes.reduce(function (m, n) { return Math.max(m, n.end); }, 0);
+      var lo = Math.min.apply(null, play.midi.notes.map(function (n) { return n.note; }));
+      var hi = Math.max.apply(null, play.midi.notes.map(function (n) { return n.note; }));
+      extendRangeTo(lo);
+      extendRangeTo(hi);
+      restartPlay();
+    });
+  }
+
+  function setPlaying(on) {
+    play.playing = on && !!play.midi;
+    pe.toggle.textContent = play.playing ? "Pause" : "Play";
+    pe.toggle.setAttribute("aria-pressed", play.playing ? "true" : "false");
+    if (!play.playing) stopPlayback();
+    if (play.playing && !play.raf) { play.last = performance.now(); play.raf = requestAnimationFrame(playFrame); }
+    drawHighway();
+  }
+
+  function restartPlay() {
+    stopPlayback();
+    play.beat = -LEAD_IN_BEATS;
+    play.step = 0;
+    play.hit = {};
+    setPlaying(false);
+  }
+
+  function stopPlayback() {
+    Object.keys(play.sounding).forEach(function (n) { if (!state.held[n]) soundNoteOff(parseInt(n, 10)); });
+    play.sounding = {};
+  }
+
+  function playFrame(now) {
+    play.raf = 0;
+    if (!play.playing) return;
+    var dt = Math.min(0.1, (now - play.last) / 1000);
+    play.last = now;
+    var next = play.beat + dt * play.midi.bpm / 60 * play.rate;
+    var s = play.steps[play.step];
+    if (play.wait) {
+      if (s && next > s.beat) next = s.beat;
+    } else {
+      // Play through: pass steps at tempo and sound them with the shared synth (if sound is on).
+      while (s && s.beat <= next) {
+        s.notes.forEach(function (n) { soundNoteOn(n, 80); play.sounding[n] = true; });
+        play.step++;
+        s = play.steps[play.step];
+      }
+      play.midi.notes.forEach(function (n) {
+        if (play.sounding[n.note] && n.end <= next && n.end > play.beat && !state.held[n.note]) {
+          soundNoteOff(n.note);
+          delete play.sounding[n.note];
+        }
+      });
+    }
+    play.beat = next;
+    if (play.step >= play.steps.length && play.beat >= play.endBeat) { setPlaying(false); return; }
+    drawHighway();
+    play.raf = requestAnimationFrame(playFrame);
+  }
+
+  // Called for every note-on (MIDI or on-screen tap).
+  function playKey(note) {
+    if (!play.playing || !play.wait) return;
+    var s = play.steps[play.step];
+    if (!s || s.notes.indexOf(note) < 0 || s.beat - play.beat > EARLY_BEATS) return;
+    play.hit[note] = true;
+    if (s.notes.every(function (n) { return play.hit[n]; })) {
+      play.step++;
+      play.hit = {};
+      drawHighway();
+    }
+  }
+
+  function nextNotes() {
+    if (!play.midi || !document.body.classList.contains("mode-play")) return [];
+    var s = play.steps[play.step];
+    return s ? s.notes.filter(function (n) { return !play.hit[n]; }) : [];
+  }
+
+  function lightNextKeys() {
+    var want = nextNotes();
+    var key = want.join(",") + "|" + els.keyboard.childElementCount + state.visibleLow + "-" + state.visibleHigh;
+    if (key === play.lit) return;
+    play.lit = key;
+    var keys = els.keyboard.querySelectorAll(".key");
+    for (var i = 0; i < keys.length; i++) {
+      keys[i].classList.toggle("next", want.indexOf(parseInt(keys[i].dataset.note, 10)) >= 0);
+    }
+  }
+
+  function drawHighway() {
+    var cv = pe.canvas;
+    lightNextKeys();
+    if (!document.body.classList.contains("mode-play")) return;
+    var dpr = window.devicePixelRatio || 1;
+    var r = cv.getBoundingClientRect();
+    var w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    var g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, r.width, r.height);
+    play.drawn = 0;
+    // Key columns from the live keyboard, so bars line up with the keys after any scroll or resize.
+    var cols = {};
+    var keys = els.keyboard.querySelectorAll(".key");
+    for (var i = 0; i < keys.length; i++) {
+      var kr = keys[i].getBoundingClientRect();
+      cols[keys[i].dataset.note] = { x: kr.left - r.left, w: kr.width, black: keys[i].classList.contains("black") };
+    }
+    var H = r.height, ppb = H / LOOKAHEAD_BEATS;
+    if (play.midi) {
+      g.strokeStyle = "rgba(244, 238, 228, 0.08)";
+      g.lineWidth = 1;
+      for (var bar = Math.ceil(play.beat / play.midi.beatsPerBar) * play.midi.beatsPerBar; bar <= play.beat + LOOKAHEAD_BEATS; bar += play.midi.beatsPerBar) {
+        var by = Math.round(H - (bar - play.beat) * ppb) + 0.5;
+        g.beginPath(); g.moveTo(0, by); g.lineTo(r.width, by); g.stroke();
+      }
+      var cur = play.steps[play.step];
+      var font = "600 11px system-ui, sans-serif";
+      g.font = font;
+      g.textAlign = "center";
+      play.midi.notes.forEach(function (n) {
+        var c = cols[n.note];
+        var y1 = H - (n.start - play.beat) * ppb, y0 = H - (n.end - play.beat) * ppb;
+        if (!c || y1 < 0 || y0 > H) return;
+        var done = n.end <= play.beat;
+        var isNext = cur && Math.abs(n.start - cur.beat) < 1e-6 && !play.hit[n.note];
+        g.globalAlpha = done ? 0.25 : (isNext ? 1 : 0.8);
+        g.fillStyle = n.note < 60 ? "#b98249" : "#e0a15a";
+        var x = c.x + 1.5, bw = Math.max(3, c.w - 3), top = Math.max(-4, y0 + 1), bh = Math.min(H + 4, y1) - top - 1;
+        if (bh <= 0) return;
+        g.beginPath();
+        if (g.roundRect) g.roundRect(x, top, bw, bh, Math.min(4, bw / 3)); else g.rect(x, top, bw, bh);
+        g.fill();
+        if (isNext) { g.globalAlpha = 1; g.strokeStyle = "#ffb45a"; g.lineWidth = 2; g.stroke(); }
+        if (bw >= 12 && bh >= 16) {
+          g.globalAlpha = done ? 0.35 : 1;
+          g.fillStyle = "#1a120a";
+          g.fillText(noteName(n.note).replace(/-?\d+$/, ""), x + bw / 2, Math.min(y1, H) - 5);
+        }
+        play.drawn++;
+      });
+      g.globalAlpha = 1;
+    }
+    var msg = !play.midi ? "Loading song…" : (!play.playing && play.beat <= -LEAD_IN_BEATS ? "Press Play." :
+      (!play.playing && play.step >= play.steps.length ? "Done. Press Restart to play again." : ""));
+    if (msg) {
+      g.fillStyle = "#b5a89a";
+      g.font = "500 14px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.fillText(msg, r.width / 2, Math.round(H / 2));
+    }
+  }
+
+  function setMode(mode, remember) {
+    var on = mode === "play";
+    document.body.classList.toggle("mode-play", on);
+    pe.modeKeyboard.setAttribute("aria-selected", on ? "false" : "true");
+    pe.modePlay.setAttribute("aria-selected", on ? "true" : "false");
+    pe.modeKeyboard.tabIndex = on ? -1 : 0;
+    pe.modePlay.tabIndex = on ? 0 : -1;
+    if (remember !== false) { try { localStorage.setItem(MODE_STORE_KEY, mode); } catch (e) {} }
+    if (!on) setPlaying(false);
+    fitLandscapeKeys();
+    rebuildKeyboard();
+    if (on) loadSongIndex();
+    drawHighway();
+  }
+
+  pe.modeKeyboard.addEventListener("click", function () { setMode("keyboard"); });
+  pe.modePlay.addEventListener("click", function () { setMode("play"); });
+  pe.song.addEventListener("change", function () { selectSong(pe.song.value); });
+  pe.rung.addEventListener("change", function () { selectRung(pe.rung.value); });
+  pe.toggle.addEventListener("click", function () {
+    if (!play.playing && play.step >= play.steps.length) restartPlay();
+    setPlaying(!play.playing);
+  });
+  pe.restart.addEventListener("click", restartPlay);
+  pe.wait.addEventListener("change", function () { play.wait = pe.wait.checked; play.hit = {}; stopPlayback(); });
+  pe.tempo.addEventListener("input", function () {
+    play.rate = parseInt(pe.tempo.value, 10) / 100;
+    pe.tempoOut.textContent = pe.tempo.value + "%";
+  });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(function () { drawHighway(); }).observe(pe.canvas);
+  els.kbScroll.addEventListener("scroll", function () { if (!play.playing) drawHighway(); });
+  try { if (localStorage.getItem(MODE_STORE_KEY) === "play") setMode("play", false); } catch (e) {}
+
   /* ---------- test hook ---------- */
 
   window.__pfTest = {
@@ -2190,6 +2488,15 @@
       setEnabled: function (on) { setSoundEnabled(!!on); },
       setVolume: function (v) { setSoundVolume(v); },
       analyze: function (id) { return analyzeSoundProfile(id); }
+    },
+    play: {
+      state: function () {
+        return { song: play.song && play.song.id, rung: play.rung, steps: play.steps.length, step: play.step,
+          beat: play.beat, playing: play.playing, wait: play.wait, drawn: play.drawn, next: nextNotes(),
+          stepNotes: play.steps.map(function (s) { return s.notes; }),
+          lit: Array.prototype.map.call(els.keyboard.querySelectorAll(".key.next"), function (k) { return +k.dataset.note; }) };
+      },
+      parse: function (buf) { return parseMidi(buf); }
     },
     debug: {
       open: function () { openDebug(); },

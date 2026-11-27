@@ -2156,7 +2156,74 @@ try {
   check("clear log empties it", st.logLength === 0);
 
 
-  // Songs catalog (files only; no song menu in the app yet).
+  // Play view: falling notes and lit keys, wait mode.
+  {
+    const p = await browser.newPage();
+    p.on("pageerror", (err) => jsErrors.push(String(err)));
+    await p.evaluateOnNewDocument(() => { try { localStorage.removeItem("aplus.mode.v1"); } catch (e) {} });
+    await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });
+    const ps = () => p.evaluate(() => window.__pfTest.play.state());
+    const feed = (n) => p.evaluate((n) => { window.__pfTest.feed([0x90, n, 100]); window.__pfTest.feed([0x80, n, 0]); }, n);
+    await p.click("#mode-play");
+    await p.waitForFunction(() => window.__pfTest.play.state().steps > 0, { timeout: 8000 });
+    const opts = await p.evaluate(() => ({
+      songs: [...document.querySelectorAll("#play-song option")].map((o) => o.value),
+      rungs: [...document.querySelectorAll("#play-rung option")].map((o) => o.value),
+      lowerHidden: getComputedStyle(document.querySelector(".lower")).display === "none",
+    }));
+    check("play: song picker lists the catalog", opts.songs.includes("mary-had-a-little-lamb") && opts.songs.includes("over-in-the-meadow"), opts.songs.join(","));
+    check("play: rung picker has right hand, roots and full", opts.rungs.join(",") === "rh,roots,full", opts.rungs.join(","));
+    check("play: Keyboard panes hidden in Play", opts.lowerHidden);
+    let st = await ps();
+    const melody = [64, 62, 60, 62, 64, 64, 64, 62, 62, 62, 64, 67, 67, 64, 62, 60, 62, 64, 64, 64, 64, 62, 62, 64, 62, 60];
+    check("play: Mary right-hand MIDI parses to the verified melody", st.song === "mary-had-a-little-lamb" &&
+      JSON.stringify(st.stepNotes.flat()) === JSON.stringify(melody), JSON.stringify(st.stepNotes.flat()));
+    check("play: notes render before Play", st.drawn > 0 && !st.playing, "drawn=" + st.drawn);
+    await p.evaluate(() => { const t = document.getElementById("play-tempo"); t.value = 150; t.dispatchEvent(new Event("input")); });
+    await p.click("#play-toggle");
+    await p.waitForFunction(() => window.__pfTest.play.state().beat >= 0, { timeout: 8000 });
+    await new Promise((r) => setTimeout(r, 300));
+    st = await ps();
+    check("play: wait mode holds at the first note", st.playing && st.step === 0 && st.beat === 0, "beat=" + st.beat + " step=" + st.step);
+    check("play: next key glows", JSON.stringify(st.lit) === "[64]", JSON.stringify(st.lit));
+    await feed(65);
+    st = await ps();
+    check("play: wrong key does not advance", st.step === 0, "step=" + st.step);
+    await feed(64);
+    st = await ps();
+    check("play: right key advances", st.step === 1 && JSON.stringify(st.next) === "[62]", "step=" + st.step + " next=" + JSON.stringify(st.next));
+    await p.waitForFunction(() => window.__pfTest.play.state().beat >= 1, { timeout: 8000 });
+    await p.evaluate(() => {
+      const k = document.querySelector('#keyboard .key[data-note="62"]');
+      k.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 7 }));
+      k.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 7 }));
+    });
+    st = await ps();
+    check("play: on-screen tap advances", st.step === 2, "step=" + st.step);
+    await p.select("#play-rung", "full");
+    await p.waitForFunction(() => window.__pfTest.play.state().rung === "full", { timeout: 8000 });
+    st = await ps();
+    check("play: both-hands rung waits for the whole chord", JSON.stringify(st.stepNotes[0]) === "[48,52,55,64]" && !st.playing,
+      JSON.stringify(st.stepNotes[0]));
+    for (const [w, h] of [[915, 412], [412, 915]]) {
+      await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      await new Promise((r) => setTimeout(r, 300));
+      const lay = await p.evaluate(() => {
+        const hw = document.getElementById("highway").getBoundingClientRect();
+        const kb = document.getElementById("kb-scroll").getBoundingClientRect();
+        return { hwH: Math.round(hw.height), kbH: Math.round(kb.height), above: hw.bottom <= kb.top + 1,
+          fits: document.documentElement.scrollWidth <= innerWidth && kb.bottom <= innerHeight + 1 };
+      });
+      check("play: highway above the keys and fits at " + w + "x" + h, lay.hwH >= 50 && lay.kbH >= 60 && lay.above && lay.fits, JSON.stringify(lay));
+    }
+    await p.click("#mode-keyboard");
+    const back = await p.evaluate(() => getComputedStyle(document.querySelector(".lower")).display !== "none" &&
+      getComputedStyle(document.getElementById("highway")).display === "none");
+    check("play: Keyboard switch restores the checker", back);
+    await p.close();
+  }
+
+  // Songs catalog (files only).
   runSongsChecks(check, import.meta.url);
 
   check("no page JS errors", jsErrors.length === 0, jsErrors.join(" | "));
