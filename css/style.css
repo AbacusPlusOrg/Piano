@@ -1208,7 +1208,7 @@ body.mode-play .key.black {
   background: linear-gradient(180deg, #1c1814 0%, #2e2822 12%, #3a332c 78%, #4a4239 86%, #16120f 88%, #0b0907 100%);
   box-shadow: 0 3px 0 #000, 0 6px 9px rgba(0, 0, 0, 0.5);
 }
-/* Tilted keys (KEY_TILT_DEG > 0): front faces under the white keys, raised black keys. */
+/* Tilted keys (Play tilt > 0): front faces under the white keys, raised black keys. */
 body.mode-play .kb-scroll:has(.kb-tilt) { padding-bottom: 10px; }
 body.mode-play .kb-tilt .key.white {
   box-shadow: inset 0 8px 8px -6px rgba(0, 0, 0, 0.4), 0 6px 0 #c4b49a, 0 7px 0 #8e7e67, 0 12px 14px rgba(0, 0, 0, 0.45);

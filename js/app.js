@@ -497,6 +497,17 @@
     return out;
   }
 
+  // Play key tilt (degrees) that fits keys filling availW into budgetH on screen.
+  // Keys sized to fill the width at the front edge show ratio * availW / count * cos(tilt)
+  // tall (the perspective widening cancels out), so solve for the tilt, up to the max.
+  function playKeyTilt(availW, whiteCount, budgetH) {
+    var full = PLAY_KEY_RATIO * availW / Math.max(1, whiteCount);
+    if (!(full > budgetH)) return 0;
+    var deg = Math.ceil(Math.acos(Math.max(0, budgetH) / full) * 1800 / Math.PI) / 10;
+    return Math.min(PLAY_TILT_MAX_DEG, deg);
+  }
+  var playTiltDeg = 0;
+
   function buildKeyboard() {
     var kb = els.keyboard;
     var whites = whiteNotesInRange();
@@ -531,13 +542,17 @@
     } else {
       maxH = Math.max(110, Math.round(window.innerHeight * 0.45));
     }
-    // Tilted keys: the top edge (at the hit line) stays put and the front edge
-    // comes toward the player, about tiltK wider, so size the top to fit.
-    var tilt = playMode && KEY_TILT_DEG > 0;
-    var tiltK = tilt ? 4 / (4 - Math.sin(KEY_TILT_DEG * Math.PI / 180)) : 1;
+    // Play: tilt the keys just enough to fill the width within the height cap.
+    // The top edge (at the hit line) stays put and the front edge comes toward
+    // the player, about tiltK wider, so size the top to fit.
+    var tiltDeg = playMode ? playKeyTilt(scrollW - inset * 2, whiteCount, maxH) : 0;
+    playTiltDeg = tiltDeg;
+    var tilt = tiltDeg > 0;
+    var tiltK = tilt ? 4 / (4 - Math.sin(tiltDeg * Math.PI / 180)) : 1;
     var whiteW = Math.max(minWhite, (scrollW - inset * 2) / tiltK / whiteCount);
-    // The cap applies to the height on screen, which the tilt stretches slightly.
-    if (tilt) maxH = maxH / (Math.cos(KEY_TILT_DEG * Math.PI / 180) * tiltK);
+    // The cap applies to the height on screen; past the max tilt the keyboard
+    // shrinks and centers.
+    if (tilt) maxH = maxH / (Math.cos(tiltDeg * Math.PI / 180) * tiltK);
     var height = whiteW * KEY_RATIO;
     if (height > maxH) {
       // Too tall for the space: shrink the whole keyboard, keeping proportion.
@@ -552,7 +567,10 @@
     kb.style.margin = "0 auto";
     kb.classList.toggle("kb-tilt", tilt);
     kb.style.transformOrigin = tilt ? "50% 0" : "";
-    kb.style.transform = tilt ? "perspective(" + Math.round(height * 4) + "px) rotateX(" + KEY_TILT_DEG + "deg)" : "";
+    kb.style.transform = tilt ? "perspective(" + Math.round(height * 4) + "px) rotateX(" + tiltDeg + "deg)" : "";
+    // A transform does not change layout, so give back the height the tilt hides.
+    var hidden = tilt ? Math.round(height) * (1 - Math.cos(tiltDeg * Math.PI / 180) * tiltK) : 0;
+    kb.style.marginBottom = hidden > 0 ? -hidden.toFixed(1) + "px" : "";
     kb.style.setProperty("--black-len", (blackLen * 100).toFixed(2) + "%");
     // Corner rounding scales with key width (a real key is only slightly rounded).
     kb.style.setProperty("--wr", Math.min(4, Math.max(1, whiteW * 0.08)).toFixed(1) + "px");
@@ -2182,7 +2200,7 @@
   var PLAY_KEY_CAP_PORT = 0.33; // key height cap, share of viewport height
   var PLAY_KEY_CAP_LAND = 0.40;
   var FAR_SCALE = 1;         // highway far end width / near end width (1 = straight lanes)
-  var KEY_TILT_DEG = 24;     // Play keys tilted away from the player
+  var PLAY_TILT_MAX_DEG = 60; // most the Play keys tilt away to fit more on screen
   var LEAD_IN_BEATS = 3;     // notes fall this long before the first one reaches the keys
   var EARLY_BEATS = 0.25;    // a key pressed this close before its note still counts
   var RUNG_FILES = [["rh", "rh_midi"], ["roots", "roots_midi"], ["full", "full_midi"]];
@@ -2779,10 +2797,11 @@
           stepNotes: play.steps.map(function (s) { return s.notes; }),
           lit: Array.prototype.map.call(els.keyboard.querySelectorAll(".key.next"), function (k) { return +k.dataset.note; }),
           rangeLow: play.rangeLow, rangeHigh: play.rangeHigh,
-          farScale: FAR_SCALE, tilt: KEY_TILT_DEG,
+          farScale: FAR_SCALE, tilt: playTiltDeg,
           sheetOpen: !!(pe.sheet && !pe.sheet.hidden) };
       },
       parse: function (buf) { return parseMidi(buf); },
+      tiltFor: function (w, n, h) { return playKeyTilt(w, n, h); },
       drawMs: function (n) {
         n = n || 60;
         var t = performance.now();

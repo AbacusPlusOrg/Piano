@@ -2798,6 +2798,7 @@ try {
             noteBottom: row < 0 ? null : +(hr.top + (row + 1) / dpr).toFixed(1),
             keysTop: +scr.top.toFixed(1),
             next: st.next, offsets: offsets.map((o) => +o.toFixed(1)),
+            tilt: st.tilt, tiltClass: kbEl.classList.contains("kb-tilt"),
             scrolls: se.scrollHeight > innerHeight || se.scrollWidth > innerWidth || window.scrollY !== 0,
             drawMs: +window.__pfTest.play.drawMs(30).toFixed(3)
           };
@@ -2807,6 +2808,8 @@ try {
           g.ratio >= 4.3 && g.ratio <= 4.7 && (g.blackLen == null || (g.blackLen >= 0.6 && g.blackLen <= 0.65))
             && g.keyShare <= g.cap + 0.003 && g.hwShare >= 0.5 && !g.scrolls && g.centered
             && (capped || g.kbW >= g.fillW - 1)
+            && g.tilt >= 0 && g.tilt <= 60 && g.tiltClass === (g.tilt > 0)
+            && (g.tilt >= 60 || g.kbW >= g.fillW - 1)
             && g.noteBottom != null && Math.abs(g.keysTop - g.noteBottom) <= 3
             && g.next.length > 0 && g.offsets.every((o) => o <= 3)
             && g.drawMs < 4,
@@ -2823,8 +2826,26 @@ try {
     await p.waitForFunction(() => window.__pfTest.play.state().rung === "rh", { timeout: 8000 });
     const fixedStyle = await p.evaluate(() => ({ far: window.__pfTest.play.state().farScale, tilt: window.__pfTest.play.state().tilt,
       toggle: !!document.getElementById("play-style"), tiltClass: document.getElementById("keyboard").classList.contains("kb-tilt") }));
-    check("play: straight lanes and tilted keys, with no style toggle in the menu",
-      fixedStyle.far === 1 && fixedStyle.tilt === 24 && fixedStyle.toggle === false && fixedStyle.tiltClass === true, JSON.stringify(fixedStyle));
+    check("play: straight lanes and keys tilted only as needed, with no style toggle in the menu",
+      fixedStyle.far === 1 && fixedStyle.tilt >= 0 && fixedStyle.tilt <= 60 && fixedStyle.tiltClass === (fixedStyle.tilt > 0)
+        && fixedStyle.toggle === false, JSON.stringify(fixedStyle));
+    const tiltUnit = await p.evaluate(() => {
+      const f = window.__pfTest.play.tiltFor;
+      const onScreen = (w, n, d) => 4.5 * w / n * Math.cos(d * Math.PI / 180);
+      const fit = f(720, 13, 144);
+      return {
+        flatWhenFits: f(374, 9, 278), fit, fitH: +onScreen(720, 13, fit).toFixed(2),
+        fewer: f(720, 9, 200), more: f(720, 13, 200),
+        portrait: f(374, 13, 278), landscape: f(720, 13, 144),
+        clamp: f(720, 9, 144), clampTiny: f(720, 9, 1)
+      };
+    });
+    check("play: key tilt fits the height budget, grows with fewer keys and in landscape, and clamps at 60°",
+      tiltUnit.flatWhenFits === 0 && tiltUnit.fit > 0 && tiltUnit.fit < 60
+        && tiltUnit.fitH <= 144 && tiltUnit.fitH >= 143
+        && tiltUnit.fewer > tiltUnit.more && tiltUnit.landscape > tiltUnit.portrait
+        && tiltUnit.clamp === 60 && tiltUnit.clampTiny === 60,
+      JSON.stringify(tiltUnit));
     for (const [name, w, h] of [["390x844", 390, 844], ["740x360", 740, 360]]) {
       await pauseToSheet();
       await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -2852,14 +2873,15 @@ try {
           noteBottom: row < 0 ? null : +(hr.top + (row + 1) / dpr).toFixed(1),
           keyTopEdge: +kbr.top.toFixed(1),
           dx: xs.length ? +(hr.left + (xs[0] + xs[xs.length - 1]) / 2 / dpr - topCx).toFixed(1) : null,
+          tilt: st.tilt,
           frontWider: kbr.width > kb.offsetWidth + 4,
           keysInside: Math.max(...whites.map((r) => r.bottom)) <= sc.getBoundingClientRect().bottom - 4,
           scrolls: se.scrollHeight > innerHeight || window.scrollY !== 0
         };
       });
-      check("play: tilted keys at " + name + ": the waiting note lands on the key's top edge",
+      check("play: keys at " + name + " (tilt " + tg.tilt + "°): the waiting note lands on the key's top edge",
         tg.noteBottom != null && Math.abs(tg.noteBottom - tg.keyTopEdge) <= 3 && tg.dx != null && Math.abs(tg.dx) <= 3
-          && tg.frontWider && tg.keysInside && !tg.scrolls,
+          && tg.frontWider === (tg.tilt > 0) && tg.keysInside && !tg.scrolls,
         JSON.stringify(tg));
     }
     await pauseToSheet();
