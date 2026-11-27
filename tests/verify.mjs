@@ -914,7 +914,6 @@ try {
     const p = await browser.newPage();
     p.on("pageerror", (err) => jsErrors.push(String(err)));
     await p.evaluateOnNewDocument(() => {
-      delete Navigator.prototype.requestMIDIAccess; // Android WebView has no Web MIDI
       window.AplusNative = { inputs: () => JSON.stringify([{ id: 7, name: "Garagekey Mini" }]) };
     });
     await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 15000 });

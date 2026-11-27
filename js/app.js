@@ -176,7 +176,7 @@
 
   // In the A+Piano Android app, native MIDI arrives through window.AplusNative.
   // Present it as a minimal MIDIAccess so the browser code below runs unchanged.
-  if (window.AplusNative && !navigator.requestMIDIAccess) {
+  if (window.AplusNative) {
     var nativeAccess = { inputs: new Map(), onstatechange: null };
     // devices: [{id, name}] of every open keyboard; fires statechange per change.
     window.aplusMidiDevices = function (devices) {
