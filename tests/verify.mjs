@@ -2672,6 +2672,27 @@ try {
           && openFit.wrapTop <= openFit.padTop + 1
           && openFit.wrapBottom >= openFit.innerHeight - openFit.padBottom - 1,
         JSON.stringify(openFit));
+      if (name === "390x844" || name === "740x360") {
+        const tempoEdge = await p.evaluate(() => {
+          const t = document.getElementById("play-tempo"), out = document.getElementById("play-tempo-out");
+          const ref = document.getElementById("play-song").getBoundingClientRect();
+          const orig = t.value, rows = [];
+          for (const v of [50, 100, 150]) {
+            t.value = v; t.dispatchEvent(new Event("input"));
+            const o = out.getBoundingClientRect(), s = t.getBoundingClientRect();
+            const range = document.createRange(); range.selectNodeContents(out);
+            const txt = range.getBoundingClientRect();
+            rows.push({ v, text: out.textContent.trim(), outL: o.left, outR: o.right, txtR: txt.right, sliderL: s.left, sliderR: s.right });
+          }
+          t.value = orig; t.dispatchEvent(new Event("input"));
+          return { refR: ref.right, rows };
+        });
+        const r0 = tempoEdge.rows[0];
+        check("play: tempo readout's right edge matches the sheet rows and its width is fixed for 50%–150% at " + name,
+          tempoEdge.rows.every((r) => Math.abs(r.outR - tempoEdge.refR) <= 1 && r.txtR <= r.outR + 0.5
+            && r.outL === r0.outL && r.sliderL === r0.sliderL && r.sliderR === r0.sliderR && r.text === r.v + "%"),
+          JSON.stringify(tempoEdge));
+      }
       await p.click("#play-toggle");
       await p.waitForFunction(() => {
         const st = window.__pfTest.play.state();
