@@ -2747,6 +2747,7 @@
     fitLandscapeKeys();
     rebuildKeyboard();
     if (on) { loadSongIndex(); setPlaySheet(true); }
+    else fitSlots();
     drawHighway();
   }
 
@@ -3038,7 +3039,8 @@
     ];
     slots.forEach(function (s) {
       var el = document.getElementById(s[0]);
-      if (!el) return;
+      // Hidden (e.g. the page opened in Play): measuring would give 0, so keep the CSS size until shown.
+      if (!el || !el.getClientRects().length) return;
       var prop = s[2] || "minWidth", keep = el.textContent;
       el.style.width = ""; el.style.minWidth = "";
       // Inline spans ignore widths, so they become inline-blocks for good.
