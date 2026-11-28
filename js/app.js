@@ -3010,7 +3010,8 @@
     }
     measureSlots();
     // On narrow screens, shrink the big note name until the Now card fits.
-    var card = document.querySelector(".now-card");
+    // Measure the name + MIDI row itself: the card's padding hides an overflow of the row.
+    var card = document.querySelector(".now-card .now-grid");
     if (!card || !nameEl) return;
     var size = parseFloat(getComputedStyle(nameEl).fontSize), floor = size * 0.5;
     while (card.scrollWidth > card.clientWidth + 1 && size > floor) {
